@@ -4,10 +4,16 @@ import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,7 +62,33 @@ fun GamePad(
 
     val isStopping = remember { mutableStateOf(false) }
 
-    DrawGamepad(screenWidth, screenHeight, gamepadState, buttonConfigs)
+    var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
+    DrawGamepad(
+        screenWidth, screenHeight, gamepadState, buttonConfigs,
+        onBack = { showLeaveConfirm = true }
+    )
+    if (showLeaveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLeaveConfirm = false },
+            title = { Text(stringResource(R.string.leave_gamepad_title)) },
+            text = { Text(stringResource(R.string.leave_gamepad_message)) },
+            confirmButton = {
+                Button(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = {
+                        showLeaveConfirm = false
+                        onNavigateBack()
+                    }
+                ) { Text(stringResource(R.string.leave_gamepad_confirm)) }
+            },
+            dismissButton = {
+                TextButton(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = { showLeaveConfirm = false }
+                ) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
 
     val activity = LocalContext.current.findActivity()
     // disconnect on back press

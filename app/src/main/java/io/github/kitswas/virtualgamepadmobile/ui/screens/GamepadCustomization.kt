@@ -81,6 +81,7 @@ import io.github.kitswas.virtualgamepadmobile.ui.composables.ButtonConfigEditor
 import io.github.kitswas.virtualgamepadmobile.ui.composables.DrawGamepad
 import io.github.kitswas.virtualgamepadmobile.ui.composables.ResponsiveGrid
 import kotlinx.coroutines.runBlocking
+import io.github.kitswas.virtualgamepadmobile.data.parseLenientButtonConfigs
 import kotlinx.serialization.json.Json
 
 private const val logTag = "GamepadCustomization"
@@ -724,8 +725,7 @@ fun ImportConfigDialog(
                 enabled = importedJsonText.isNotBlank(),
                 onClick = {
                     try {
-                        val configs: Map<ButtonComponent, ButtonConfig> =
-                            Json.decodeFromString(importedJsonText)
+                        val configs = parseLenientButtonConfigs(importedJsonText)
                         val sanitizedConfigs = sanitizeButtonConfigs(configs)
                         hasError = false
                         Log.i(logTag, "Imported and sanitized button configs: $sanitizedConfigs")

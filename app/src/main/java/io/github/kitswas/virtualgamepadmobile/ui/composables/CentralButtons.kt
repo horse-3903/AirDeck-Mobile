@@ -128,6 +128,37 @@ fun ShoulderButton(
 }
 
 @Composable
+fun BackButton(
+    modifier: Modifier = Modifier,
+    size: Dp,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    Button(
+        shape = RoundedCornerShape(percent = 50),
+        modifier = modifier
+            .heightIn(min = size)
+            .widthIn(min = size * 1.6f),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
+            contentColor = PsStyle.Glyph
+        ),
+        border = BorderStroke(1.5.dp, if (isPressed) PsStyle.BorderPressed else PsStyle.Border),
+        onClick = onClick,
+        interactionSource = interactionSource,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_back),
+            contentDescription = stringResource(R.string.back_button_label),
+            modifier = Modifier.size(size / 2),
+            tint = PsStyle.Glyph
+        )
+    }
+}
+
+@Composable
 fun MenuButton(
     type: MenuButtonType,
     modifier: Modifier = Modifier,
@@ -203,6 +234,7 @@ fun CentralButtons(
     onComponentTap: ((ButtonComponent) -> Unit)? = null,
     onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
     selectedComponent: ButtonComponent? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     // Helper function to get config for a component
     fun getConfig(component: ButtonComponent) =
@@ -267,6 +299,15 @@ fun CentralButtons(
             modifier = mod,
             size = (baseDp / 8 * config.scale).dp,
             gamepadState = gamepadState,
+        )
+    }
+
+    // Back button (leaves the gamepad, never sent to the PC)
+    RenderButton(ButtonComponent.BACK_BUTTON) { config, mod ->
+        BackButton(
+            modifier = mod,
+            size = (baseDp / 8 * config.scale).dp,
+            onClick = { onBack?.invoke() },
         )
     }
 }

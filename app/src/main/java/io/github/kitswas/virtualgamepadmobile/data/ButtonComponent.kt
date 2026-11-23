@@ -64,7 +64,8 @@ enum class ButtonComponent(
         ButtonAnchor.TOP_CENTER
     ),
     SELECT_BUTTON(R.string.component_select, "Select (View)", ButtonAnchor.TOP_CENTER),
-    START_BUTTON(R.string.component_start, "Start (Menu)", ButtonAnchor.TOP_CENTER);
+    START_BUTTON(R.string.component_start, "Start (Menu)", ButtonAnchor.TOP_CENTER),
+    BACK_BUTTON(R.string.component_back, "Back", ButtonAnchor.TOP_CENTER);
 
     override fun toString(): String = displayName
 }

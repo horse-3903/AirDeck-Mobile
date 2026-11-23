@@ -228,4 +228,13 @@
     <string name="presets_delete_message">"%1$s" will be removed. This can\'t be undone.</string>
     <string name="presets_load_title">Load preset?</string>
     <string name="presets_load_message">Loading "%1$s" replaces the layout you are editing.</string>
+    <string name="component_back">Back</string>
+    <string name="back_button_label">Back</string>
+    <string name="leave_gamepad_title">Leave the gamepad?</string>
+    <string name="leave_gamepad_message">This disconnects from the PC.</string>
+    <string name="leave_gamepad_confirm">Disconnect</string>
+    <string name="qr_scan_title">Find a QR code</string>
+    <string name="qr_scan_torch">Flashlight</string>
+    <string name="qr_scan_gallery">Choose from gallery</string>
+    <string name="qr_scan_gallery_none">No QR code found in that image</string>
 </resources>

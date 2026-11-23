@@ -40,6 +40,7 @@ fun DrawGamepad(
     onComponentTap: ((ButtonComponent) -> Unit)? = null,
     onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
     selectedComponent: ButtonComponent? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     // Assuming Landscape orientation
     val baseDp = heightDp
@@ -148,6 +149,7 @@ fun DrawGamepad(
                 onComponentTap = onComponentTap,
                 onComponentDrag = onComponentDrag,
                 selectedComponent = selectedComponent,
+                onBack = onBack,
             )
         }
     }

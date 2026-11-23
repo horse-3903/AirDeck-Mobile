@@ -18,7 +18,7 @@ compose-bom = "2026.03.01"
 compose-navigation = "2.9.7"
 
 # QR Code Scanner
-zxing-android-embedded = "4.3.0"
+camerax = "1.4.2"
 zxing-core = "3.5.4"
 
 # Testing
@@ -55,7 +55,10 @@ navigation-testing = { group = "androidx.navigation", name = "navigation-testing
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "compose-navigation" }
 
 # QR Code Scanner
-zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing-android-embedded" }
+camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing-core" }
 
 # Material3
