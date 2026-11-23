@@ -57,6 +57,7 @@ fun AboutScreen(
     val mobileLicenseUrl = "https://github.com/kitswas/VirtualGamePad-Mobile/blob/main/LICENCE.TXT"
     val issuesUrl = "https://github.com/kitswas/VirtualGamePad-Mobile/issues/new"
     val releaseUrl = "https://github.com/kitswas/VirtualGamePad-Mobile/releases/latest"
+    val serverDownloadUrl = "https://kitswas.github.io/VirtualGamePad/#installation"
 
     fun open(url: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
@@ -119,10 +120,11 @@ fun AboutScreen(
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
                         ) {
-                            LinkButton(R.string.about_view_license, Modifier.weight(1f)) { open(mobileLicenseUrl) }
-                            LinkButton(R.string.about_latest_release, Modifier.weight(1f)) { open(releaseUrl) }
+                            LinkButton(R.string.about_view_license, Modifier.width(buttonWidth)) { open(mobileLicenseUrl) }
+                            LinkButton(R.string.about_latest_release, Modifier.width(buttonWidth)) { open(releaseUrl) }
+                            LinkButton(R.string.connect_download_server, Modifier.width(buttonWidth)) { open(serverDownloadUrl) }
                         }
                     }
                 }

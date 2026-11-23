@@ -147,7 +147,6 @@ fun ConnectMenu(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val downloadsUrl = "https://kitswas.github.io/VirtualGamePad/#installation"
 
     val qrCodeScanner = rememberQRCodeScanner { result ->
         processQRScanResult(
@@ -281,19 +280,6 @@ fun ConnectMenu(
                 enabled = isIPValid && isPortValid,
             ) {
                 Text(text = stringResource(R.string.connect_button))
-            }
-
-            OutlinedButton(
-                modifier = Modifier.offset(y = 16.dp),
-                shape = MaterialTheme.shapes.small,
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, downloadsUrl.toUri())
-                    context.startActivity(intent)
-                }) {
-                Text(
-                    text = stringResource(R.string.connect_download_server),
-                    style = MaterialTheme.typography.labelSmall
-                )
             }
         }
     }
