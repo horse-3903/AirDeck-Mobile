@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -45,13 +49,14 @@ fun ButtonConfigEditor(
     Card(
         modifier = modifier
             .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Component name and visibility toggle
             Row(
@@ -61,7 +66,10 @@ fun ButtonConfigEditor(
             ) {
                 Text(
                     text = stringResource(component.nameRes),
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -90,6 +98,9 @@ fun ButtonConfigEditor(
                 selectedItem = anchor,
                 label = stringResource(R.string.button_anchor_position),
                 isHorizontal = true,
+                buttonModifier = Modifier
+                    .width(152.dp)
+                    .height(40.dp),
                 formattedDisplay = { item ->
                     Text(text = stringResource(item.nameRes))
                 },
@@ -108,7 +119,7 @@ fun ButtonConfigEditor(
                 Text(
                     text = stringResource(R.string.button_scale_format, scale),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(2f)
+                    modifier = Modifier.width(170.dp)
                 )
                 androidx.compose.material3.Slider(
                     value = scale,
@@ -117,7 +128,7 @@ fun ButtonConfigEditor(
                         onConfigChange(config.copy(scale = scale))
                     },
                     valueRange = SCALE_VALUE_RANGE,
-                    modifier = Modifier.weight(3f)
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -130,7 +141,7 @@ fun ButtonConfigEditor(
                 Text(
                     text = stringResource(R.string.button_offset_x_format, offsetX),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(2f)
+                    modifier = Modifier.width(170.dp)
                 )
                 androidx.compose.material3.Slider(
                     value = offsetX,
@@ -139,7 +150,7 @@ fun ButtonConfigEditor(
                         onConfigChange(config.copy(offsetX = offsetX))
                     },
                     valueRange = OFFSET_VALUE_RANGE,
-                    modifier = Modifier.weight(3f)
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -152,7 +163,7 @@ fun ButtonConfigEditor(
                 Text(
                     text = stringResource(R.string.button_offset_y_format, offsetY),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(2f)
+                    modifier = Modifier.width(170.dp)
                 )
                 androidx.compose.material3.Slider(
                     value = offsetY,
@@ -161,7 +172,7 @@ fun ButtonConfigEditor(
                         onConfigChange(config.copy(offsetY = offsetY))
                     },
                     valueRange = OFFSET_VALUE_RANGE,
-                    modifier = Modifier.weight(3f)
+                    modifier = Modifier.weight(1f)
                 )
             }
         }

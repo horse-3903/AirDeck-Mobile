@@ -8,9 +8,10 @@ import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -33,7 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -167,7 +168,13 @@ fun ConnectMenu(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .padding(
+                    horizontal = maxOf(
+                        32.dp,
+                        (LocalConfiguration.current.screenWidthDp.dp - 480.dp) / 2
+                    )
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -212,7 +219,13 @@ fun ConnectMenu(
                 }
             }
 
-            Button(onClick = { qrCodeScanner() }, shape = CircleShape) {
+            Button(
+                onClick = { qrCodeScanner() },
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+            ) {
                 Text(text = stringResource(R.string.connect_scan_qr))
             }
 
@@ -233,8 +246,8 @@ fun ConnectMenu(
                         focusManager.moveFocus(FocusDirection.Down)
                     }
                 ),
-                shape = RectangleShape,
-                modifier = Modifier.padding(0.dp, 5.dp),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 isError = !isIPValid
             )
 
@@ -254,14 +267,17 @@ fun ConnectMenu(
                         attemptToConnect()
                     }
                 ),
-                shape = RectangleShape,
-                modifier = Modifier.padding(0.dp, 5.dp),
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                 isError = !isPortValid
             )
 
             Button(
                 onClick = { attemptToConnect() },
-                shape = CircleShape,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp),
                 enabled = isIPValid && isPortValid,
             ) {
                 Text(text = stringResource(R.string.connect_button))

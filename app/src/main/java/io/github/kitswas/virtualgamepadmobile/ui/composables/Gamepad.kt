@@ -1,5 +1,7 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -35,6 +37,9 @@ fun DrawGamepad(
     heightDp: Int,
     gamepadState: GamepadReading,
     buttonConfigs: Map<ButtonComponent, ButtonConfig>,
+    onComponentTap: ((ButtonComponent) -> Unit)? = null,
+    onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
+    selectedComponent: ButtonComponent? = null,
 ) {
     // Assuming Landscape orientation
     val baseDp = heightDp
@@ -47,33 +52,38 @@ fun DrawGamepad(
 
     // Helper function to render a button component
     @Composable
-    fun RenderComponent(component: ButtonComponent, content: @Composable (ButtonConfig) -> Unit) {
+    fun RenderComponent(
+        component: ButtonComponent,
+        content: @Composable (ButtonConfig, Modifier) -> Unit
+    ) {
         val config = getConfig(component)
-        if (config.visible) {
+        if (config.visible || onComponentTap != null) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = config.anchor.toAlignment()
             ) {
-                content(config)
+                EditableComponent(
+                    component, config, baseDp, onComponentTap, onComponentDrag,
+                    selected = component == selectedComponent
+                ) { mod ->
+                    content(config, mod)
+                }
             }
         }
     }
 
     // First we make a box that will contain the gamepad
     // And put padding around it so that it doesn't touch the edges of the screen
-    Surface {
+    Surface(color = MaterialTheme.colorScheme.background) {
         Box(
             modifier = Modifier
                 .padding(deadZonePadding.dp)
                 .fillMaxSize()
         ) {
             // Left Analog Stick
-            RenderComponent(ButtonComponent.LEFT_ANALOG_STICK) { config ->
+            RenderComponent(ButtonComponent.LEFT_ANALOG_STICK) { config, mod ->
                 AnalogStick(
-                    modifier = Modifier.offset(
-                        x = (config.offsetX * baseDp).dp,
-                        y = (config.offsetY * baseDp).dp
-                    ),
+                    modifier = mod,
                     outerCircleWidth = (baseDp / 8 * config.scale).dp,
                     innerCircleRadius = (baseDp / 12 * config.scale).dp,
                     gamepadState = gamepadState,
@@ -82,12 +92,9 @@ fun DrawGamepad(
             }
 
             // Right Analog Stick
-            RenderComponent(ButtonComponent.RIGHT_ANALOG_STICK) { config ->
+            RenderComponent(ButtonComponent.RIGHT_ANALOG_STICK) { config, mod ->
                 AnalogStick(
-                    modifier = Modifier.offset(
-                        x = (config.offsetX * baseDp).dp,
-                        y = (config.offsetY * baseDp).dp
-                    ),
+                    modifier = mod,
                     outerCircleWidth = (baseDp / 8 * config.scale).dp,
                     innerCircleRadius = (baseDp / 12 * config.scale).dp,
                     gamepadState = gamepadState,
@@ -96,36 +103,27 @@ fun DrawGamepad(
             }
 
             // D-Pad
-            RenderComponent(ButtonComponent.DPAD) { config ->
+            RenderComponent(ButtonComponent.DPAD) { config, mod ->
                 Dpad(
-                    modifier = Modifier.offset(
-                        x = (config.offsetX * baseDp).dp,
-                        y = (config.offsetY * baseDp).dp
-                    ),
+                    modifier = mod,
                     size = (0.45 * baseDp * config.scale).dp,
                     gamepadState = gamepadState,
                 )
             }
 
             // Face Buttons
-            RenderComponent(ButtonComponent.FACE_BUTTONS) { config ->
+            RenderComponent(ButtonComponent.FACE_BUTTONS) { config, mod ->
                 FaceButtons(
-                    modifier = Modifier.offset(
-                        x = (config.offsetX * baseDp).dp,
-                        y = (config.offsetY * baseDp).dp
-                    ),
+                    modifier = mod,
                     size = (0.45 * baseDp * config.scale).dp,
                     gamepadState = gamepadState,
                 )
             }
 
             // Left Trigger
-            RenderComponent(ButtonComponent.LEFT_TRIGGER) { config ->
+            RenderComponent(ButtonComponent.LEFT_TRIGGER) { config, mod ->
                 Trigger(
-                    modifier = Modifier.offset(
-                        x = (config.offsetX * baseDp).dp,
-                        y = (config.offsetY * baseDp).dp
-                    ),
+                    modifier = mod,
                     type = TriggerType.LEFT,
                     size = (baseDp / 6 * config.scale).dp,
                     gamepadState = gamepadState,
@@ -133,12 +131,9 @@ fun DrawGamepad(
             }
 
             // Right Trigger
-            RenderComponent(ButtonComponent.RIGHT_TRIGGER) { config ->
+            RenderComponent(ButtonComponent.RIGHT_TRIGGER) { config, mod ->
                 Trigger(
-                    modifier = Modifier.offset(
-                        x = (config.offsetX * baseDp).dp,
-                        y = (config.offsetY * baseDp).dp
-                    ),
+                    modifier = mod,
                     type = TriggerType.RIGHT,
                     size = (baseDp / 6 * config.scale).dp,
                     gamepadState = gamepadState,
@@ -150,6 +145,9 @@ fun DrawGamepad(
                 baseDp = baseDp,
                 gamepadState = gamepadState,
                 buttonConfigs = buttonConfigs,
+                onComponentTap = onComponentTap,
+                onComponentDrag = onComponentDrag,
+                selectedComponent = selectedComponent,
             )
         }
     }

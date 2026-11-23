@@ -1,5 +1,8 @@
 package io.github.kitswas.virtualgamepadmobile
 
+import io.github.kitswas.virtualgamepadmobile.ui.composables.LocalGamepadStyle
+import io.github.kitswas.virtualgamepadmobile.data.defaultGamepadStyle
+import androidx.compose.runtime.CompositionLocalProvider
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,7 +38,6 @@ import io.github.kitswas.virtualgamepadmobile.ui.screens.SettingsScreen
 import io.github.kitswas.virtualgamepadmobile.ui.theme.VirtualGamePadMobileTheme
 import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
 import kotlinx.coroutines.flow.first
-import kotlin.system.exitProcess
 
 
 class MainActivity : ComponentActivity() {
@@ -101,10 +103,15 @@ class MainActivity : ComponentActivity() {
                 initial = defaultBaseColor
             ).value
         ) {
-            NavTree(
-                connectionViewModel = connectionViewModel,
-                settingsRepository = settingsRepository,
+            val gamepadStyle by settingsRepository.gamepadStyle.collectAsState(
+                initial = defaultGamepadStyle
             )
+            CompositionLocalProvider(LocalGamepadStyle provides gamepadStyle) {
+                NavTree(
+                    connectionViewModel = connectionViewModel,
+                    settingsRepository = settingsRepository,
+                )
+            }
         }
     }
 
@@ -119,8 +126,7 @@ class MainActivity : ComponentActivity() {
                 MainMenu(
                     onNavigateToConnectScreen = { navController.navigate("connect_screen") },
                     onNavigateToSettingsScreen = { navController.navigate("settings_screen") },
-                    onNavigateToAboutScreen = { navController.navigate("about_screen") },
-                    onExit = { exitProcess(0) }
+                    onNavigateToAboutScreen = { navController.navigate("about_screen") }
                 )
             }
             composable("connect_screen") {

@@ -1,5 +1,11 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
+import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -98,14 +104,26 @@ fun ShoulderButton(
     }
 
     Button(
+        shape = RoundedCornerShape(percent = 50),
         modifier = modifier
             .heightIn(min = size)
             .widthIn(min = size * 1.5f),
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
+            contentColor = PsStyle.Glyph
+        ),
+        border = BorderStroke(1.5.dp, if (isPressed) PsStyle.BorderPressed else PsStyle.Border),
         onClick = { },
         interactionSource = interactionSource,
     ) {
-        Text(text)
+        Text(
+            text = when (LocalGamepadStyle.current) {
+                GamepadStyle.XBOX -> if (type == ShoulderButtonType.LEFT) "LB" else "RB"
+                GamepadStyle.PLAYSTATION -> if (type == ShoulderButtonType.LEFT) "L1" else "R1"
+            },
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+        )
     }
 }
 
@@ -148,7 +166,10 @@ fun MenuButton(
 
     OutlinedIconButton(
         modifier = modifier.size(size),
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+        colors = IconButtonDefaults.outlinedIconButtonColors(
+            containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
+        ),
+        border = BorderStroke(1.5.dp, if (isPressed) PsStyle.BorderPressed else PsStyle.Border),
         onClick = { },
         interactionSource = interactionSource,
     ) {
@@ -157,14 +178,14 @@ fun MenuButton(
                 painter = iconPainter,
                 contentDescription = stringResource(R.string.content_desc_button, gameButton.name),
                 modifier = Modifier.size(size / 2),
-                tint = MaterialTheme.colorScheme.primary
+                tint = PsStyle.Glyph
             )
         } else {
             Icon(
                 imageVector = ImageVector.vectorResource(R.drawable.screenicon),
                 contentDescription = stringResource(R.string.content_desc_button, gameButton.name),
                 modifier = Modifier.size(size / 2),
-                tint = MaterialTheme.colorScheme.primary
+                tint = PsStyle.Glyph
             )
         }
     }
@@ -179,6 +200,9 @@ fun CentralButtons(
     baseDp: Int,
     gamepadState: GamepadReading,
     buttonConfigs: Map<ButtonComponent, ButtonConfig>,
+    onComponentTap: ((ButtonComponent) -> Unit)? = null,
+    onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
+    selectedComponent: ButtonComponent? = null,
 ) {
     // Helper function to get config for a component
     fun getConfig(component: ButtonComponent) =
@@ -186,65 +210,61 @@ fun CentralButtons(
 
     // Helper function to render a button component with its anchor
     @Composable
-    fun RenderButton(component: ButtonComponent, content: @Composable (ButtonConfig) -> Unit) {
+    fun RenderButton(
+        component: ButtonComponent,
+        content: @Composable (ButtonConfig, Modifier) -> Unit
+    ) {
         val config = getConfig(component)
-        if (config.visible) {
+        if (config.visible || onComponentTap != null) {
             Box(
                 modifier = modifier.fillMaxSize(),
                 contentAlignment = config.anchor.toAlignment()
             ) {
-                content(config)
+                EditableComponent(
+                    component, config, baseDp, onComponentTap, onComponentDrag,
+                    selected = component == selectedComponent
+                ) { mod ->
+                    content(config, mod)
+                }
             }
         }
     }
 
     // Left Shoulder button
-    RenderButton(ButtonComponent.LEFT_SHOULDER) { config ->
+    RenderButton(ButtonComponent.LEFT_SHOULDER) { config, mod ->
         ShoulderButton(
             type = ShoulderButtonType.LEFT,
-            modifier = Modifier.offset(
-                x = (config.offsetX * baseDp).dp,
-                y = (config.offsetY * baseDp).dp
-            ),
+            modifier = mod,
             size = (baseDp / 8 * config.scale).dp,
             gamepadState = gamepadState,
         )
     }
 
     // Right Shoulder button
-    RenderButton(ButtonComponent.RIGHT_SHOULDER) { config ->
+    RenderButton(ButtonComponent.RIGHT_SHOULDER) { config, mod ->
         ShoulderButton(
             type = ShoulderButtonType.RIGHT,
-            modifier = Modifier.offset(
-                x = (config.offsetX * baseDp).dp,
-                y = (config.offsetY * baseDp).dp
-            ),
+            modifier = mod,
             size = (baseDp / 8 * config.scale).dp,
             gamepadState = gamepadState,
         )
     }
 
     // Select button (View)
-    RenderButton(ButtonComponent.SELECT_BUTTON) { config ->
+    RenderButton(ButtonComponent.SELECT_BUTTON) { config, mod ->
         MenuButton(
             type = MenuButtonType.VIEW,
-            modifier = Modifier.offset(
-                x = (config.offsetX * baseDp).dp,
-                y = (config.offsetY * baseDp).dp
-            ),
+            modifier = mod,
             size = (baseDp / 8 * config.scale).dp,
             gamepadState = gamepadState,
         )
     }
 
     // Start button (Menu)
-    RenderButton(ButtonComponent.START_BUTTON) { config ->
+    RenderButton(ButtonComponent.START_BUTTON) { config, mod ->
         MenuButton(
             type = MenuButtonType.MENU,
-            modifier = Modifier.offset(
-                x = (config.offsetX * baseDp).dp,
-                y = (config.offsetY * baseDp).dp
-            ),
+            modifier = mod,
             size = (baseDp / 8 * config.scale).dp,
             gamepadState = gamepadState,
         )

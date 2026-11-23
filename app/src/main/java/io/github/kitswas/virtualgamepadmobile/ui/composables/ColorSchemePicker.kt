@@ -15,10 +15,14 @@ import io.github.kitswas.virtualgamepadmobile.data.PreviewBase
 fun ColorSchemePicker(
     selectedItem: ColorScheme,
     modifier: Modifier = Modifier,
+    showLabel: Boolean = true,
+    buttonModifier: Modifier = Modifier,
     onColorSchemeSelected: (ColorScheme) -> Unit = { _ -> }
 ) {
     ListItemPicker(
         modifier = modifier,
+        showLabel = showLabel,
+        buttonModifier = buttonModifier,
         list = ColorScheme.entries.asIterable(),
         selectedItem = selectedItem,
         label = stringResource(R.string.settings_color_scheme),

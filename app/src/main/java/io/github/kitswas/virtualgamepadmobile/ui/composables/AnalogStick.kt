@@ -130,11 +130,11 @@ private fun toggleThumbstickButton(
 @Composable
 fun AnalogStick(
     modifier: Modifier = Modifier,
-    ringColor: Color = MaterialTheme.colorScheme.outline,
-    ringWidth: Dp = 4.dp,
-    outerCircleColor: Color = darken(MaterialTheme.colorScheme.primary, 0.8f),
+    ringColor: Color = PsStyle.StickRing,
+    ringWidth: Dp = 3.dp,
+    outerCircleColor: Color = PsStyle.StickBase,
     outerCircleWidth: Dp = 4.dp,
-    innerCircleColor: Color = lighten(MaterialTheme.colorScheme.primary, 0.2f),
+    innerCircleColor: Color = PsStyle.StickCap,
     innerCircleRadius: Dp = 32.dp,
     gamepadState: GamepadReading,
     type: AnalogStickType,
@@ -142,75 +142,78 @@ fun AnalogStick(
     val density = LocalDensity.current
     val view = LocalView.current
 
+    val state = remember { AnalogStickUiState() }
+    val maxOffset = with(density) {
+        (innerCircleRadius + outerCircleWidth).toPx()
+    }
+
     Box(
         modifier = modifier.testTag("AnalogStick_${type.name}"),
         contentAlignment = Alignment.Center
     ) {
-        // First draw the glow ring
+        // Ring around the base
         Circle(
             colour = ringColor,
             modifier = Modifier
                 .size((innerCircleRadius + outerCircleWidth + ringWidth) * 2),
             contentAlignment = Alignment.Center
         ) {
-            // Then draw the outer circle
+            // Base
             Circle(
                 modifier = Modifier
                     .size((innerCircleRadius + outerCircleWidth) * 2),
                 contentAlignment = Alignment.Center,
                 colour = outerCircleColor,
-            ) {
-                val state = remember { AnalogStickUiState() }
+            ) {}
+        }
 
-                // Calculate maximum offset once
-                val maxOffset = with(density) {
-                    (innerCircleRadius + outerCircleWidth).toPx()
+        // The cap is a sibling of the base so it is never clipped and can stick out past the rim
+        Circle(
+            colour = innerCircleColor,
+            modifier = Modifier
+                .testTag("AnalogStick_${type.name}_Handle")
+                .size(innerCircleRadius * 2)
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { _ ->
+                            HapticUtils.performGestureStartFeedback(view)
+                        },
+                        onDragEnd = {
+                            resetAnalogStick(state, type, gamepadState)
+                            HapticUtils.performGestureEndFeedback(view)
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            handleAnalogDrag(
+                                state = state,
+                                dragX = dragAmount.x,
+                                dragY = dragAmount.y,
+                                maxOffset = maxOffset,
+                                type = type,
+                                gamepadState = gamepadState,
+                                view = view,
+                            )
+                        }
+                    )
                 }
-
-                // Then draw the inner circle
-                Circle(
-                    colour = innerCircleColor,
-                    modifier = Modifier
-                        .testTag("AnalogStick_${type.name}_Handle")
-                        .size(innerCircleRadius * 2)
-                        .offset {
-                            IntOffset(
-                                state.visualX.roundToInt(),
-                                state.visualY.roundToInt()
-                            )
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = { _ ->
+                            toggleThumbstickButton(state, type, gamepadState, view)
                         }
-                        .pointerInput(Unit) {
-                            detectDragGestures(
-                                onDragStart = { _ ->
-                                    HapticUtils.performGestureStartFeedback(view)
-                                },
-                                onDragEnd = {
-                                    resetAnalogStick(state, type, gamepadState)
-                                    HapticUtils.performGestureEndFeedback(view)
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    handleAnalogDrag(
-                                        state = state,
-                                        dragX = dragAmount.x,
-                                        dragY = dragAmount.y,
-                                        maxOffset = maxOffset,
-                                        type = type,
-                                        gamepadState = gamepadState,
-                                        view = view,
-                                    )
-                                }
-                            )
-                        }
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = { _ ->
-                                    toggleThumbstickButton(state, type, gamepadState, view)
-                                }
-                            )
-                        }
-                ) {}
-            }
+                    )
+                }
+                .offset {
+                    IntOffset(
+                        state.visualX.roundToInt(),
+                        state.visualY.roundToInt()
+                    )
+                }
+        ) {
+            Circle(
+                colour = PsStyle.StickCapInner,
+                modifier = Modifier.size(innerCircleRadius * 1.1f)
+            ) {}
         }
     }
 }

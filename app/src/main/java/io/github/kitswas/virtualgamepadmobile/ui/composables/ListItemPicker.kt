@@ -1,7 +1,15 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
@@ -39,6 +47,8 @@ fun <T> ListItemPicker(
     selectedItem: T,
     label: String,
     isHorizontal: Boolean = false,
+    showLabel: Boolean = true,
+    buttonModifier: Modifier = Modifier,
     formattedDisplay: @Composable (T) -> Unit = { item ->
         Text(
             item.toString(), modifier = Modifier.width(IntrinsicSize.Max)
@@ -54,18 +64,33 @@ fun <T> ListItemPicker(
     }
 
     val buttonContent = @Composable {
-        OutlinedButton(onClick = { expanded = true }) {
-            Row {
-                formattedDisplay(selectedItem)
-
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_drop_down),
-                    contentDescription = stringResource(R.string.content_desc_expand)
-                )
+        val density = LocalDensity.current
+        var buttonWidth by remember { mutableStateOf(0.dp) }
+        Box {
+            OutlinedButton(
+                shape = MaterialTheme.shapes.small,
+                modifier = buttonModifier.onSizeChanged {
+                    buttonWidth = with(density) { it.width.toDp() }
+                },
+                onClick = { expanded = true }
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(modifier = Modifier.align(Alignment.Center)) {
+                        formattedDisplay(selectedItem)
+                    }
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_drop_down),
+                        contentDescription = stringResource(R.string.content_desc_expand),
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .offset(x = 14.dp)
+                    )
+                }
             }
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
+                modifier = Modifier.widthIn(min = buttonWidth)
             ) {
                 list.forEach { item ->
                     DropdownMenuItem(text = { formattedDisplay(item) }, onClick = {
@@ -92,7 +117,7 @@ fun <T> ListItemPicker(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            labelContent()
+            if (showLabel) labelContent()
             buttonContent()
         }
     }

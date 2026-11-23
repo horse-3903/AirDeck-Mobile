@@ -12,47 +12,47 @@ import io.github.kitswas.virtualgamepadmobile.R
 // Set of Material typography styles to start with
 val Typography = Typography(
     bodyLarge = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.oxanium)),
-        fontWeight = FontWeight.Normal,
-        fontSize = 20.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.oxanium)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp
     ),
+    bodyMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp
+    ),
     bodySmall = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.oxanium)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.astro_space)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 20.sp
+        fontSize = 15.sp
     ),
     labelMedium = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.astro_space)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp
+        fontSize = 13.sp
     ),
     labelSmall = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.astro_space)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.android_insomnia)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 32.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.android_insomnia)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 28.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.android_insomnia)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 24.sp
     ),
@@ -66,7 +66,7 @@ fun faceButtonTextStyle(size: Dp): TextStyle {
         else -> (size.value * 0.4).sp
     }
     return TextStyle(
-        fontFamily = FontFamily(androidx.compose.ui.text.font.Font(R.font.astro_space)),
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
         fontSize = fontSize
     )

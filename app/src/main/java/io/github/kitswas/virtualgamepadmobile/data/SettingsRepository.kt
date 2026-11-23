@@ -25,6 +25,10 @@ class SettingsRepository(context: Context) {
         ColorScheme.fromInt(preferences[COLOR_SCHEME] ?: defaultColorScheme.ordinal)
     }
 
+    val gamepadStyle: Flow<GamepadStyle> = dataStore.data.map { preferences ->
+        GamepadStyle.fromInt(preferences[GAMEPAD_STYLE] ?: defaultGamepadStyle.ordinal)
+    }
+
     val pollingDelay: Flow<Int> = dataStore.data.map { preferences ->
         preferences[POLLING_DELAY] ?: defaultPollingDelay
     }
@@ -46,6 +50,9 @@ class SettingsRepository(context: Context) {
                 defaultButtonConfigs
             }
         }
+
+    val presets: Flow<Map<String, Map<ButtonComponent, ButtonConfig>>> =
+        dataStore.data.map { preferences -> decodePresets(preferences[PRESETS]) }
 
     val lastConnectionIpAddress: Flow<String> = dataStore.data.map { preferences ->
         preferences[LAST_CONNECTION_IP_ADDRESS] ?: ""
@@ -72,6 +79,12 @@ class SettingsRepository(context: Context) {
     suspend fun setColorScheme(colorScheme: ColorScheme) {
         dataStore.edit { preferences ->
             preferences[COLOR_SCHEME] = colorScheme.ordinal
+        }
+    }
+
+    suspend fun setGamepadStyle(style: GamepadStyle) {
+        dataStore.edit { preferences ->
+            preferences[GAMEPAD_STYLE] = style.ordinal
         }
     }
 
@@ -111,6 +124,20 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun savePreset(name: String, configs: Map<ButtonComponent, ButtonConfig>) {
+        dataStore.edit { preferences ->
+            val updated = decodePresets(preferences[PRESETS]) + (name to configs)
+            preferences[PRESETS] = Json.encodeToString(updated)
+        }
+    }
+
+    suspend fun deletePreset(name: String) {
+        dataStore.edit { preferences ->
+            val updated = decodePresets(preferences[PRESETS]) - name
+            preferences[PRESETS] = Json.encodeToString(updated)
+        }
+    }
+
     suspend fun setLastConnectionCredentials(ipAddress: String, port: String) {
         dataStore.edit { preferences ->
             preferences[LAST_CONNECTION_IP_ADDRESS] = ipAddress
@@ -132,16 +159,31 @@ class SettingsRepository(context: Context) {
 
     suspend fun resetAllSettings() {
         dataStore.edit { preferences ->
+            val presetsJson = preferences[PRESETS]
             preferences.clear()
+            if (presetsJson != null) {
+                preferences[PRESETS] = presetsJson
+            }
+        }
+    }
+
+    private fun decodePresets(json: String?): Map<String, Map<ButtonComponent, ButtonConfig>> {
+        if (json == null) return emptyMap()
+        return try {
+            Json.decodeFromString(json)
+        } catch (e: Exception) {
+            emptyMap()
         }
     }
 
     companion object {
         private val COLOR_SCHEME = intPreferencesKey("color_scheme")
         private val BASE_COLOR = intPreferencesKey("base_color")
+        private val GAMEPAD_STYLE = intPreferencesKey("gamepad_style")
         private val POLLING_DELAY = intPreferencesKey("polling_delay")
         private val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
         private val BUTTON_CONFIGS = stringPreferencesKey("button_configs")
+        private val PRESETS = stringPreferencesKey("button_presets")
         private val LAST_CONNECTION_IP_ADDRESS = stringPreferencesKey("last_connection_ip_address")
         private val LAST_CONNECTION_PORT = stringPreferencesKey("last_connection_port")
         private val SAVE_CONNECTION_CREDENTIALS =

@@ -1,6 +1,11 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -71,74 +76,73 @@ fun <T : Number> SpinBox(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
+        if (label.isNotEmpty()) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp, MaterialTheme.colorScheme.outline
+            ),
+            color = androidx.compose.ui.graphics.Color.Transparent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
         ) {
-            IconButton(
-                onClick = {
-                    if (compare(currentValue, minValue) > 0) {
-                        val newValue = subtract(currentValue, step)
-                        currentValue = if (compare(newValue, minValue) < 0) {
-                            minValue
-                        } else {
-                            newValue
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                IconButton(
+                    onClick = {
+                        if (compare(currentValue, minValue) > 0) {
+                            val newValue = subtract(currentValue, step)
+                            currentValue = if (compare(newValue, minValue) < 0) minValue else newValue
+                            onValueChange(currentValue)
                         }
-                        onValueChange(currentValue)
-                    }
-                },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_keyboard_arrow_down),
-                    contentDescription = stringResource(R.string.content_desc_decrease),
-                )
-            }
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_keyboard_arrow_down),
+                        contentDescription = stringResource(R.string.content_desc_decrease),
+                    )
+                }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp, MaterialTheme.colorScheme.outline
-                ),
-                modifier = Modifier.width(60.dp)
-            ) {
-                Text(
-                    text = formatValue(currentValue),
+                Box(
                     modifier = Modifier
-                        .padding(vertical = 8.dp, horizontal = 4.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = formatValue(currentValue),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
-            IconButton(
-                onClick = {
-                    if (compare(currentValue, maxValue) < 0) {
-                        val newValue = add(currentValue, step)
-                        currentValue = if (compare(newValue, maxValue) > 0) {
-                            maxValue
-                        } else {
-                            newValue
+                IconButton(
+                    onClick = {
+                        if (compare(currentValue, maxValue) < 0) {
+                            val newValue = add(currentValue, step)
+                            currentValue = if (compare(newValue, maxValue) > 0) maxValue else newValue
+                            onValueChange(currentValue)
                         }
-                        onValueChange(currentValue)
-                    }
-                },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_keyboard_arrow_up),
-                    contentDescription = stringResource(R.string.content_desc_increase),
-                )
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_keyboard_arrow_up),
+                        contentDescription = stringResource(R.string.content_desc_increase),
+                    )
+                }
             }
         }
     }

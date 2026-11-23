@@ -1,5 +1,7 @@
 package io.github.kitswas.virtualgamepadmobile.ui.screens
 
+import io.github.kitswas.virtualgamepadmobile.data.defaultGamepadStyle
+import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
 import android.os.Parcelable
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -7,7 +9,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -15,6 +21,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -37,14 +50,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import io.github.kitswas.virtualgamepadmobile.R
-import io.github.kitswas.virtualgamepadmobile.data.BaseColor
 import io.github.kitswas.virtualgamepadmobile.data.ColorScheme
 import io.github.kitswas.virtualgamepadmobile.data.PreviewBase
 import io.github.kitswas.virtualgamepadmobile.data.PreviewHeightDp
 import io.github.kitswas.virtualgamepadmobile.data.PreviewWidthDp
 import io.github.kitswas.virtualgamepadmobile.data.SettingsRepository
-import io.github.kitswas.virtualgamepadmobile.data.defaultBaseColor
 import io.github.kitswas.virtualgamepadmobile.data.defaultColorScheme
 import io.github.kitswas.virtualgamepadmobile.data.defaultFullScreenEnabled
 import io.github.kitswas.virtualgamepadmobile.data.defaultHapticFeedbackEnabled
@@ -62,12 +75,50 @@ private const val logTag = "SettingsScreen"
 @Parcelize
 private data class SettingsChanges(
     val colorScheme: ColorScheme? = null,
-    val baseColor: BaseColor? = null,
     val pollingDelay: Int? = null,
     val hapticFeedbackEnabled: Boolean? = null,
     val saveConnectionCredentials: Boolean? = null,
     val fullScreenEnabled: Boolean? = null
 ) : Parcelable
+
+private val CONTROL_WIDTH = 176.dp
+
+@Composable
+private fun SettingRow(
+    label: String,
+    labelExtra: @Composable () -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    showDivider: Boolean = true,
+    control: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 560.dp)
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = label, style = MaterialTheme.typography.bodyMedium)
+                labelExtra()
+            }
+            control()
+        }
+        if (showDivider) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,10 +128,11 @@ fun SettingsScreen(
     settingsRepository: SettingsRepository
 ) {
     var settingsChanges by rememberSaveable { mutableStateOf(SettingsChanges()) }
+    val applyScope = rememberCoroutineScope()
 
     Scaffold { paddingValues ->
         val colorScheme by settingsRepository.colorScheme.collectAsState(initial = defaultColorScheme)
-        val baseColor by settingsRepository.baseColor.collectAsState(initial = defaultBaseColor)
+        val gamepadStyle by settingsRepository.gamepadStyle.collectAsState(initial = defaultGamepadStyle)
         val pollingDelay by settingsRepository.pollingDelay.collectAsState(initial = defaultPollingDelay)
         val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = defaultHapticFeedbackEnabled)
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
@@ -96,7 +148,10 @@ fun SettingsScreen(
             // Fixed title at the top
             Text(
                 stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold
+                ),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
@@ -111,122 +166,122 @@ fun SettingsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                ColorSchemePicker(selectedItem = settingsChanges.colorScheme ?: colorScheme) {
-                    settingsChanges = settingsChanges.copy(colorScheme = it)
+                SettingRow(label = stringResource(R.string.settings_color_scheme)) {
+                    ColorSchemePicker(
+                        selectedItem = settingsChanges.colorScheme ?: colorScheme,
+                        showLabel = false,
+                        buttonModifier = Modifier
+                            .width(CONTROL_WIDTH)
+                            .height(40.dp)
+                    ) {
+                        settingsChanges = settingsChanges.copy(colorScheme = it)
+                        applyScope.launch { settingsRepository.setColorScheme(it) }
+                    }
                 }
 
-                ListItemPicker(
-                    list = BaseColor.entries.asIterable(),
-                    selectedItem = settingsChanges.baseColor ?: baseColor,
-                    label = stringResource(R.string.settings_theme_color),
-                    formattedDisplay = { item ->
-                        Text(text = stringResource(item.nameRes))
-                    },
-                    onItemSelected = {
-                        settingsChanges = settingsChanges.copy(baseColor = it)
-                    })
+                SettingRow(label = stringResource(R.string.settings_gamepad_style)) {
+                    ListItemPicker(
+                        list = GamepadStyle.entries.asIterable(),
+                        selectedItem = gamepadStyle,
+                        label = "",
+                        showLabel = false,
+                        buttonModifier = Modifier
+                            .width(CONTROL_WIDTH)
+                            .height(40.dp),
+                        formattedDisplay = { item -> Text(text = stringResource(item.nameRes)) },
+                        onItemSelected = {
+                            applyScope.launch { settingsRepository.setGamepadStyle(it) }
+                        }
+                    )
+                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceAround
+                SettingRow(
+                    label = stringResource(R.string.settings_polling_interval),
+                    labelExtra = {
+                        val toolTipState = rememberTooltipState()
+                        val scope = rememberCoroutineScope()
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                TooltipAnchorPosition.Start
+                            ),
+                            tooltip = {
+                                PlainTooltip(shadowElevation = 10.dp) {
+                                    Text(
+                                        stringResource(R.string.settings_polling_interval_desc),
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                            },
+                            state = toolTipState
+                        ) {
+                            IconButton(
+                                onClick = { scope.launch { toolTipState.show() } },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_info),
+                                    contentDescription = stringResource(R.string.settings_polling_interval_info),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                 ) {
                     SpinBox(
                         value = settingsChanges.pollingDelay ?: pollingDelay,
                         onValueChange = {
                             settingsChanges = settingsChanges.copy(pollingDelay = it)
+                            applyScope.launch { settingsRepository.setPollingDelay(it) }
                         },
-                        label = stringResource(R.string.settings_polling_interval),
+                        label = "",
                         minValue = 20,
                         maxValue = 200,
-                        step = 10
+                        step = 10,
+                        modifier = Modifier.width(CONTROL_WIDTH)
                     )
-
-                    val toolTipState = rememberTooltipState()
-                    val scope = rememberCoroutineScope()
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                            TooltipAnchorPosition.Start
-                        ),
-                        tooltip = {
-                            PlainTooltip(shadowElevation = 10.dp) {
-                                Text(
-                                    stringResource(R.string.settings_polling_interval_desc),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
-                        },
-                        state = toolTipState
-                    ) {
-                        IconButton(onClick = {
-                            scope.launch { toolTipState.show() }
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_info),
-                                contentDescription = stringResource(R.string.settings_polling_interval_info),
-                                tint = MaterialTheme.colorScheme.secondary,
-                            )
-                        }
-                    }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text(
-                        stringResource(R.string.settings_haptic_feedback),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                SettingRow(label = stringResource(R.string.settings_haptic_feedback)) {
                     Switch(
                         checked = settingsChanges.hapticFeedbackEnabled ?: hapticEnabled,
                         onCheckedChange = {
                             settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
+                            applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
                         }
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text(
-                        stringResource(R.string.settings_full_screen),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                SettingRow(label = stringResource(R.string.settings_full_screen)) {
                     Switch(
                         checked = settingsChanges.fullScreenEnabled ?: fullScreenEnabled,
                         onCheckedChange = {
                             settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
+                            applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
                         }
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text(
-                        stringResource(R.string.settings_save_connection_credentials),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                SettingRow(label = stringResource(R.string.settings_save_connection_credentials)) {
                     Switch(
                         checked = settingsChanges.saveConnectionCredentials ?: saveCredentials,
                         onCheckedChange = {
                             settingsChanges = settingsChanges.copy(saveConnectionCredentials = it)
+                            applyScope.launch { settingsRepository.setSaveConnectionCredentials(it) }
                         }
                     )
                 }
 
-                Button(
+                SettingRow(
+                    label = stringResource(R.string.settings_customize_layout),
                     onClick = onNavigateToGamepadCustomization,
-                    modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .padding(vertical = 8.dp)
+                    showDivider = false
                 ) {
-                    Text(stringResource(R.string.settings_customize_layout))
+                    Text(
+                        text = "\u203A",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
             }
@@ -234,59 +289,27 @@ fun SettingsScreen(
             // Fixed buttons at the bottom
             Row(
                 modifier = Modifier
+                    .widthIn(max = 560.dp)
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(vertical = 8.dp, horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Button(onClick = {
+                TextButton(shape = MaterialTheme.shapes.small, modifier = Modifier.offset(x = (-12).dp), onClick = {
                     settingsChanges = SettingsChanges()
                     runBlocking { settingsRepository.resetAllSettings() }
                     Log.i(logTag, "Settings reset to defaults")
                 }) {
-                    Text(stringResource(R.string.reset))
+                    Text(stringResource(R.string.reset), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                Button(onClick = {
-                    var changesSaved = 0
-                    runBlocking {
-                        try {
-                            settingsChanges.colorScheme?.let {
-                                settingsRepository.setColorScheme(
-                                    it
-                                ); ++changesSaved
-                            }
-                            settingsChanges.baseColor?.let { settingsRepository.setBaseColor(it); ++changesSaved }
-                            settingsChanges.pollingDelay?.let {
-                                settingsRepository.setPollingDelay(
-                                    it
-                                ); ++changesSaved
-                            }
-                            settingsChanges.hapticFeedbackEnabled?.let {
-                                settingsRepository.setHapticFeedbackEnabled(
-                                    it
-                                ); ++changesSaved
-                            }
-                            settingsChanges.saveConnectionCredentials?.let {
-                                settingsRepository.setSaveConnectionCredentials(
-                                    it
-                                ); ++changesSaved
-                            }
-                            settingsChanges.fullScreenEnabled?.let {
-                                settingsRepository.setFullScreenEnabled(
-                                    it
-                                ); ++changesSaved
-                            }
-                        } catch (e: Exception) {
-                            Log.e(logTag, "Error saving settings", e)
-                        }
-                    }
-                    Log.i(logTag, "Saved settings: $changesSaved")
-                    onNavigateBack()
-                }) {
-                    Text(stringResource(R.string.save))
-                }
-                Button(onClick = onNavigateBack) {
-                    Text(stringResource(R.string.cancel))
+                Spacer(modifier = Modifier.weight(1f))
+                Button(
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.width(120.dp).height(48.dp),
+                    onClick = onNavigateBack
+                ) {
+                    Text(stringResource(R.string.done))
                 }
             }
         }

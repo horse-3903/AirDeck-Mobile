@@ -1,5 +1,6 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -80,10 +81,11 @@ fun DpadButton(
             .size(size)
             .padding(0.dp),
         onClick = {},
+        shape = RoundedCornerShape(percent = 30),
         colors = IconButtonDefaults.outlinedIconButtonColors(
-            containerColor = backgroundColour,
+            containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
         ),
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(1.5.dp, if (isPressed) PsStyle.BorderPressed else PsStyle.Border),
         interactionSource = interactionSource,
     ) {
         Icon(
@@ -91,8 +93,8 @@ fun DpadButton(
             contentDescription = stringResource(R.string.content_desc_dpad_button, type.name),
             modifier = Modifier
                 .rotate(rotation)
-                .size(size),
-            tint = foregroundColour
+                .size(size * 0.5f),
+            tint = PsStyle.Glyph
         )
     }
 }
@@ -106,7 +108,7 @@ fun Dpad(
     size: Dp = 360.dp,
     gamepadState: GamepadReading,
 ) {
-    val buttonSize = 2 * size / 5
+    val buttonSize = size * 0.33f
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         DpadButton(
             type = DpadButtonType.UP,

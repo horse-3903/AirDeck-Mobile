@@ -155,14 +155,14 @@ fun ConnectingScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(onClick = {
+                        Button(shape = MaterialTheme.shapes.small, onClick = {
                             // Retry connection
                             connectionViewModel?.connect(ipAddress, port.toInt())
                         }) {
                             Text(stringResource(R.string.connecting_retry))
                         }
 
-                        Button(onClick = {
+                        Button(shape = MaterialTheme.shapes.small, onClick = {
                             connectionViewModel?.runDiagnostics(context)
                             showDiagnosticsDialog = true
                         }) {
@@ -170,7 +170,7 @@ fun ConnectingScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = onNavigateBack) {
+                    TextButton(shape = MaterialTheme.shapes.small, onClick = onNavigateBack) {
                         Text(stringResource(R.string.back))
                     }
                 } ?: run {
@@ -246,7 +246,7 @@ fun DiagnosticsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shape = MaterialTheme.shapes.small, onClick = onDismiss) {
                 Text(stringResource(R.string.diagnostics_close))
             }
         }

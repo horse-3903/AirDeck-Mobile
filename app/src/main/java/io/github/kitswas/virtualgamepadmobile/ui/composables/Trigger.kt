@@ -1,5 +1,10 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
+import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -68,16 +73,6 @@ fun Trigger(
         TriggerType.RIGHT -> stringResource(R.string.button_rt)
     }
 
-    val triggerShape = when (type) {
-        TriggerType.LEFT -> AbsoluteCutCornerShape(
-            topRight = size * 0.4f,
-        )
-
-        TriggerType.RIGHT -> AbsoluteCutCornerShape(
-            topLeft = size * 0.4f,
-        )
-    }
-
     Box(
         modifier = modifier
             .width(size)
@@ -88,11 +83,22 @@ fun Trigger(
         Button(
             onClick = {},
             modifier = Modifier.fillMaxSize(),
-            shape = triggerShape,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = PaddingValues(0.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
+                contentColor = PsStyle.Glyph
+            ),
+            border = BorderStroke(1.5.dp, if (isPressed) PsStyle.BorderPressed else PsStyle.Border),
             interactionSource = interactionSource,
         ) {
-            Text(label)
+            Text(
+                text = when (LocalGamepadStyle.current) {
+                    GamepadStyle.XBOX -> if (type == TriggerType.LEFT) "LT" else "RT"
+                    GamepadStyle.PLAYSTATION -> if (type == TriggerType.LEFT) "L2" else "R2"
+                },
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
         }
     }
 }
