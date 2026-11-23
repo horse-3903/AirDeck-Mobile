@@ -2,7 +2,7 @@
     <string name="app_name">VirtualGamePadMobile</string>
 
     <!-- Main Menu -->
-    <string name="menu_start">Start</string>
+    <string name="menu_start">Connect to PC</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_about">About</string>
     <string name="menu_exit">Exit</string>
@@ -11,8 +11,8 @@
     <string name="settings_title">Settings</string>
     <string name="settings_theme_color">Theme Color</string>
     <string name="settings_color_scheme">Color Scheme</string>
-    <string name="settings_polling_interval">Polling Interval (ms)</string>
-    <string name="settings_polling_interval_desc">Adjust according to your reflexes\nLower is faster</string>
+    <string name="settings_polling_interval">Update interval (ms)</string>
+    <string name="settings_polling_interval_desc">How often controller input is sent to the PC. Lower feels more responsive but uses more battery. Range 20 to 200 ms.</string>
     <string name="settings_polling_interval_info">Information about polling interval</string>
     <string name="settings_haptic_feedback">Haptic Feedback (Vibrations)</string>
     <string name="settings_save_connection_credentials">Remember IP Address and Port</string>
@@ -32,7 +32,7 @@
     <string name="about_dev_version">Development</string>
 
     <!-- Gamepad Customization -->
-    <string name="customization_title">Gamepad Customization</string>
+    <string name="customization_title">Edit layout</string>
     <string name="customization_desc">Customize individual button visibility, size, and position</string>
     <string name="customization_export">Export</string>
     <string name="customization_preview">Preview Gamepad</string>
@@ -43,7 +43,7 @@
     <string name="customization_copy">Copy</string>
     <string name="customization_done">Done</string>
     <string name="customization_import_title">Import Configuration</string>
-    <string name="customization_import_desc">Paste a JSON configuration to import. Importing replaces your current layout until you save or cancel.</string>
+    <string name="customization_import_desc">Paste a layout JSON. Controls that are not included keep their default values. Importing replaces your current layout until you save or cancel.</string>
     <string name="customization_import_error">Error: Invalid JSON format</string>
     <string name="customization_import_placeholder">Paste JSON here...</string>
     <string name="customization_error_save">Error saving button configs</string>
@@ -200,7 +200,7 @@
     <string name="presets_name_label">Preset name</string>
     <string name="presets_save_current">Save preset</string>
     <string name="presets_empty">No presets yet. Name the current layout and save it.</string>
-    <string name="presets_load">Load</string>
+    <string name="presets_load">Apply</string>
     <string name="presets_delete">Delete</string>
     <string name="presets_close">Close</string>
     <string name="settings_gamepad_style">Gamepad Style</string>
@@ -219,8 +219,8 @@
     <string name="panel_down">Down</string>
     <string name="customization_preview_short">Preview</string>
     <string name="customization_more">More</string>
-    <string name="reset_layout_title">Reset layout?</string>
-    <string name="reset_layout_message">All controls will return to their default size and position.</string>
+    <string name="reset_layout_title">Reset controller layout?</string>
+    <string name="reset_layout_message">All controls return to their default positions and sizes. Saved presets are kept.</string>
     <string name="customization_copy_json">Copy JSON</string>
     <string name="customization_copied">Copied</string>
     <string name="presets_update">Update preset</string>
@@ -230,16 +230,16 @@
     <string name="presets_load_message">Loading "%1$s" replaces the layout you are editing.</string>
     <string name="component_back">Back</string>
     <string name="back_button_label">Back</string>
-    <string name="leave_gamepad_title">Leave gamepad?</string>
-    <string name="leave_gamepad_message">Keep it running in the background, or disconnect from the PC.</string>
+    <string name="leave_gamepad_title">Leave controller?</string>
+    <string name="leave_gamepad_message">Keep Connected lets you come back without reconnecting. Disconnect ends the session.</string>
     <string name="leave_gamepad_confirm">Disconnect</string>
     <string name="qr_scan_title">Find a QR code</string>
     <string name="qr_scan_torch">Flashlight</string>
     <string name="qr_scan_gallery">Choose from gallery</string>
     <string name="qr_scan_gallery_none">No QR code found in that image</string>
-    <string name="leave_gamepad_keep">Keep connected</string>
-    <string name="menu_return">Return to gamepad</string>
-    <string name="menu_return_slot">Return to gamepad (Controller %1$d)</string>
+    <string name="leave_gamepad_keep">Keep Connected</string>
+    <string name="menu_return">Return to controller</string>
+    <string name="menu_return_slot">Return to controller</string>
     <string name="notification_channel_name">Connection</string>
     <string name="notification_controller">Controller %1$d</string>
     <string name="notification_connected">Connected to %1$s:%2$d</string>
@@ -249,4 +249,43 @@
     <string name="notification_stop">Stop</string>
     <string name="notification_connect">Connect</string>
     <string name="notification_close">Close</string>
+    <string name="menu_status_connected">Connected to %1$s  |  Controller %2$d</string>
+    <string name="menu_status_connected_plain">Connected to %1$s</string>
+    <string name="leave_gamepad_stay">Stay Here</string>
+    <string name="connect_title">Connect to PC</string>
+    <string name="connect_or_manual">or connect manually</string>
+    <string name="connect_where">Find the IP address and port on your PC\'s server screen.</string>
+    <string name="connect_ip_invalid">Enter a valid IPv4 address, for example 192.168.0.3</string>
+    <string name="connect_port_invalid">Port must be a number from 1 to 65535</string>
+    <string name="connecting_cancel">Cancel</string>
+    <string name="error_headline_refused">Can\'t connect to your PC</string>
+    <string name="error_headline_timeout">Your PC did not answer</string>
+    <string name="error_headline_unreachable">That address can\'t be reached</string>
+    <string name="error_headline_closed">The PC closed the connection</string>
+    <string name="error_headline_generic">Couldn\'t connect to your PC</string>
+    <string name="error_body_refused">The server at %1$s:%2$s did not accept the connection. Make sure Virtual Gamepad is running on your PC, then check the address and port.</string>
+    <string name="error_body_timeout">Nothing answered at %1$s:%2$s. Check the address and port, and that your phone and PC can reach each other on the network.</string>
+    <string name="error_body_unreachable">This phone has no route to %1$s:%2$s. Check the address and your network connection.</string>
+    <string name="error_body_closed">The server at %1$s:%2$s ended the connection. It may have been stopped or be full.</string>
+    <string name="error_body_generic">The connection to %1$s:%2$s failed. Try again or check the address and port.</string>
+    <string name="error_try_again">Try Again</string>
+    <string name="error_edit_connection">Edit Connection</string>
+    <string name="error_show_details">Show technical details</string>
+    <string name="error_hide_details">Hide technical details</string>
+    <string name="notification_title">Virtual Gamepad</string>
+    <string name="reset_layout_confirm">Reset Layout</string>
+    <string name="discard_title">Discard changes?</string>
+    <string name="discard_message">Your layout changes have not been saved.</string>
+    <string name="discard_confirm">Discard</string>
+    <string name="discard_keep">Keep Editing</string>
+    <string name="reset_layout_menu">Reset layout</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_controller">Controller</string>
+    <string name="settings_section_connection">Connection</string>
+    <string name="settings_gamepad_style_desc">Changes the labels and symbols on the controller.</string>
+    <string name="settings_customize_layout_desc">Move, resize or hide controls.</string>
+    <string name="settings_haptic_desc">Vibrate when a control is pressed.</string>
+    <string name="settings_full_screen_desc">Hide the system bars while the app is open.</string>
+    <string name="settings_remember_desc">Prefill the last IP address and port.</string>
+    <string name="settings_reset_all">Reset settings</string>
 </resources>

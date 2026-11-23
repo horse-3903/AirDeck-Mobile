@@ -87,6 +87,7 @@ private val CONTROL_WIDTH = 176.dp
 private fun SettingRow(
     label: String,
     labelExtra: @Composable () -> Unit = {},
+    helper: String? = null,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,
     control: @Composable () -> Unit
@@ -105,12 +106,22 @@ private fun SettingRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 8.dp, horizontal = 0.dp)
             ) {
-                Text(text = label, style = MaterialTheme.typography.bodyMedium)
-                labelExtra()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = label, style = MaterialTheme.typography.bodyMedium)
+                    labelExtra()
+                }
+                if (helper != null) {
+                    Text(
+                        text = helper,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             control()
         }
@@ -118,6 +129,19 @@ private fun SettingRow(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .widthIn(max = 560.dp)
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 2.dp)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,10 +186,11 @@ fun SettingsScreen(
                     .weight(1f)
                     .verticalScroll(scrollState)
                     .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.SpaceEvenly,
+                verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
+                SectionHeader(stringResource(R.string.settings_section_appearance))
                 SettingRow(label = stringResource(R.string.settings_color_scheme)) {
                     ColorSchemePicker(
                         selectedItem = settingsChanges.colorScheme ?: colorScheme,
@@ -179,7 +204,10 @@ fun SettingsScreen(
                     }
                 }
 
-                SettingRow(label = stringResource(R.string.settings_gamepad_style)) {
+                SettingRow(
+                    label = stringResource(R.string.settings_gamepad_style),
+                    helper = stringResource(R.string.settings_gamepad_style_desc)
+                ) {
                     ListItemPicker(
                         list = GamepadStyle.entries.asIterable(),
                         selectedItem = gamepadStyle,
@@ -196,37 +224,21 @@ fun SettingsScreen(
                 }
 
                 SettingRow(
+                    label = stringResource(R.string.settings_customize_layout),
+                    helper = stringResource(R.string.settings_customize_layout_desc),
+                    onClick = onNavigateToGamepadCustomization
+                ) {
+                    Text(
+                        text = "\u203A",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                SectionHeader(stringResource(R.string.settings_section_controller))
+                SettingRow(
                     label = stringResource(R.string.settings_polling_interval),
-                    labelExtra = {
-                        val toolTipState = rememberTooltipState()
-                        val scope = rememberCoroutineScope()
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                                TooltipAnchorPosition.Start
-                            ),
-                            tooltip = {
-                                PlainTooltip(shadowElevation = 10.dp) {
-                                    Text(
-                                        stringResource(R.string.settings_polling_interval_desc),
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                }
-                            },
-                            state = toolTipState
-                        ) {
-                            IconButton(
-                                onClick = { scope.launch { toolTipState.show() } },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_info),
-                                    contentDescription = stringResource(R.string.settings_polling_interval_info),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
+                    helper = stringResource(R.string.settings_polling_interval_desc),
                 ) {
                     SpinBox(
                         value = settingsChanges.pollingDelay ?: pollingDelay,
@@ -242,7 +254,10 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingRow(label = stringResource(R.string.settings_haptic_feedback)) {
+                SettingRow(
+                    label = stringResource(R.string.settings_haptic_feedback),
+                    helper = stringResource(R.string.settings_haptic_desc)
+                ) {
                     Switch(
                         checked = settingsChanges.hapticFeedbackEnabled ?: hapticEnabled,
                         onCheckedChange = {
@@ -252,7 +267,10 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingRow(label = stringResource(R.string.settings_full_screen)) {
+                SettingRow(
+                    label = stringResource(R.string.settings_full_screen),
+                    helper = stringResource(R.string.settings_full_screen_desc)
+                ) {
                     Switch(
                         checked = settingsChanges.fullScreenEnabled ?: fullScreenEnabled,
                         onCheckedChange = {
@@ -262,7 +280,12 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingRow(label = stringResource(R.string.settings_save_connection_credentials)) {
+                SectionHeader(stringResource(R.string.settings_section_connection))
+                SettingRow(
+                    label = stringResource(R.string.settings_save_connection_credentials),
+                    helper = stringResource(R.string.settings_remember_desc),
+                    showDivider = false
+                ) {
                     Switch(
                         checked = settingsChanges.saveConnectionCredentials ?: saveCredentials,
                         onCheckedChange = {
@@ -272,17 +295,6 @@ fun SettingsScreen(
                     )
                 }
 
-                SettingRow(
-                    label = stringResource(R.string.settings_customize_layout),
-                    onClick = onNavigateToGamepadCustomization,
-                    showDivider = false
-                ) {
-                    Text(
-                        text = "\u203A",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
 
             }
 
@@ -300,7 +312,7 @@ fun SettingsScreen(
                     runBlocking { settingsRepository.resetAllSettings() }
                     Log.i(logTag, "Settings reset to defaults")
                 }) {
-                    Text(stringResource(R.string.reset), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_reset_all), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))

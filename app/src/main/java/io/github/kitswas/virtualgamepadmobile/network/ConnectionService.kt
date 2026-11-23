@@ -145,7 +145,7 @@ class ConnectionService : Service() {
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(getString(R.string.app_name))
+            .setContentTitle(getString(R.string.notification_title))
             .setContentText(text)
             .setContentIntent(openIntent)
             .setOngoing(true)

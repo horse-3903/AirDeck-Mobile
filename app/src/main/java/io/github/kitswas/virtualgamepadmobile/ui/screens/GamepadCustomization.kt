@@ -1,5 +1,6 @@
 package io.github.kitswas.virtualgamepadmobile.ui.screens
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.Dp
@@ -134,6 +135,7 @@ fun GamepadCustomizationScreen(
     var showImportDialog by rememberSaveable { mutableStateOf(false) }
     var showPresets by rememberSaveable { mutableStateOf(false) }
     var showResetConfirm by rememberSaveable { mutableStateOf(false) }
+    var showDiscard by rememberSaveable { mutableStateOf(false) }
     var selectedComponent by rememberSaveable { mutableStateOf<ButtonComponent?>(null) }
     val presets by settingsRepository.presets.collectAsState(initial = emptyMap())
     val presetScope = rememberCoroutineScope()
@@ -146,11 +148,38 @@ fun GamepadCustomizationScreen(
     BackHandler(enabled = showPreview) {
         showPreview = false
     }
+    BackHandler(enabled = !showPreview && modifiedConfigs != null) {
+        showDiscard = true
+    }
 
     if (showPreview) {
         // Full-screen preview overlay
         GamepadPreview(buttonConfigs = currentConfigs)
         return
+    }
+
+    if (showDiscard) {
+        AlertDialog(
+            onDismissRequest = { showDiscard = false },
+            title = { Text(stringResource(R.string.discard_title)) },
+            text = { Text(stringResource(R.string.discard_message)) },
+            confirmButton = {
+                Button(
+                    shape = MaterialTheme.shapes.small,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    onClick = { showDiscard = false; onNavigateBack() }
+                ) { Text(stringResource(R.string.discard_confirm)) }
+            },
+            dismissButton = {
+                TextButton(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = { showDiscard = false }
+                ) { Text(stringResource(R.string.discard_keep)) }
+            }
+        )
     }
 
     if (showResetConfirm) {
@@ -170,7 +199,7 @@ fun GamepadCustomizationScreen(
                         showResetConfirm = false
                         Log.i(logTag, "Button configs reset to defaults")
                     }
-                ) { Text(stringResource(R.string.reset)) }
+                ) { Text(stringResource(R.string.reset_layout_confirm)) }
             },
             dismissButton = {
                 TextButton(
@@ -232,7 +261,7 @@ fun GamepadCustomizationScreen(
         ) {
             // Top action bar
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val compact = maxWidth < 640.dp
+                val compact = true
                 var overflowOpen by remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier
@@ -248,20 +277,16 @@ fun GamepadCustomizationScreen(
                         OutlinedButton(
                             shape = MaterialTheme.shapes.small,
                             modifier = Modifier.height(44.dp),
-                            onClick = onNavigateBack
+                            onClick = { if (modifiedConfigs != null) showDiscard = true else onNavigateBack() }
                         ) {
                             Text(stringResource(R.string.cancel))
                         }
-                        TextButton(
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.height(44.dp),
-                            onClick = { showResetConfirm = true }
-                        ) {
-                            Text(
-                                stringResource(R.string.reset),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.customization_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -290,6 +315,16 @@ fun GamepadCustomizationScreen(
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.customization_export)) },
                                         onClick = { overflowOpen = false; showExportDialog = true }
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.reset_layout_menu),
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        onClick = { overflowOpen = false; showResetConfirm = true }
                                     )
                                 }
                             }
@@ -367,24 +402,34 @@ fun GamepadCustomizationScreen(
             // Interactive layout: tap or drag any component to edit it
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val canvasHeight = maxHeight.value.toInt()
-                DrawGamepad(
-                    widthDp = maxWidth.value.toInt(),
-                    heightDp = canvasHeight,
-                    gamepadState = editorState,
-                    buttonConfigs = currentConfigs,
-                    onComponentTap = { selectedComponent = it },
-                    selectedComponent = selectedComponent,
-                    onComponentDrag = { component, dx, dy ->
-                        val config = currentConfigs[component] ?: ButtonConfig.default(component)
-                        val updated = config.copy(
-                            offsetX = (config.offsetX + dx.value / canvasHeight)
-                                .coerceIn(OFFSET_VALUE_RANGE),
-                            offsetY = (config.offsetY + dy.value / canvasHeight)
-                                .coerceIn(OFFSET_VALUE_RANGE),
-                        )
-                        modifiedConfigs = currentConfigs + (component to updated)
-                    }
-                )
+                val panelWidth = 340.dp
+                // The inspector gets its own column, so no control is ever hidden behind it
+                val canvasWidth = if (selectedComponent != null) maxWidth - panelWidth - 16.dp else maxWidth
+                Box(
+                    modifier = Modifier
+                        .width(canvasWidth)
+                        .fillMaxHeight()
+                        .align(Alignment.CenterStart)
+                ) {
+                    DrawGamepad(
+                        widthDp = canvasWidth.value.toInt(),
+                        heightDp = canvasHeight,
+                        gamepadState = editorState,
+                        buttonConfigs = currentConfigs,
+                        onComponentTap = { selectedComponent = it },
+                        selectedComponent = selectedComponent,
+                        onComponentDrag = { component, dx, dy ->
+                            val config = currentConfigs[component] ?: ButtonConfig.default(component)
+                            val updated = config.copy(
+                                offsetX = (config.offsetX + dx.value / canvasHeight)
+                                    .coerceIn(OFFSET_VALUE_RANGE),
+                                offsetY = (config.offsetY + dy.value / canvasHeight)
+                                    .coerceIn(OFFSET_VALUE_RANGE),
+                            )
+                            modifiedConfigs = currentConfigs + (component to updated)
+                        }
+                    )
+                }
                 if (selectedComponent == null) {
                     Text(
                         text = stringResource(R.string.customization_tap_hint),
@@ -396,18 +441,12 @@ fun GamepadCustomizationScreen(
 
                 selectedComponent?.let { component ->
                     val config = currentConfigs[component] ?: ButtonConfig.default(component)
-                    val panelOnRight = when (config.anchor) {
-                        ButtonAnchor.TOP_LEFT, ButtonAnchor.CENTER_LEFT, ButtonAnchor.BOTTOM_LEFT -> true
-                        ButtonAnchor.TOP_RIGHT, ButtonAnchor.CENTER_RIGHT, ButtonAnchor.BOTTOM_RIGHT -> false
-                        else -> component != ButtonComponent.RIGHT_SHOULDER &&
-                                component != ButtonComponent.START_BUTTON
-                    }
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier
-                            .align(if (panelOnRight) Alignment.CenterEnd else Alignment.CenterStart)
+                            .align(Alignment.CenterEnd)
                             .padding(8.dp)
                             .width(340.dp)
                             .fillMaxHeight()

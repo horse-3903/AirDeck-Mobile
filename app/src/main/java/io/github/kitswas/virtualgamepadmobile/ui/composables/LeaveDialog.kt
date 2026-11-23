@@ -66,8 +66,8 @@ fun LeaveDialog(
                         shape = MaterialTheme.shapes.small,
                         contentPadding = compactPadding,
                         modifier = Modifier.height(36.dp)
-                    ) { Text(stringResource(R.string.cancel), fontSize = 13.sp) }
-                    OutlinedButton(
+                    ) { Text(stringResource(R.string.leave_gamepad_stay), fontSize = 13.sp) }
+                    Button(
                         onClick = onKeepConnected,
                         shape = MaterialTheme.shapes.small,
                         contentPadding = compactPadding,
@@ -75,6 +75,10 @@ fun LeaveDialog(
                     ) { Text(stringResource(R.string.leave_gamepad_keep), fontSize = 13.sp) }
                     Button(
                         onClick = onDisconnect,
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
                         shape = MaterialTheme.shapes.small,
                         contentPadding = compactPadding,
                         modifier = Modifier.height(36.dp)

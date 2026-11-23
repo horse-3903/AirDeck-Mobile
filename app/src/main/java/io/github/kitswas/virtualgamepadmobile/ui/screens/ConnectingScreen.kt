@@ -1,5 +1,12 @@
 package io.github.kitswas.virtualgamepadmobile.ui.screens
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -137,41 +144,101 @@ fun ConnectingScreen(
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(stringResource(R.string.connecting_status, ipAddress, port))
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(shape = MaterialTheme.shapes.small, onClick = {
+                    connectionViewModel?.disconnect()
+                    onNavigateBack()
+                }) { Text(stringResource(R.string.connecting_cancel)) }
             } else {
                 // Show error message if there is one
                 connectionState?.error?.let { error ->
-                    Text(
-                        text = stringResource(R.string.connecting_error_title),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    var showDetails by rememberSaveable { mutableStateOf(false) }
+                    val kind = errorKind(error)
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = 480.dp)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Button(shape = MaterialTheme.shapes.small, onClick = {
-                            // Retry connection
-                            connectionViewModel?.connect(ipAddress, port.toInt())
-                        }) {
-                            Text(stringResource(R.string.connecting_retry))
+                        Text(
+                            text = stringResource(
+                                when (kind) {
+                                    ErrorKind.REFUSED -> R.string.error_headline_refused
+                                    ErrorKind.TIMEOUT -> R.string.error_headline_timeout
+                                    ErrorKind.UNREACHABLE -> R.string.error_headline_unreachable
+                                    ErrorKind.CLOSED -> R.string.error_headline_closed
+                                    ErrorKind.OTHER -> R.string.error_headline_generic
+                                }
+                            ),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(
+                                when (kind) {
+                                    ErrorKind.REFUSED -> R.string.error_body_refused
+                                    ErrorKind.TIMEOUT -> R.string.error_body_timeout
+                                    ErrorKind.UNREACHABLE -> R.string.error_body_unreachable
+                                    ErrorKind.CLOSED -> R.string.error_body_closed
+                                    ErrorKind.OTHER -> R.string.error_body_generic
+                                },
+                                ipAddress, port
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp),
+                            onClick = { connectionViewModel?.connect(ipAddress, port.toInt()) }
+                        ) { Text(stringResource(R.string.error_try_again)) }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp),
+                            onClick = onNavigateBack
+                        ) { Text(stringResource(R.string.error_edit_connection)) }
+                        TextButton(
+                            shape = MaterialTheme.shapes.small,
+                            onClick = {
+                                connectionViewModel?.runDiagnostics(context)
+                                showDiagnosticsDialog = true
+                            }
+                        ) { Text(stringResource(R.string.connecting_diagnostics)) }
+                        TextButton(
+                            shape = MaterialTheme.shapes.small,
+                            onClick = { showDetails = !showDetails }
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (showDetails) R.string.error_hide_details
+                                    else R.string.error_show_details
+                                )
+                            )
                         }
-
-                        Button(shape = MaterialTheme.shapes.small, onClick = {
-                            connectionViewModel?.runDiagnostics(context)
-                            showDiagnosticsDialog = true
-                        }) {
-                            Text(stringResource(R.string.connecting_diagnostics))
+                        if (showDetails) {
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(shape = MaterialTheme.shapes.small, onClick = onNavigateBack) {
-                        Text(stringResource(R.string.back))
                     }
                 } ?: run {
                     // No error but also not connecting - initial state
@@ -294,5 +361,18 @@ private fun DiagnosticsDialogPreview() {
             connectionState = sampleState,
             onDismiss = {}
         )
+    }
+}
+
+private enum class ErrorKind { REFUSED, TIMEOUT, UNREACHABLE, CLOSED, OTHER }
+
+private fun errorKind(error: String): ErrorKind {
+    val text = error.lowercase()
+    return when {
+        "refused" in text || "econnrefused" in text -> ErrorKind.REFUSED
+        "closed" in text -> ErrorKind.CLOSED
+        "unreachable" in text || "no route" in text || "enetunreach" in text -> ErrorKind.UNREACHABLE
+        "timed out" in text || "timeout" in text || "etimedout" in text -> ErrorKind.TIMEOUT
+        else -> ErrorKind.OTHER
     }
 }

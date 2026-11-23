@@ -1,5 +1,10 @@
 package io.github.kitswas.virtualgamepadmobile.ui.screens
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import android.content.Intent
 import android.net.InetAddresses
 import android.os.Build
@@ -168,6 +173,8 @@ fun ConnectMenu(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(
                     horizontal = maxOf(
                         32.dp,
@@ -181,6 +188,8 @@ fun ConnectMenu(
             var port by rememberSaveable { mutableStateOf(initialPort) }
             var isIPValid by rememberSaveable { mutableStateOf(validateIP(initialIp)) }
             var isPortValid by rememberSaveable { mutableStateOf(validatePort(initialPort)) }
+            var ipTouched by rememberSaveable { mutableStateOf(false) }
+            var portTouched by rememberSaveable { mutableStateOf(false) }
 
             // Update state when parameters arrive asynchronously from DataStore
             LaunchedEffect(initialIp, initialPort) {
@@ -218,6 +227,12 @@ fun ConnectMenu(
                 }
             }
 
+            Text(
+                text = stringResource(R.string.connect_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = { qrCodeScanner() },
                 shape = MaterialTheme.shapes.small,
@@ -227,17 +242,34 @@ fun ConnectMenu(
             ) {
                 Text(text = stringResource(R.string.connect_scan_qr))
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = stringResource(R.string.connect_or_manual),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.connect_where),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             TextField(
                 label = { Text(text = stringResource(R.string.connect_ip_label)) },
                 value = ipAddress,
                 onValueChange = {
                     ipAddress = it
+                    ipTouched = true
                     isIPValid = validateIP(ipAddress)
                 },
                 keyboardOptions = KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                     imeAction = ImeAction.Next
                 ),
+                singleLine = true,
+                supportingText = {
+                    if (ipTouched && !isIPValid) Text(stringResource(R.string.connect_ip_invalid))
+                },
                 keyboardActions = KeyboardActions(
                     onNext = {
                         // Pressing Ime button would move the text indicator's focus to the bottom
@@ -247,7 +279,7 @@ fun ConnectMenu(
                 ),
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                isError = !isIPValid
+                isError = ipTouched && !isIPValid
             )
 
             TextField(
@@ -255,11 +287,17 @@ fun ConnectMenu(
                 value = port,
                 onValueChange = {
                     port = it
+                    portTouched = true
                     isPortValid = validatePort(port)
                 },
                 keyboardOptions = KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
+                singleLine = true,
+                supportingText = {
+                    if (portTouched && !isPortValid) Text(stringResource(R.string.connect_port_invalid))
+                },
                 keyboardActions = KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()
@@ -268,7 +306,7 @@ fun ConnectMenu(
                 ),
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                isError = !isPortValid
+                isError = portTouched && !isPortValid
             )
 
             Button(

@@ -86,7 +86,18 @@ fun MainMenu(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(24.dp))
+                if (connection.connected) {
+                    Text(
+                        text = connection.controllerSlot?.let {
+                            stringResource(R.string.menu_status_connected, connection.ipAddress, it)
+                        } ?: stringResource(R.string.menu_status_connected_plain, connection.ipAddress),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 Button(
                     onClick = if (connection.connected) onReturnToGamepad else onNavigateToConnectScreen,
                     shape = MaterialTheme.shapes.small,
@@ -96,9 +107,7 @@ fun MainMenu(
                 ) {
                     Text(
                         text = if (connection.connected) {
-                            connection.controllerSlot?.let {
-                                stringResource(R.string.menu_return_slot, it)
-                            } ?: stringResource(R.string.menu_return)
+                            stringResource(R.string.menu_return)
                         } else {
                             stringResource(R.string.menu_start)
                         }
