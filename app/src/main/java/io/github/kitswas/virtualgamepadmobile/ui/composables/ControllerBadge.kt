@@ -33,7 +33,7 @@ fun ControllerBadge(slot: Int, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        for (index in 1..4) {
+        for (index in 1..6) {
             Row(
                 modifier = Modifier
                     .size(7.dp)
