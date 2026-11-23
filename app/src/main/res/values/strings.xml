@@ -230,11 +230,23 @@
     <string name="presets_load_message">Loading "%1$s" replaces the layout you are editing.</string>
     <string name="component_back">Back</string>
     <string name="back_button_label">Back</string>
-    <string name="leave_gamepad_title">Leave the gamepad?</string>
-    <string name="leave_gamepad_message">This disconnects from the PC.</string>
+    <string name="leave_gamepad_title">Leave gamepad?</string>
+    <string name="leave_gamepad_message">Keep it running in the background, or disconnect from the PC.</string>
     <string name="leave_gamepad_confirm">Disconnect</string>
     <string name="qr_scan_title">Find a QR code</string>
     <string name="qr_scan_torch">Flashlight</string>
     <string name="qr_scan_gallery">Choose from gallery</string>
     <string name="qr_scan_gallery_none">No QR code found in that image</string>
+    <string name="leave_gamepad_keep">Keep connected</string>
+    <string name="menu_return">Return to gamepad</string>
+    <string name="menu_return_slot">Return to gamepad (Controller %1$d)</string>
+    <string name="notification_channel_name">Connection</string>
+    <string name="notification_controller">Controller %1$d</string>
+    <string name="notification_connected">Connected to %1$s:%2$d</string>
+    <string name="notification_connecting">Connecting...</string>
+    <string name="notification_disconnected">Not connected</string>
+    <string name="notification_error">Disconnected: %1$s</string>
+    <string name="notification_stop">Stop</string>
+    <string name="notification_connect">Connect</string>
+    <string name="notification_close">Close</string>
 </resources>

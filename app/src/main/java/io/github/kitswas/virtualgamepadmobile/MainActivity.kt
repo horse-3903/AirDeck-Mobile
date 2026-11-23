@@ -3,10 +3,13 @@ package io.github.kitswas.virtualgamepadmobile
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LocalGamepadStyle
 import io.github.kitswas.virtualgamepadmobile.data.defaultGamepadStyle
 import androidx.compose.runtime.CompositionLocalProvider
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -27,7 +30,8 @@ import io.github.kitswas.virtualgamepadmobile.data.defaultFullScreenEnabled
 import io.github.kitswas.virtualgamepadmobile.data.defaultHapticFeedbackEnabled
 import io.github.kitswas.virtualgamepadmobile.data.defaultSaveConnectionCredentials
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionViewModel
-import io.github.kitswas.virtualgamepadmobile.network.ConnectionViewModelFactory
+import io.github.kitswas.virtualgamepadmobile.network.ConnectionHub
+import io.github.kitswas.virtualgamepadmobile.network.ConnectionService
 import io.github.kitswas.virtualgamepadmobile.ui.screens.AboutScreen
 import io.github.kitswas.virtualgamepadmobile.ui.screens.ConnectMenu
 import io.github.kitswas.virtualgamepadmobile.ui.screens.ConnectingScreen
@@ -37,7 +41,6 @@ import io.github.kitswas.virtualgamepadmobile.ui.screens.MainMenu
 import io.github.kitswas.virtualgamepadmobile.ui.screens.SettingsScreen
 import io.github.kitswas.virtualgamepadmobile.ui.theme.VirtualGamePadMobileTheme
 import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
-import kotlinx.coroutines.flow.first
 
 
 class MainActivity : ComponentActivity() {
@@ -50,12 +53,14 @@ class MainActivity : ComponentActivity() {
         // Re-created activities receive the same ConnectionViewModel instance created by the first activity.
         // Use the 'by viewModels()' Kotlin property delegate with factory
         // from the activity-ktx artifact
-        val connectionViewModel: ConnectionViewModel by viewModels {
-            ConnectionViewModelFactory { ip, port ->
-                if (settingsRepository.saveConnectionCredentials.first()) {
-                    settingsRepository.setLastConnectionCredentials(ip, port.toString())
-                }
-            }
+        val connectionViewModel: ConnectionViewModel = ConnectionHub.get(applicationContext)
+
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+                .launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         setContent {
             AppUI(
@@ -123,7 +128,10 @@ class MainActivity : ComponentActivity() {
     ) {
         NavHost(navController = navController, startDestination = "main_menu") {
             composable("main_menu") {
+                val connection by connectionViewModel.uiState.collectAsState()
                 MainMenu(
+                    connection = connection,
+                    onReturnToGamepad = { navController.navigate("gamepad") },
                     onNavigateToConnectScreen = { navController.navigate("connect_screen") },
                     onNavigateToSettingsScreen = { navController.navigate("settings_screen") },
                     onNavigateToAboutScreen = { navController.navigate("about_screen") }
@@ -158,8 +166,10 @@ class MainActivity : ComponentActivity() {
             ) { backStackEntry ->
                 val ipAddress = backStackEntry.arguments?.getString("ipAddress") ?: ""
                 val port = backStackEntry.arguments?.getString("port") ?: ""
+                val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
                 ConnectingScreen(
                     onNavigateToGamepad = {
+                        ConnectionService.start(appContext)
                         navController.navigate("gamepad") {
                             popUpTo("connect_screen") { inclusive = true }
                         }

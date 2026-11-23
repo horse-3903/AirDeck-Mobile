@@ -4,11 +4,9 @@ import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -32,7 +30,10 @@ import io.github.kitswas.virtualgamepadmobile.data.SettingsRepository
 import io.github.kitswas.virtualgamepadmobile.data.defaultButtonConfigs
 import io.github.kitswas.virtualgamepadmobile.data.defaultPollingDelay
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionViewModel
+import io.github.kitswas.virtualgamepadmobile.network.ConnectionService
+import io.github.kitswas.virtualgamepadmobile.ui.composables.ControllerBadge
 import io.github.kitswas.virtualgamepadmobile.ui.composables.DrawGamepad
+import io.github.kitswas.virtualgamepadmobile.ui.composables.LeaveDialog
 import io.github.kitswas.virtualgamepadmobile.ui.utils.findActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,69 +62,61 @@ fun GamePad(
     val screenWidth = configuration.screenWidthDp
 
     val isStopping = remember { mutableStateOf(false) }
+    val leaving = remember { mutableStateOf(false) }
+
+    val connectionState by connectionViewModel?.uiState?.collectAsState()
+        ?: remember { mutableStateOf(null) }
+
+    fun releaseEverything() {
+        gamepadState.ButtonsUp = gamepadState.ButtonsDown
+        gamepadState.ButtonsDown = 0
+        gamepadState.LeftThumbstickX = 0F
+        gamepadState.LeftThumbstickY = 0F
+        gamepadState.RightThumbstickX = 0F
+        gamepadState.RightThumbstickY = 0F
+        gamepadState.LeftTrigger = 0F
+        gamepadState.RightTrigger = 0F
+        connectionViewModel?.enqueueGamepadState(gamepadState)
+    }
 
     var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
     DrawGamepad(
         screenWidth, screenHeight, gamepadState, buttonConfigs,
         onBack = { showLeaveConfirm = true }
     )
+    connectionState?.controllerSlot?.let { slot ->
+        androidx.compose.foundation.layout.Box(
+            modifier = androidx.compose.ui.Modifier
+                .fillMaxSize()
+                .padding(bottom = 6.dp),
+            contentAlignment = androidx.compose.ui.Alignment.BottomCenter
+        ) {
+            ControllerBadge(slot = slot)
+        }
+    }
     if (showLeaveConfirm) {
-        AlertDialog(
-            onDismissRequest = { showLeaveConfirm = false },
-            title = { Text(stringResource(R.string.leave_gamepad_title)) },
-            text = { Text(stringResource(R.string.leave_gamepad_message)) },
-            confirmButton = {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = {
-                        showLeaveConfirm = false
-                        onNavigateBack()
-                    }
-                ) { Text(stringResource(R.string.leave_gamepad_confirm)) }
+        LeaveDialog(
+            onCancel = { showLeaveConfirm = false },
+            onKeepConnected = {
+                showLeaveConfirm = false
+                leaving.value = true
+                isStopping.value = true
+                releaseEverything()
+                onNavigateBack()
             },
-            dismissButton = {
-                TextButton(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = { showLeaveConfirm = false }
-                ) { Text(stringResource(R.string.cancel)) }
+            onDisconnect = {
+                showLeaveConfirm = false
+                leaving.value = true
+                isStopping.value = true
+                releaseEverything()
+                connectionViewModel?.disconnect()
+                ConnectionService.close(context)
+                onNavigateBack()
             }
         )
     }
 
-    val activity = LocalContext.current.findActivity()
-    // disconnect on back press
-    androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-        .addObserver(androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_DESTROY
-                && activity?.isChangingConfigurations != true // ignore screen rotation
-            ) {
-                if (connectionViewModel != null) {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            isStopping.value = true
-                            // unset all keys before disconnecting
-                            gamepadState.ButtonsUp = gamepadState.ButtonsDown
-                            gamepadState.ButtonsDown = 0
-                            gamepadState.LeftThumbstickX = 0F
-                            gamepadState.LeftThumbstickY = 0F
-                            gamepadState.RightThumbstickX = 0F
-                            gamepadState.RightThumbstickY = 0F
-                            gamepadState.LeftTrigger = 0F
-                            gamepadState.RightTrigger = 0F
-                            connectionViewModel.enqueueGamepadState(gamepadState)
-                            connectionViewModel.disconnect()
-                            Log.d(tag, "Disconnected")
-                        } catch (e: Exception) {
-                            Log.d(tag, "Error during disconnect: ${e.message}")
-                        }
-                    }
-                }
-            }
-        })
-
     // Monitor connection state and handle errors
-    val connectionState by connectionViewModel?.uiState?.collectAsState()
-        ?: remember { mutableStateOf(null) }
 
     val connectionLostMessage = connectionState?.takeIf { !it.connected }?.let { state ->
         state.error?.let {
@@ -132,7 +125,7 @@ fun GamePad(
     }
 
     LaunchedEffect(connectionLostMessage) {
-        if (connectionLostMessage != null) {
+        if (connectionLostMessage != null && !leaving.value) {
             Log.d(tag, connectionLostMessage)
             Toast.makeText(context, connectionLostMessage, Toast.LENGTH_LONG).show()
             onNavigateBack()

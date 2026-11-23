@@ -26,6 +26,13 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
     private val tag = this::class.java.simpleName
     private var clientSocket: Socket? = null // Internal storage for the socket
 
+    /** Sent to the PC right after connecting so it can show this phone's name. */
+    var deviceHello: String = ""
+    var lastIpAddress: String = ""
+        private set
+    var lastPort: Int = -1
+        private set
+
     // Replace gamepad state queue with a general command queue
     private val commandQueue = LinkedBlockingQueue<NetworkCommand>()
 
@@ -87,6 +94,8 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
      * This now enqueues a connection command.
      */
     fun connect(ipAddress: String, port: Int) {
+        lastIpAddress = ipAddress
+        lastPort = port
         _uiState.update {
             it.copy(
                 isConnecting = true,
@@ -180,6 +189,14 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
             try {
                 socket.connect(java.net.InetSocketAddress(command.ipAddress, command.port), timeout)
                 clientSocket = socket // Store the connected socket
+                if (deviceHello.isNotEmpty()) {
+                    try {
+                        socket.getOutputStream().write(deviceHello.toByteArray())
+                    } catch (e: IOException) {
+                        Log.w(tag, "Could not introduce this device: ${e.message}")
+                    }
+                }
+                startReader(socket)
 
                 _uiState.update {
                     it.copy(
@@ -217,6 +234,39 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
                     isConnecting = false,
                     error = "Connect error: ${e.message ?: "Unknown error"}"
                 )
+            }
+        }
+    }
+
+    /**
+     * Reads what the PC sends back: currently only which controller slot this phone got.
+     * When the PC closes the connection the state is marked as lost.
+     */
+    private fun startReader(socket: Socket) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val reader = socket.getInputStream().bufferedReader()
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    if (line.startsWith("VGPSLOT:")) {
+                        line.removePrefix("VGPSLOT:").trim().toIntOrNull()?.let { slot ->
+                            _uiState.update { it.copy(controllerSlot = slot) }
+                        }
+                    }
+                }
+            } catch (e: IOException) {
+                Log.d(tag, "Reader stopped: ${e.message}")
+            }
+            if (clientSocket === socket) {
+                clientSocket = null
+                commandQueue.clear()
+                try {
+                    socket.close()
+                } catch (_: IOException) {
+                }
+                _uiState.update {
+                    it.copy(connected = false, error = "The PC closed the connection")
+                }
             }
         }
     }
@@ -303,8 +353,11 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
      * Process a disconnect command.
      */
     private fun processDisconnectCommand() {
+        val socket = clientSocket
+        // Forget the socket first so the reader does not report this as a lost connection
+        clientSocket = null
         try {
-            clientSocket?.close()
+            socket?.close()
         } catch (e: IOException) {
             Log.e(tag, "Error closing socket: ${e.message}", e)
         } finally {

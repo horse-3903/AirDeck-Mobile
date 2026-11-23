@@ -35,9 +35,12 @@ import io.github.kitswas.virtualgamepadmobile.R
 import io.github.kitswas.virtualgamepadmobile.data.PreviewBase
 import io.github.kitswas.virtualgamepadmobile.data.PreviewHeightDp
 import io.github.kitswas.virtualgamepadmobile.data.PreviewWidthDp
+import io.github.kitswas.virtualgamepadmobile.network.ConnectionState
 
 @Composable
 fun MainMenu(
+    connection: ConnectionState = ConnectionState(),
+    onReturnToGamepad: () -> Unit = {},
     onNavigateToConnectScreen: () -> Unit,
     onNavigateToSettingsScreen: () -> Unit,
     onNavigateToAboutScreen: () -> Unit
@@ -85,13 +88,21 @@ fun MainMenu(
                 )
                 Spacer(Modifier.height(32.dp))
                 Button(
-                    onClick = onNavigateToConnectScreen,
+                    onClick = if (connection.connected) onReturnToGamepad else onNavigateToConnectScreen,
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
                 ) {
-                    Text(text = stringResource(R.string.menu_start))
+                    Text(
+                        text = if (connection.connected) {
+                            connection.controllerSlot?.let {
+                                stringResource(R.string.menu_return_slot, it)
+                            } ?: stringResource(R.string.menu_return)
+                        } else {
+                            stringResource(R.string.menu_start)
+                        }
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(

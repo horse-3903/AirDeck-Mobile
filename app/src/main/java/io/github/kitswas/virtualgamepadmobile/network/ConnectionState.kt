@@ -7,6 +7,7 @@ data class ConnectionState(
     val port: Int = -1,
     val error: String? = null,
     val isConnecting: Boolean = false,
+    val controllerSlot: Int? = null,
     val isRunningDiagnostics: Boolean = false,
     val diagnosticResults: List<NetworkDiagnostics.DiagnosticResult> = emptyList()
 )
