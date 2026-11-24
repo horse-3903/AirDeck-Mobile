@@ -1,125 +1,43 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import android.util.Log
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.abs
-import kotlin.math.hypot
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.times
 import io.github.kitswas.VGP_Data_Exchange.GameButtons
 import io.github.kitswas.VGP_Data_Exchange.GamepadReading
-import io.github.kitswas.virtualgamepadmobile.R
-import io.github.kitswas.virtualgamepadmobile.ui.theme.darken
+import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
 import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
+import kotlin.math.abs
+import kotlin.math.hypot
 
 enum class DpadButtonType {
     UP, DOWN, LEFT, RIGHT
-}
-
-// Only the outer corners are rounded so the four arms read as one cross
-private fun armShape(type: DpadButtonType): RoundedCornerShape {
-    val r = 14.dp
-    return when (type) {
-        DpadButtonType.UP -> RoundedCornerShape(topStart = r, topEnd = r)
-        DpadButtonType.DOWN -> RoundedCornerShape(bottomStart = r, bottomEnd = r)
-        DpadButtonType.LEFT -> RoundedCornerShape(topStart = r, bottomStart = r)
-        DpadButtonType.RIGHT -> RoundedCornerShape(topEnd = r, bottomEnd = r)
-    }
-}
-
-@Composable
-fun DpadButton(
-    type: DpadButtonType,
-    modifier: Modifier = Modifier,
-    foregroundColour: Color = MaterialTheme.colorScheme.primary,
-    backgroundColour: Color = darken(MaterialTheme.colorScheme.primary, 0.8f),
-    size: Dp,
-    gamepadState: GamepadReading,
-    forcePressed: Boolean? = null,
-) {
-    val view = LocalView.current
-    val rotation = when (type) {
-        DpadButtonType.UP -> -90f
-        DpadButtonType.DOWN -> 90f
-        DpadButtonType.LEFT -> 180f
-        DpadButtonType.RIGHT -> 0f
-    }
-    val gameButton = when (type) {
-        DpadButtonType.UP -> GameButtons.DPadUp
-        DpadButtonType.DOWN -> GameButtons.DPadDown
-        DpadButtonType.LEFT -> GameButtons.DPadLeft
-        DpadButtonType.RIGHT -> GameButtons.DPadRight
-    }
-    val interactionSource = remember { MutableInteractionSource() }
-    val touchPressed by interactionSource.collectIsPressedAsState()
-    val isPressed = forcePressed ?: touchPressed
-    // See https://stackoverflow.com/a/69157877/8659747
-    if (forcePressed == null && touchPressed) {
-        Log.d("DPadButton ${type.name}", "Pressed")
-        HapticUtils.performButtonPressFeedback(view)
-        gamepadState.ButtonsDown = gamepadState.ButtonsDown or gameButton.value
-        //Use if + DisposableEffect to wait for the press action is completed
-        DisposableEffect(Unit) {
-            onDispose {
-                Log.d("DPadButton ${type.name}", "Released")
-                HapticUtils.performButtonReleaseFeedback(view)
-                gamepadState.ButtonsDown = gamepadState.ButtonsDown and gameButton.value.inv()
-                gamepadState.ButtonsUp = gamepadState.ButtonsUp or gameButton.value
-            }
-        }
-    }
-    OutlinedIconButton(
-        modifier = modifier
-            .size(size)
-            .padding(0.dp),
-        onClick = {},
-        shape = armShape(type),
-        colors = IconButtonDefaults.outlinedIconButtonColors(
-            containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
-        ),
-        border = BorderStroke(1.5.dp, if (isPressed) PsStyle.BorderPressed else PsStyle.Border),
-        interactionSource = interactionSource,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_play_arrow),
-            contentDescription = stringResource(R.string.content_desc_dpad_button, type.name),
-            modifier = Modifier
-                .rotate(rotation)
-                .size(size * 0.5f),
-            tint = PsStyle.Glyph
-        )
-    }
 }
 
 private fun dpadBit(type: DpadButtonType) = when (type) {
@@ -129,9 +47,94 @@ private fun dpadBit(type: DpadButtonType) = when (type) {
     DpadButtonType.RIGHT -> GameButtons.DPadRight.value
 }
 
+private class DpadColors(light: Boolean) {
+    val disc = if (light) Color(0xFFE2E2E8) else Color(0xFF0E0E12)
+    val border = if (light) Color(0xFFC4C4CC) else Color(0xFF34343C)
+    val arm = if (light) Color(0xFFCFCFD8) else Color(0xFF17171D)
+    val armEdge = if (light) Color(0xFF8A8A96) else Color(0xFF34343D)
+    val key = if (light) Color(0xFFB9B9C6) else Color(0xFF2A2A32)
+    val keyEdge = if (light) Color(0xFF7D7D8A) else Color(0xFF4A4A55)
+    val keyOn = if (light) Color(0xFF8E8E9C) else Color(0xFF6A6A78)
+}
+
+private const val CROSS = "M33 -0.20A53 53 0 0 1 67 -0.20V33H100.20A53 53 0 0 1 100.20 67H67V100.20A53 53 0 0 1 33 100.20V67H-0.20A53 53 0 0 1 -0.20 33H33Z"
+private const val HL_UP = "M33 -0.2A53 53 0 0 1 67 -0.2V33H33Z"
+private const val HL_RIGHT = "M100.2 33A53 53 0 0 1 100.2 67H67V33Z"
+private const val HL_DOWN = "M67 100.2A53 53 0 0 1 33 100.2V67H67Z"
+private const val HL_LEFT = "M-0.2 67A53 53 0 0 1 -0.2 33H33V67Z"
+private const val KEY = "M8 5.6Q8 2.6 11 2.6H25Q28 2.6 28 5.6V24.5L18.7 33.8Q18 34.5 17.3 33.8L8 24.5Z"
+
+private fun path(d: String): Path = PathParser().parsePathString(d).toPath()
+
+/** One round base with a raised plus whose four arms light when pressed. */
+private fun DrawScope.drawXboxDpad(colors: DpadColors, pressed: Set<DpadButtonType>) {
+    val s = size.minDimension
+    translate(s * 0.041f, s * 0.041f) {
+        scale(s * 0.918f / 112f, pivot = Offset.Zero) {
+            translate(6f, 6f) {
+                drawCircle(colors.disc, radius = 49.2f, center = Offset(50f, 50f))
+                drawCircle(colors.border, radius = 49.2f, center = Offset(50f, 50f), style = Stroke(1.4f))
+                val cross = path(CROSS)
+                drawPath(cross, colors.arm)
+                drawPath(cross, colors.armEdge, style = Stroke(1.6f, join = StrokeJoin.Round))
+                val white = Color.White.copy(alpha = 0.22f)
+                if (DpadButtonType.UP in pressed) drawPath(path(HL_UP), white)
+                if (DpadButtonType.RIGHT in pressed) drawPath(path(HL_RIGHT), white)
+                if (DpadButtonType.DOWN in pressed) drawPath(path(HL_DOWN), white)
+                if (DpadButtonType.LEFT in pressed) drawPath(path(HL_LEFT), white)
+            }
+        }
+    }
+    // Four small arrow heads on the diagonals
+    val t = s * 0.06f
+    val tri = Path().apply {
+        moveTo(t / 2f, 0f); lineTo(t, t); lineTo(0f, t); close()
+    }
+    for ((x, y, angle) in listOf(
+        Triple(0.20f, 0.20f, -45f), Triple(0.74f, 0.20f, 45f),
+        Triple(0.20f, 0.74f, -135f), Triple(0.74f, 0.74f, 135f)
+    )) {
+        translate(s * x, s * y) {
+            rotate(angle, pivot = Offset(t / 2f, t / 2f)) { drawPath(tri, colors.border) }
+        }
+    }
+}
+
+/** A round base with four separate keys that point at the centre. */
+private fun DrawScope.drawPlayStationDpad(colors: DpadColors, pressed: Set<DpadButtonType>) {
+    val s = size.minDimension
+    scale(s / 100f, pivot = Offset.Zero) {
+        scale(0.84f, pivot = Offset(50f, 50f)) {
+            drawCircle(colors.disc, radius = 49f, center = Offset(50f, 50f))
+            drawCircle(colors.border, radius = 49f, center = Offset(50f, 50f), style = Stroke(1.5f))
+            for (d in listOf(
+                "M50 2.5L53.5 7.5Q50 6.2 46.5 7.5Z", "M50 97.5L53.5 92.5Q50 93.8 46.5 92.5Z",
+                "M2.5 50L7.5 46.5Q6.2 50 7.5 53.5Z", "M97.5 50L92.5 46.5Q93.8 50 92.5 53.5Z"
+            )) drawPath(path(d), colors.border)
+            val key = path(KEY)
+            for ((type, x, y, rot) in listOf(
+                Quad(DpadButtonType.UP, 31f, 9.5f, 0f), Quad(DpadButtonType.RIGHT, 52.5f, 31f, 90f),
+                Quad(DpadButtonType.DOWN, 31f, 52.5f, 180f), Quad(DpadButtonType.LEFT, 9.5f, 31f, -90f)
+            )) {
+                translate(x, y) {
+                    scale(1.0556f, pivot = Offset.Zero) {
+                        rotate(rot, pivot = Offset(18f, 18f)) {
+                            drawPath(key, if (type in pressed) colors.keyOn else colors.key)
+                            drawPath(key, colors.keyEdge, style = Stroke(1.2f, join = StrokeJoin.Round))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class Quad(val type: DpadButtonType, val x: Float, val y: Float, val rot: Float)
+
 /**
- * A directional pad with up, down, left, and right buttons. In orthogonal mode one touch anywhere on the pad
- * gives exactly one direction (never a diagonal) and sliding the thumb switches direction.
+ * The directional pad. One touch anywhere on it picks the direction from where the thumb is, and sliding
+ * switches direction. In orthogonal mode only one of up, down, left, right is ever held; otherwise two
+ * neighbouring directions are held together near the diagonals.
  */
 @Composable
 fun Dpad(
@@ -140,96 +143,75 @@ fun Dpad(
     gamepadState: GamepadReading,
 ) {
     val orthogonal = LocalDpadOrthogonal.current
+    val style = LocalGamepadStyle.current
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val colors = remember(light) { DpadColors(light) }
     val view = LocalView.current
-    val buttonSize = size * 0.34f
-    var active by remember { mutableStateOf<DpadButtonType?>(null) }
+    var active by remember { mutableStateOf<Set<DpadButtonType>>(emptySet()) }
 
-    fun setDirection(next: DpadButtonType?) {
+    fun setDirections(next: Set<DpadButtonType>) {
         if (next == active) return
-        active?.let {
-            gamepadState.ButtonsDown = gamepadState.ButtonsDown and dpadBit(it).inv()
-            gamepadState.ButtonsUp = gamepadState.ButtonsUp or dpadBit(it)
+        for (gone in active - next) {
+            gamepadState.ButtonsDown = gamepadState.ButtonsDown and dpadBit(gone).inv()
+            gamepadState.ButtonsUp = gamepadState.ButtonsUp or dpadBit(gone)
         }
-        if (next != null) {
-            HapticUtils.performButtonPressFeedback(view)
-            gamepadState.ButtonsDown = gamepadState.ButtonsDown or dpadBit(next)
-        } else {
-            HapticUtils.performButtonReleaseFeedback(view)
+        for (added in next - active) {
+            gamepadState.ButtonsDown = gamepadState.ButtonsDown or dpadBit(added)
         }
+        if (next.isNotEmpty()) HapticUtils.performButtonPressFeedback(view) else HapticUtils.performButtonReleaseFeedback(view)
         active = next
     }
 
-    val touchModifier = if (orthogonal) {
-        Modifier.pointerInput(Unit) {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                fun pick(position: Offset): DpadButtonType? {
-                    val dx = position.x - this@pointerInput.size.width / 2f
-                    val dy = position.y - this@pointerInput.size.height / 2f
-                    if (hypot(dx, dy) < this@pointerInput.size.width * 0.07f) return null
-                    val ax = abs(dx)
-                    val ay = abs(dy)
-                    val horizontal = when (active) {
-                        DpadButtonType.LEFT, DpadButtonType.RIGHT -> ay <= ax * 1.25f
-                        DpadButtonType.UP, DpadButtonType.DOWN -> ax > ay * 1.25f
-                        null -> ax > ay
+    Box(
+        modifier = modifier
+            .size(size)
+            .pointerInput(orthogonal) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    fun pick(position: Offset): Set<DpadButtonType> {
+                        val dx = position.x - this@pointerInput.size.width / 2f
+                        val dy = position.y - this@pointerInput.size.height / 2f
+                        if (hypot(dx, dy) < this@pointerInput.size.width * 0.07f) return emptySet()
+                        val ax = abs(dx)
+                        val ay = abs(dy)
+                        if (!orthogonal) {
+                            val result = mutableSetOf<DpadButtonType>()
+                            val d = hypot(dx, dy)
+                            if (dy / d < -0.38f) result += DpadButtonType.UP
+                            if (dy / d > 0.38f) result += DpadButtonType.DOWN
+                            if (dx / d < -0.38f) result += DpadButtonType.LEFT
+                            if (dx / d > 0.38f) result += DpadButtonType.RIGHT
+                            return result
+                        }
+                        val current = active.singleOrNull()
+                        val horizontal = when (current) {
+                            DpadButtonType.LEFT, DpadButtonType.RIGHT -> ay <= ax * 1.25f
+                            DpadButtonType.UP, DpadButtonType.DOWN -> ax > ay * 1.25f
+                            null -> ax > ay
+                        }
+                        return setOf(
+                            if (horizontal) {
+                                if (dx < 0) DpadButtonType.LEFT else DpadButtonType.RIGHT
+                            } else {
+                                if (dy < 0) DpadButtonType.UP else DpadButtonType.DOWN
+                            }
+                        )
                     }
-                    return if (horizontal) {
-                        if (dx < 0) DpadButtonType.LEFT else DpadButtonType.RIGHT
-                    } else {
-                        if (dy < 0) DpadButtonType.UP else DpadButtonType.DOWN
-                    }
+                    down.consume()
+                    setDirections(pick(down.position))
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        change.consume()
+                        if (change.pressed) setDirections(pick(change.position))
+                    } while (change.pressed)
+                    setDirections(emptySet())
                 }
-                down.consume()
-                setDirection(pick(down.position))
-                do {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    change.consume()
-                    if (change.pressed) setDirection(pick(change.position))
-                } while (change.pressed)
-                setDirection(null)
             }
+    ) {
+        Canvas(Modifier.size(size)) {
+            if (style == GamepadStyle.XBOX) drawXboxDpad(colors, active) else drawPlayStationDpad(colors, active)
         }
-    } else {
-        Modifier
-    }
-
-    Box(modifier = modifier.size(size).then(touchModifier), contentAlignment = Alignment.Center) {
-        // Fills the middle of the cross
-        Box(
-            modifier = Modifier
-                .size(buttonSize)
-                .background(PsStyle.Body)
-        )
-        DpadButton(
-            type = DpadButtonType.UP,
-            modifier = Modifier.align(Alignment.TopCenter),
-            size = buttonSize,
-            gamepadState = gamepadState,
-            forcePressed = if (orthogonal) active == DpadButtonType.UP else null,
-        )
-        DpadButton(
-            type = DpadButtonType.DOWN,
-            modifier = Modifier.align(Alignment.BottomCenter),
-            size = buttonSize,
-            gamepadState = gamepadState,
-            forcePressed = if (orthogonal) active == DpadButtonType.DOWN else null,
-        )
-        DpadButton(
-            type = DpadButtonType.LEFT,
-            modifier = Modifier.align(Alignment.CenterStart),
-            size = buttonSize,
-            gamepadState = gamepadState,
-            forcePressed = if (orthogonal) active == DpadButtonType.LEFT else null,
-        )
-        DpadButton(
-            type = DpadButtonType.RIGHT,
-            modifier = Modifier.align(Alignment.CenterEnd),
-            size = buttonSize,
-            gamepadState = gamepadState,
-            forcePressed = if (orthogonal) active == DpadButtonType.RIGHT else null,
-        )
     }
 }
 

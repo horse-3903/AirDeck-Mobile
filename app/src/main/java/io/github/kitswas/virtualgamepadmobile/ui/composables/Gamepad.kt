@@ -85,7 +85,7 @@ fun DrawGamepad(
                 .padding(deadZonePadding.dp)
                 .fillMaxSize()
         ) {
-            topCenter?.invoke(this, (baseDp / 8).dp)
+            topCenter?.invoke(this, (baseDp * 0.079f).dp)
 
             // Left Analog Stick
             RenderComponent(ButtonComponent.LEFT_ANALOG_STICK) { config, mod ->

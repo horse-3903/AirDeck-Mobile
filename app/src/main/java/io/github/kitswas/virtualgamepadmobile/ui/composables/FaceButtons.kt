@@ -9,6 +9,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
@@ -123,50 +125,32 @@ fun FaceButton(
         interactionSource = interactionSource,
         border = BorderStroke(1.5.dp, if (isPressed) glyphColor else PsStyle.Border),
     ) {
-        if (isXbox) {
-            Text(
-                text = label,
-                color = glyphColor,
-                style = TextStyle(
-                    fontSize = (size.value * 0.4f).sp,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-        } else {
-            FaceGlyph(type = type, color = glyphColor, modifier = Modifier.size(size * 0.4f))
-        }
+        FaceGlyph(type = type, xbox = isXbox, color = glyphColor, modifier = Modifier.size(size * 0.49f))
     }
 }
 
+/** The same stroke symbols and letters the browser controller draws, on a 24 unit grid. */
 @Composable
-private fun FaceGlyph(type: FaceButtonType, color: Color, modifier: Modifier = Modifier) {
+private fun FaceGlyph(type: FaceButtonType, xbox: Boolean, color: Color, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
-        val w = this.size.minDimension
-        val strokeWidth = w * 0.13f
-        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        when (type) {
-            FaceButtonType.A -> {
-                drawLine(color, Offset(w * 0.1f, w * 0.1f), Offset(w * 0.9f, w * 0.9f), strokeWidth, StrokeCap.Round)
-                drawLine(color, Offset(w * 0.9f, w * 0.1f), Offset(w * 0.1f, w * 0.9f), strokeWidth, StrokeCap.Round)
-            }
-
-            FaceButtonType.B -> drawCircle(color, radius = w * 0.42f, style = stroke)
-            FaceButtonType.X -> drawRoundRect(
-                color,
-                topLeft = Offset(w * 0.1f, w * 0.1f),
-                size = Size(w * 0.8f, w * 0.8f),
-                cornerRadius = CornerRadius(w * 0.08f),
-                style = stroke
-            )
-
-            FaceButtonType.Y -> {
-                val path = Path().apply {
-                    moveTo(w * 0.5f, w * 0.08f)
-                    lineTo(w * 0.94f, w * 0.88f)
-                    lineTo(w * 0.06f, w * 0.88f)
-                    close()
+        scale(this.size.minDimension / 24f, pivot = Offset.Zero) {
+            if (xbox) {
+                val stroke = Stroke(width = 2.6f, cap = StrokeCap.Square, join = StrokeJoin.Miter)
+                val d = when (type) {
+                    FaceButtonType.Y -> "M5.5 4 L12 13 L18.5 4 M12 13 V20.5"
+                    FaceButtonType.X -> "M6.3 5.2 L17.7 18.8 M17.7 5.2 L6.3 18.8"
+                    FaceButtonType.B -> "M7 4 V20 M7 4 H12 A4 4 0 0 1 12 12 H7 M7 12 H13 A4 4 0 0 1 13 20 H7"
+                    FaceButtonType.A -> "M4.5 20.5 L12 3.5 L19.5 20.5 M7.8 14.5 H16.2"
                 }
-                drawPath(path, color, style = stroke)
+                drawPath(PathParser().parsePathString(d).toPath(), color, style = stroke)
+            } else {
+                val round = Stroke(width = 2.6f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                when (type) {
+                    FaceButtonType.A -> drawPath(PathParser().parsePathString("M5 5 L19 19 M19 5 L5 19").toPath(), color, style = round)
+                    FaceButtonType.B -> drawCircle(color, radius = 8f, center = Offset(12f, 12f), style = round)
+                    FaceButtonType.X -> drawPath(PathParser().parsePathString("M4.5 4.5 H19.5 V19.5 H4.5 Z").toPath(), color, style = round)
+                    FaceButtonType.Y -> drawPath(PathParser().parsePathString("M12 4 L21 19 H3 Z").toPath(), color, style = round)
+                }
             }
         }
     }
@@ -188,25 +172,25 @@ fun FaceButtons(
         FaceButton(
             type = FaceButtonType.A,
             modifier = Modifier.align(Alignment.BottomCenter),
-            size = 2 * size / 5,
+            size = size * 0.316f,
             gamepadState = gamepadState,
         )
         FaceButton(
             type = FaceButtonType.B,
             modifier = Modifier.align(Alignment.CenterEnd),
-            size = 2 * size / 5,
+            size = size * 0.316f,
             gamepadState = gamepadState,
         )
         FaceButton(
             type = FaceButtonType.X,
             modifier = Modifier.align(Alignment.CenterStart),
-            size = 2 * size / 5,
+            size = size * 0.316f,
             gamepadState = gamepadState,
         )
         FaceButton(
             type = FaceButtonType.Y,
             modifier = Modifier.align(Alignment.TopCenter),
-            size = 2 * size / 5,
+            size = size * 0.316f,
             gamepadState = gamepadState,
         )
     }

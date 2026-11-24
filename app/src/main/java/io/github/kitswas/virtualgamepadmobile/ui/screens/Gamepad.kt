@@ -95,14 +95,16 @@ fun GamePad(
                 slot = connectionState?.controllerSlot,
                 onClick = { showLeaveConfirm = true },
                 height = rowHeight,
-                modifier = androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.TopCenter)
+                modifier = androidx.compose.ui.Modifier
+                    .align(androidx.compose.ui.Alignment.TopCenter)
+                    .offset(y = (screenHeight * -0.0274f).dp)
             )
             GearButton(
                 onClick = { showQuickSettings = true },
                 height = rowHeight,
                 modifier = androidx.compose.ui.Modifier
                     .align(androidx.compose.ui.Alignment.TopCenter)
-                    .offset(x = (screenHeight * 0.3f).dp)
+                    .offset(x = (screenHeight * 0.14f).dp, y = (screenHeight * -0.0274f).dp)
             )
         }
     )

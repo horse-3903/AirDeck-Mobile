@@ -115,10 +115,10 @@ fun ConnectionBadge(
     modifier: Modifier = Modifier,
     height: Dp = 32.dp,
 ) {
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = RoundedCornerShape(height * 0.2f)
     Row(
         modifier = modifier
-            .width(height * 2.1f)
+            .width(height * 2f)
             .height(height)
             .clip(shape)
             .background(PsStyle.Body)
@@ -164,11 +164,11 @@ fun GearButton(
     modifier: Modifier = Modifier,
     height: Dp = 32.dp,
 ) {
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = RoundedCornerShape(height * 0.2f)
     val glyph = PsStyle.Glyph
     androidx.compose.foundation.layout.Box(
         modifier = modifier
-            .width(height * 1.6f)
+            .width(height * 1.14f)
             .height(height)
             .clip(shape)
             .background(PsStyle.Body)
