@@ -136,6 +136,32 @@ private fun SettingRow(
 }
 
 @Composable
+private fun SwitchRow(label: String, helper: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
+    SettingRow(label = label, helper = helper) { Switch(checked = checked, onCheckedChange = onChange) }
+}
+
+@Composable
+private fun SliderRow(
+    label: String,
+    helper: String? = null,
+    valueText: String,
+    value: Int,
+    range: IntRange,
+    onChange: (Int) -> Unit,
+    onFinished: (() -> Unit)? = null,
+) {
+    SettingRow(label = label, helper = listOfNotNull(helper, valueText).joinToString("  ")) {
+        androidx.compose.material3.Slider(
+            value = value.toFloat(),
+            onValueChange = { onChange(it.toInt()) },
+            onValueChangeFinished = { onFinished?.invoke() },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            modifier = Modifier.width(CONTROL_WIDTH)
+        )
+    }
+}
+
+@Composable
 private fun SectionHeader(text: String) {
     Text(
         text = text,
@@ -165,6 +191,7 @@ fun SettingsScreen(
         val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = defaultHapticFeedbackEnabled)
         val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
         val hapticPrefs by settingsRepository.hapticPrefs.collectAsState(initial = HapticPrefs())
+        val prefs by settingsRepository.appPrefs.collectAsState(initial = io.github.kitswas.virtualgamepadmobile.data.AppPrefs())
         val hapticView = androidx.compose.ui.platform.LocalView.current
         val dpadSingle by settingsRepository.dpadSingle.collectAsState(initial = defaultDpadSingle)
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
@@ -198,7 +225,10 @@ fun SettingsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                SectionHeader(stringResource(R.string.settings_section_appearance))
+                fun save(p: io.github.kitswas.virtualgamepadmobile.data.AppPrefs) { applyScope.launch { settingsRepository.setAppPrefs(p) } }
+                fun saveHaptics(p: HapticPrefs) { applyScope.launch { settingsRepository.setHapticPrefs(p) } }
+
+                SectionHeader(stringResource(R.string.sec_appearance))
                 SettingRow(label = stringResource(R.string.settings_color_scheme)) {
                     ColorSchemePicker(
                         selectedItem = settingsChanges.colorScheme ?: colorScheme,
@@ -211,7 +241,6 @@ fun SettingsScreen(
                         applyScope.launch { settingsRepository.setColorScheme(it) }
                     }
                 }
-
                 SettingRow(
                     label = stringResource(R.string.settings_gamepad_style),
                     helper = stringResource(R.string.settings_gamepad_style_desc)
@@ -230,7 +259,13 @@ fun SettingsScreen(
                         }
                     )
                 }
+                SliderRow(stringResource(R.string.pref_opacity), null, "${prefs.opacity}%", prefs.opacity, 20..100, { save(prefs.copy(opacity = it)) })
+                SwitchRow(stringResource(R.string.pref_glow), stringResource(R.string.pref_glow_desc), prefs.glowEnabled) { save(prefs.copy(glowEnabled = it)) }
+                if (prefs.glowEnabled) {
+                    SliderRow(stringResource(R.string.pref_glow_strength), null, "${prefs.glowStrength}%", prefs.glowStrength, 10..200, { save(prefs.copy(glowStrength = it)) })
+                }
 
+                SectionHeader(stringResource(R.string.sec_layout))
                 SettingRow(
                     label = stringResource(R.string.settings_customize_layout),
                     helper = stringResource(R.string.settings_customize_layout_desc),
@@ -243,7 +278,57 @@ fun SettingsScreen(
                     )
                 }
 
-                SectionHeader(stringResource(R.string.settings_section_controller))
+                SectionHeader(stringResource(R.string.sec_display))
+                SwitchRow(stringResource(R.string.settings_full_screen), stringResource(R.string.settings_full_screen_desc), settingsChanges.fullScreenEnabled ?: fullScreenEnabled) {
+                    settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
+                    applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
+                }
+                SwitchRow(stringResource(R.string.pref_keep_on), stringResource(R.string.pref_keep_on_desc), prefs.keepScreenOn) { save(prefs.copy(keepScreenOn = it)) }
+
+                SectionHeader(stringResource(R.string.sec_sticks))
+                SwitchRow(stringResource(R.string.settings_stick_snap), stringResource(R.string.settings_stick_snap_desc), stickSnap) {
+                    applyScope.launch { settingsRepository.setStickSnap(it) }
+                }
+                SliderRow(stringResource(R.string.pref_dead_zone), stringResource(R.string.pref_dead_zone_desc), "${prefs.deadZone}%", prefs.deadZone, 0..40, { save(prefs.copy(deadZone = it)) })
+                SliderRow(stringResource(R.string.pref_sensitivity), stringResource(R.string.pref_sensitivity_desc), "${prefs.sensitivity}%", prefs.sensitivity, 50..150, { save(prefs.copy(sensitivity = it)) })
+                SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), prefs.clickEnabled) { save(prefs.copy(clickEnabled = it)) }
+                if (prefs.clickEnabled) {
+                    SliderRow(stringResource(R.string.pref_click_ms), null, "${prefs.clickHoldMs} ms", prefs.clickHoldMs, 200..1500, { save(prefs.copy(clickHoldMs = it)) })
+                }
+                SwitchRow(stringResource(R.string.pref_invert_left), null, prefs.invertLeftY) { save(prefs.copy(invertLeftY = it)) }
+                SwitchRow(stringResource(R.string.pref_invert_right), null, prefs.invertRightY) { save(prefs.copy(invertRightY = it)) }
+
+                SectionHeader(stringResource(R.string.sec_dpad))
+                SwitchRow(stringResource(R.string.settings_dpad_single), stringResource(R.string.settings_dpad_single_desc), dpadSingle) {
+                    applyScope.launch { settingsRepository.setDpadSingle(it) }
+                }
+                if (!dpadSingle) {
+                    SliderRow(stringResource(R.string.pref_diagonal), stringResource(R.string.pref_diagonal_desc), "${prefs.dpadDiagonal}%", prefs.dpadDiagonal, 20..60, { save(prefs.copy(dpadDiagonal = it)) })
+                }
+
+                SectionHeader(stringResource(R.string.sec_haptics))
+                SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), settingsChanges.hapticFeedbackEnabled ?: hapticEnabled) {
+                    settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
+                    applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
+                }
+                if (hapticEnabled) {
+                    SwitchRow(stringResource(R.string.haptics_custom), stringResource(R.string.haptics_custom_desc), hapticPrefs.custom) { saveHaptics(hapticPrefs.copy(custom = it)) }
+                    if (hapticPrefs.custom) {
+                        SliderRow(stringResource(R.string.haptics_intensity), null, "${hapticPrefs.intensity}%", hapticPrefs.intensity, 5..100,
+                            { saveHaptics(hapticPrefs.copy(intensity = it)) }, { HapticUtils.performButtonPressFeedback(hapticView) })
+                        SliderRow(stringResource(R.string.haptics_duration), null, "${hapticPrefs.durationMs} ms", hapticPrefs.durationMs, 5..80,
+                            { saveHaptics(hapticPrefs.copy(durationMs = it)) }, { HapticUtils.performButtonPressFeedback(hapticView) })
+                    }
+                    SwitchRow(stringResource(R.string.haptics_press), null, hapticPrefs.press) { saveHaptics(hapticPrefs.copy(press = it)) }
+                    SwitchRow(stringResource(R.string.haptics_release), null, hapticPrefs.release) { saveHaptics(hapticPrefs.copy(release = it)) }
+                    SwitchRow(stringResource(R.string.haptics_sticks), null, hapticPrefs.sticks) { saveHaptics(hapticPrefs.copy(sticks = it)) }
+                    SwitchRow(stringResource(R.string.haptics_triggers), null, hapticPrefs.triggers) { saveHaptics(hapticPrefs.copy(triggers = it)) }
+                    SettingRow(label = stringResource(R.string.haptics_test)) {
+                        OutlinedButton(onClick = { HapticUtils.performButtonPressFeedback(hapticView) }) { Text(stringResource(R.string.haptics_test)) }
+                    }
+                }
+
+                SectionHeader(stringResource(R.string.sec_connection))
                 SettingRow(
                     label = stringResource(R.string.settings_polling_interval),
                     helper = stringResource(R.string.settings_polling_interval_desc),
@@ -261,115 +346,15 @@ fun SettingsScreen(
                         modifier = Modifier.width(CONTROL_WIDTH)
                     )
                 }
-
-                SettingRow(
-                    label = stringResource(R.string.settings_stick_snap),
-                    helper = stringResource(R.string.settings_stick_snap_desc)
-                ) {
-                    Switch(
-                        checked = stickSnap,
-                        onCheckedChange = { applyScope.launch { settingsRepository.setStickSnap(it) } }
-                    )
+                SwitchRow(stringResource(R.string.settings_save_connection_credentials), stringResource(R.string.settings_remember_desc), settingsChanges.saveConnectionCredentials ?: saveCredentials) {
+                    settingsChanges = settingsChanges.copy(saveConnectionCredentials = it)
+                    applyScope.launch { settingsRepository.setSaveConnectionCredentials(it) }
                 }
-
-                SettingRow(
-                    label = stringResource(R.string.settings_dpad_single),
-                    helper = stringResource(R.string.settings_dpad_single_desc)
-                ) {
-                    Switch(
-                        checked = dpadSingle,
-                        onCheckedChange = { applyScope.launch { settingsRepository.setDpadSingle(it) } }
-                    )
+                SwitchRow(stringResource(R.string.pref_reconnect), stringResource(R.string.pref_reconnect_desc), prefs.autoReconnect) { save(prefs.copy(autoReconnect = it)) }
+                if (prefs.autoReconnect) {
+                    SliderRow(stringResource(R.string.pref_reconnect_s), null, "${prefs.reconnectSeconds} s", prefs.reconnectSeconds, 10..600, { save(prefs.copy(reconnectSeconds = it)) })
                 }
-
-                SettingRow(
-                    label = stringResource(R.string.settings_haptic_feedback),
-                    helper = stringResource(R.string.settings_haptic_desc)
-                ) {
-                    Switch(
-                        checked = settingsChanges.hapticFeedbackEnabled ?: hapticEnabled,
-                        onCheckedChange = {
-                            settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
-                            applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
-                        }
-                    )
-                }
-
-                if (hapticEnabled) {
-                    SettingRow(
-                        label = stringResource(R.string.haptics_custom),
-                        helper = stringResource(R.string.haptics_custom_desc)
-                    ) {
-                        Switch(
-                            checked = hapticPrefs.custom,
-                            onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(custom = it)) } }
-                        )
-                    }
-                    if (hapticPrefs.custom) {
-                        SettingRow(label = stringResource(R.string.haptics_intensity), helper = "${hapticPrefs.intensity}%") {
-                            androidx.compose.material3.Slider(
-                                value = hapticPrefs.intensity.toFloat(),
-                                onValueChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(intensity = it.toInt())) } },
-                                onValueChangeFinished = { HapticUtils.performButtonPressFeedback(hapticView) },
-                                valueRange = 5f..100f,
-                                modifier = Modifier.width(CONTROL_WIDTH)
-                            )
-                        }
-                        SettingRow(label = stringResource(R.string.haptics_duration), helper = "${hapticPrefs.durationMs} ms") {
-                            androidx.compose.material3.Slider(
-                                value = hapticPrefs.durationMs.toFloat(),
-                                onValueChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(durationMs = it.toInt())) } },
-                                onValueChangeFinished = { HapticUtils.performButtonPressFeedback(hapticView) },
-                                valueRange = 5f..80f,
-                                modifier = Modifier.width(CONTROL_WIDTH)
-                            )
-                        }
-                    }
-                    SettingRow(label = stringResource(R.string.haptics_press)) {
-                        Switch(checked = hapticPrefs.press, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(press = it)) } })
-                    }
-                    SettingRow(label = stringResource(R.string.haptics_release)) {
-                        Switch(checked = hapticPrefs.release, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(release = it)) } })
-                    }
-                    SettingRow(label = stringResource(R.string.haptics_sticks)) {
-                        Switch(checked = hapticPrefs.sticks, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(sticks = it)) } })
-                    }
-                    SettingRow(label = stringResource(R.string.haptics_triggers)) {
-                        Switch(checked = hapticPrefs.triggers, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(triggers = it)) } })
-                    }
-                    SettingRow(label = stringResource(R.string.haptics_test)) {
-                        OutlinedButton(onClick = { HapticUtils.performButtonPressFeedback(hapticView) }) { Text(stringResource(R.string.haptics_test)) }
-                    }
-                }
-
-                SettingRow(
-                    label = stringResource(R.string.settings_full_screen),
-                    helper = stringResource(R.string.settings_full_screen_desc)
-                ) {
-                    Switch(
-                        checked = settingsChanges.fullScreenEnabled ?: fullScreenEnabled,
-                        onCheckedChange = {
-                            settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
-                            applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
-                        }
-                    )
-                }
-
-                SectionHeader(stringResource(R.string.settings_section_connection))
-                SettingRow(
-                    label = stringResource(R.string.settings_save_connection_credentials),
-                    helper = stringResource(R.string.settings_remember_desc),
-                    showDivider = false
-                ) {
-                    Switch(
-                        checked = settingsChanges.saveConnectionCredentials ?: saveCredentials,
-                        onCheckedChange = {
-                            settingsChanges = settingsChanges.copy(saveConnectionCredentials = it)
-                            applyScope.launch { settingsRepository.setSaveConnectionCredentials(it) }
-                        }
-                    )
-                }
-
+                SwitchRow(stringResource(R.string.pref_confirm), stringResource(R.string.pref_confirm_desc), prefs.confirmDisconnect) { save(prefs.copy(confirmDisconnect = it)) }
 
             }
 

@@ -65,6 +65,13 @@ fun GamePad(
     val screenHeight = configuration.screenHeightDp
     val screenWidth = configuration.screenWidthDp
 
+    val prefs = io.github.kitswas.virtualgamepadmobile.ui.composables.LocalAppPrefs.current
+    val rootView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(prefs.keepScreenOn) {
+        rootView.keepScreenOn = prefs.keepScreenOn
+        onDispose { rootView.keepScreenOn = false }
+    }
+
     val isStopping = remember { mutableStateOf(false) }
     val leaving = remember { mutableStateOf(false) }
 
@@ -112,7 +119,14 @@ fun GamePad(
                             userDisconnected = false
                             connectionViewModel?.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
                         }
-                        connectionState?.connected == true -> showDisconnectConfirm = true
+                        connectionState?.connected == true ->
+                            if (prefs.confirmDisconnect) {
+                                showDisconnectConfirm = true
+                            } else {
+                                releaseEverything()
+                                userDisconnected = true
+                                connectionViewModel?.disconnect()
+                            }
                         // Still trying to reconnect: stop
                         else -> {
                             userDisconnected = true
@@ -154,9 +168,14 @@ fun GamePad(
     val lostMessage = stringResource(R.string.gamepad_connection_lost)
     LaunchedEffect(connected, leaving.value, userDisconnected) {
         if (connectionViewModel == null || leaving.value || userDisconnected || connected != false) return@LaunchedEffect
+        if (!prefs.autoReconnect) {
+            Toast.makeText(context, lostMessage, Toast.LENGTH_LONG).show()
+            onNavigateBack()
+            return@LaunchedEffect
+        }
         var recovered = false
-        var attempts = 0
-        while (attempts < 30 && !leaving.value && !userDisconnected && !recovered) {
+        val deadline = android.os.SystemClock.elapsedRealtime() + prefs.reconnectSeconds * 1000L
+        while (android.os.SystemClock.elapsedRealtime() < deadline && !leaving.value && !userDisconnected && !recovered) {
             delay(1500)
             connectionViewModel.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
             var waited = 0
@@ -167,7 +186,6 @@ fun GamePad(
                 waited += 200
             }
             recovered = connectionViewModel.uiState.value.connected
-            attempts++
         }
         if (!recovered && !leaving.value && !userDisconnected) {
             Log.d(tag, lostMessage)

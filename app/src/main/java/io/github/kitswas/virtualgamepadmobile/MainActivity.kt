@@ -123,10 +123,12 @@ class MainActivity : ComponentActivity() {
             )
             val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
             val dpadSingle by settingsRepository.dpadSingle.collectAsState(initial = defaultDpadSingle)
+            val appPrefs by settingsRepository.appPrefs.collectAsState(initial = io.github.kitswas.virtualgamepadmobile.data.AppPrefs())
             CompositionLocalProvider(
                 LocalGamepadStyle provides gamepadStyle,
                 LocalStickSnap provides stickSnap,
-                LocalDpadSingle provides dpadSingle
+                LocalDpadSingle provides dpadSingle,
+                io.github.kitswas.virtualgamepadmobile.ui.composables.LocalAppPrefs provides appPrefs
             ) {
                 NavTree(
                     connectionViewModel = connectionViewModel,

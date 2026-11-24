@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.kitswas.VGP_Data_Exchange.GameButtons
+import io.github.kitswas.virtualgamepadmobile.data.AppPrefs
 import io.github.kitswas.VGP_Data_Exchange.GamepadReading
 import io.github.kitswas.virtualgamepadmobile.ui.theme.darken
 import io.github.kitswas.virtualgamepadmobile.ui.theme.lighten
@@ -51,6 +52,25 @@ private class AnalogStickUiState {
     var visualX by mutableFloatStateOf(0f)
     var visualY by mutableFloatStateOf(0f)
     var isPressed by mutableStateOf(false)
+}
+
+/** Dead zone, sensitivity and inversion applied to a stick position whose length is 0 to 1. */
+private fun shaped(prefs: AppPrefs, type: AnalogStickType, x: Float, y: Float): Pair<Float, Float> {
+    val length = sqrt(x * x + y * y)
+    var nx = x
+    var ny = y
+    val dead = prefs.deadZone / 100f
+    if (length < dead) {
+        nx = 0f
+        ny = 0f
+    } else if (length > 0f) {
+        val scaled = ((length - dead) / (1f - dead)) * (prefs.sensitivity / 100f)
+        val factor = scaled.coerceAtMost(1f) / length
+        nx = x * factor
+        ny = y * factor
+    }
+    val invert = if (type == AnalogStickType.LEFT) prefs.invertLeftY else prefs.invertRightY
+    return nx to (if (invert) -ny else ny)
 }
 
 private fun updateThumbstickValues(
@@ -97,6 +117,7 @@ private fun handleAnalogDrag(
     type: AnalogStickType,
     gamepadState: GamepadReading,
     view: android.view.View,
+    prefs: AppPrefs = AppPrefs(),
 ) {
     state.offsetX += dragX
     state.offsetY += dragY
@@ -114,7 +135,8 @@ private fun handleAnalogDrag(
     val scaleFactor = if (magnitude > maxOffset) maxOffset / magnitude else 1f
     state.visualX = state.offsetX * scaleFactor
     state.visualY = state.offsetY * scaleFactor
-    updateThumbstickValues(type, gamepadState, state.visualX / maxOffset, state.visualY / maxOffset)
+    val (sx, sy) = shaped(prefs, type, state.visualX / maxOffset, state.visualY / maxOffset)
+    updateThumbstickValues(type, gamepadState, sx, sy)
 }
 
 private fun toggleThumbstickButton(
@@ -157,6 +179,7 @@ fun AnalogStick(
     val density = LocalDensity.current
     val view = LocalView.current
     val touchSlop = LocalViewConfiguration.current.touchSlop
+    val prefs = LocalAppPrefs.current
 
     val state = remember { AnalogStickUiState() }
     val snap = LocalStickSnap.current
@@ -191,7 +214,8 @@ fun AnalogStick(
                             state.offsetY = dy
                             state.visualX = dx
                             state.visualY = dy
-                            updateThumbstickValues(type, gamepadState, dx / maxOffset, dy / maxOffset)
+                            val (sx, sy) = shaped(prefs, type, dx / maxOffset, dy / maxOffset)
+                            updateThumbstickValues(type, gamepadState, sx, sy)
                             val normalized = (length / maxOffset).coerceIn(0f, 1f)
                             if (normalized > 0.3f) HapticUtils.performAnalogMovementFeedback(view, normalized)
                         }
@@ -201,11 +225,11 @@ fun AnalogStick(
                         var longPressed = false
                         val started = down.uptimeMillis
                         while (true) {
-                            val wait = if (moved || longPressed) null else (450L - (android.os.SystemClock.uptimeMillis() - started)).coerceAtLeast(1L)
+                            val wait = if (moved || longPressed) null else (prefs.clickHoldMs.toLong() - (android.os.SystemClock.uptimeMillis() - started)).coerceAtLeast(1L)
                             val event = if (wait == null) awaitPointerEvent() else withTimeoutOrNull(wait) { awaitPointerEvent() }
                             if (event == null) {
                                 longPressed = true
-                                toggleThumbstickButton(state, type, gamepadState, view)
+                                if (prefs.clickEnabled) toggleThumbstickButton(state, type, gamepadState, view)
                                 continue
                             }
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -260,6 +284,7 @@ fun AnalogStick(
                                 type = type,
                                 gamepadState = gamepadState,
                                 view = view,
+                                prefs = prefs,
                             )
                         }
                     )
@@ -268,7 +293,7 @@ fun AnalogStick(
                     if (snap) return@pointerInput
                     detectTapGestures(
                         onLongPress = { _ ->
-                            toggleThumbstickButton(state, type, gamepadState, view)
+                            if (prefs.clickEnabled) toggleThumbstickButton(state, type, gamepadState, view)
                         }
                     )
                 }

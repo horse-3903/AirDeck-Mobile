@@ -141,8 +141,10 @@ fun ConnectionBadge(
 @Composable
 fun SlotGlow(slot: Int?, modifier: Modifier = Modifier) {
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val prefs = LocalAppPrefs.current
+    val strength = prefs.glowStrength / 100f
     val alpha by animateFloatAsState(
-        targetValue = if (slot == null) 0f else if (light) 0.16f else 0.14f,
+        targetValue = if (slot == null || !prefs.glowEnabled) 0f else (if (light) 0.16f else 0.14f) * strength,
         animationSpec = tween(500),
         label = "slotGlow"
     )

@@ -143,6 +143,7 @@ fun Dpad(
     gamepadState: GamepadReading,
 ) {
     val single = LocalDpadSingle.current
+    val threshold = LocalAppPrefs.current.dpadDiagonal / 100f
     val style = LocalGamepadStyle.current
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val colors = remember(light) { DpadColors(light) }
@@ -165,7 +166,7 @@ fun Dpad(
     Box(
         modifier = modifier
             .size(size)
-            .pointerInput(single) {
+            .pointerInput(single, threshold) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     fun pick(position: Offset): Set<DpadButtonType> {
@@ -177,10 +178,10 @@ fun Dpad(
                         if (!single) {
                             val result = mutableSetOf<DpadButtonType>()
                             val d = hypot(dx, dy)
-                            if (dy / d < -0.38f) result += DpadButtonType.UP
-                            if (dy / d > 0.38f) result += DpadButtonType.DOWN
-                            if (dx / d < -0.38f) result += DpadButtonType.LEFT
-                            if (dx / d > 0.38f) result += DpadButtonType.RIGHT
+                            if (dy / d < -threshold) result += DpadButtonType.UP
+                            if (dy / d > threshold) result += DpadButtonType.DOWN
+                            if (dx / d < -threshold) result += DpadButtonType.LEFT
+                            if (dx / d > threshold) result += DpadButtonType.RIGHT
                             return result
                         }
                         val current = active.singleOrNull()

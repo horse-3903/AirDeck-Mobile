@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import io.github.kitswas.VGP_Data_Exchange.GamepadReading
 import io.github.kitswas.virtualgamepadmobile.data.ButtonAnchor
@@ -84,6 +85,7 @@ fun DrawGamepad(
             modifier = Modifier
                 .padding(deadZonePadding.dp)
                 .fillMaxSize()
+                .alpha(LocalAppPrefs.current.opacity / 100f)
         ) {
             topCenter?.invoke(this, (baseDp * 0.079f).dp)
 

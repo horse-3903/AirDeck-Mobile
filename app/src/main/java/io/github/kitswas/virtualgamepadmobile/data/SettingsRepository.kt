@@ -124,6 +124,45 @@ class SettingsRepository(context: Context) {
         )
     }
 
+    val appPrefs: Flow<AppPrefs> = dataStore.data.map { p ->
+        val d = AppPrefs()
+        AppPrefs(
+            opacity = p[PREF_OPACITY] ?: d.opacity,
+            glowEnabled = p[PREF_GLOW] ?: d.glowEnabled,
+            glowStrength = p[PREF_GLOW_STRENGTH] ?: d.glowStrength,
+            keepScreenOn = p[PREF_KEEP_ON] ?: d.keepScreenOn,
+            deadZone = p[PREF_DEAD_ZONE] ?: d.deadZone,
+            sensitivity = p[PREF_SENSITIVITY] ?: d.sensitivity,
+            clickEnabled = p[PREF_CLICK] ?: d.clickEnabled,
+            clickHoldMs = p[PREF_CLICK_MS] ?: d.clickHoldMs,
+            invertLeftY = p[PREF_INVERT_L] ?: d.invertLeftY,
+            invertRightY = p[PREF_INVERT_R] ?: d.invertRightY,
+            dpadDiagonal = p[PREF_DIAGONAL] ?: d.dpadDiagonal,
+            autoReconnect = p[PREF_RECONNECT] ?: d.autoReconnect,
+            reconnectSeconds = p[PREF_RECONNECT_S] ?: d.reconnectSeconds,
+            confirmDisconnect = p[PREF_CONFIRM] ?: d.confirmDisconnect,
+        )
+    }
+
+    suspend fun setAppPrefs(prefs: AppPrefs) {
+        dataStore.edit { p ->
+            p[PREF_OPACITY] = prefs.opacity
+            p[PREF_GLOW] = prefs.glowEnabled
+            p[PREF_GLOW_STRENGTH] = prefs.glowStrength
+            p[PREF_KEEP_ON] = prefs.keepScreenOn
+            p[PREF_DEAD_ZONE] = prefs.deadZone
+            p[PREF_SENSITIVITY] = prefs.sensitivity
+            p[PREF_CLICK] = prefs.clickEnabled
+            p[PREF_CLICK_MS] = prefs.clickHoldMs
+            p[PREF_INVERT_L] = prefs.invertLeftY
+            p[PREF_INVERT_R] = prefs.invertRightY
+            p[PREF_DIAGONAL] = prefs.dpadDiagonal
+            p[PREF_RECONNECT] = prefs.autoReconnect
+            p[PREF_RECONNECT_S] = prefs.reconnectSeconds
+            p[PREF_CONFIRM] = prefs.confirmDisconnect
+        }
+    }
+
     suspend fun setHapticPrefs(prefs: HapticPrefs) {
         dataStore.edit { p ->
             p[HAPTIC_CUSTOM] = prefs.custom
@@ -224,6 +263,20 @@ class SettingsRepository(context: Context) {
         private val GAMEPAD_STYLE = intPreferencesKey("gamepad_style")
         private val POLLING_DELAY = intPreferencesKey("polling_delay")
         private val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
+        private val PREF_OPACITY = intPreferencesKey("pref_opacity")
+        private val PREF_GLOW = booleanPreferencesKey("pref_glow")
+        private val PREF_GLOW_STRENGTH = intPreferencesKey("pref_glow_strength")
+        private val PREF_KEEP_ON = booleanPreferencesKey("pref_keep_screen_on")
+        private val PREF_DEAD_ZONE = intPreferencesKey("pref_dead_zone")
+        private val PREF_SENSITIVITY = intPreferencesKey("pref_sensitivity")
+        private val PREF_CLICK = booleanPreferencesKey("pref_click")
+        private val PREF_CLICK_MS = intPreferencesKey("pref_click_ms")
+        private val PREF_INVERT_L = booleanPreferencesKey("pref_invert_left_y")
+        private val PREF_INVERT_R = booleanPreferencesKey("pref_invert_right_y")
+        private val PREF_DIAGONAL = intPreferencesKey("pref_dpad_diagonal")
+        private val PREF_RECONNECT = booleanPreferencesKey("pref_reconnect")
+        private val PREF_RECONNECT_S = intPreferencesKey("pref_reconnect_seconds")
+        private val PREF_CONFIRM = booleanPreferencesKey("pref_confirm_disconnect")
         private val HAPTIC_CUSTOM = booleanPreferencesKey("haptic_custom")
         private val HAPTIC_INTENSITY = intPreferencesKey("haptic_intensity")
         private val HAPTIC_DURATION = intPreferencesKey("haptic_duration")

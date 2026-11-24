@@ -15,6 +15,9 @@ val LocalStickSnap = staticCompositionLocalOf { true }
 /** True when the D-pad gives one direction at a time (no diagonals) and a slide switches direction. */
 val LocalDpadSingle = staticCompositionLocalOf { false }
 
+/** The user's tuning: opacity, glow, stick shaping, reconnect behaviour and so on. */
+val LocalAppPrefs = staticCompositionLocalOf { io.github.kitswas.virtualgamepadmobile.data.AppPrefs() }
+
 /** Gamepad palette that follows the app theme (dark or light). */
 internal object PsStyle {
     private val isLight: Boolean
