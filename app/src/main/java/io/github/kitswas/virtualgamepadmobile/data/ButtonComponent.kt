@@ -84,6 +84,11 @@ enum class TriggerMode(@StringRes val nameRes: Int, @StringRes val descRes: Int)
     RAMP(R.string.trigger_mode_ramp, R.string.trigger_mode_ramp_desc),
     FORCE(R.string.trigger_mode_force, R.string.trigger_mode_force_desc),
     TILT(R.string.trigger_mode_tilt, R.string.trigger_mode_tilt_desc);
+
+    companion object {
+        // Slide, ramp, force and tilt are implemented but hidden from the picker
+        val offered = listOf(DIGITAL, DRAG, ZONES)
+    }
 }
 
 /**

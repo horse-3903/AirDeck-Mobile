@@ -181,7 +181,7 @@ fun ComponentSettingsPanel(
                     text = stringResource(R.string.panel_trigger_mode),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
-                TriggerMode.entries.forEach { m ->
+                TriggerMode.offered.forEach { m ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
