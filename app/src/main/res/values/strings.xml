@@ -293,6 +293,15 @@
     <string name="disconnect_title">Disconnect controller?</string>
     <string name="disconnect_message">Your PC will stop receiving controller input until you reconnect.</string>
     <string name="disconnect_confirm">Confirm</string>
+    <string name="haptics_custom">Custom vibration</string>
+    <string name="haptics_custom_desc">Lets you choose the strength and length. Off uses the phone\'s own touch feedback.</string>
+    <string name="haptics_intensity">Strength</string>
+    <string name="haptics_duration">Length</string>
+    <string name="haptics_press">Button presses</string>
+    <string name="haptics_release">Button releases</string>
+    <string name="haptics_sticks">Sticks</string>
+    <string name="haptics_triggers">Analog triggers</string>
+    <string name="haptics_test">Try it</string>
     <string name="quick_settings_title">Quick settings</string>
     <string name="quick_theme">Theme</string>
     <string name="quick_style">Button style</string>

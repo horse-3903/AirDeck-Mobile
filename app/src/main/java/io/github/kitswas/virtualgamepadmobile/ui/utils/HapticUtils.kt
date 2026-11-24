@@ -1,17 +1,33 @@
 package io.github.kitswas.virtualgamepadmobile.ui.utils
 
+import android.content.Context
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.View
 import io.github.kitswas.virtualgamepadmobile.data.defaultHapticFeedbackEnabled
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
+
+/**
+ * Everything about how the controller feels. Custom vibration lets the strength and length be chosen; turning it
+ * off falls back to the phone's own touch feedback effects.
+ */
+data class HapticPrefs(
+    val custom: Boolean = true,
+    val intensity: Int = 70,
+    val durationMs: Int = 20,
+    val press: Boolean = true,
+    val release: Boolean = true,
+    val sticks: Boolean = true,
+    val triggers: Boolean = true,
+)
 
 /**
  * Utility class for handling haptic feedback consistently across the app.
- * Follows Android's haptics design principles:
- * - Uses HapticFeedbackConstants for consistency across the system
- * - Avoids problematic one-shot vibrations and buzzy patterns
- * - Works on low-end devices
  */
 object HapticUtils {
     private const val TAG = "HapticUtils"
@@ -27,18 +43,44 @@ object HapticUtils {
             Log.d(TAG, "Haptic feedback enabled: $value")
         }
 
+    @Volatile
+    var prefs: HapticPrefs = HapticPrefs()
+
+    private fun vibrator(context: Context): Vibrator? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+
+    /** One short pulse at the chosen strength and length, scaled for the kind of event. */
+    private fun pulse(view: View, durationScale: Float, strengthScale: Float) {
+        val vibrator = vibrator(view.context) ?: return
+        if (!vibrator.hasVibrator()) return
+        val millis = (prefs.durationMs * durationScale).roundToLong().coerceAtLeast(3L)
+        val amplitude = (255 * (prefs.intensity / 100f) * strengthScale).roundToInt().coerceIn(1, 255)
+        val effect = if (vibrator.hasAmplitudeControl()) {
+            VibrationEffect.createOneShot(millis, amplitude)
+        } else {
+            VibrationEffect.createOneShot(millis, VibrationEffect.DEFAULT_AMPLITUDE)
+        }
+        vibrator.vibrate(effect)
+    }
+
+    private fun system(view: View, effect: Int, fallback: Int = effect) {
+        view.performHapticFeedback(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) effect else fallback, OVERRIDE_FLAGS)
+    }
+
     /**
      * Provides haptic feedback for gamepad button press events (buttons down).
      */
     fun performButtonPressFeedback(view: View) {
-        if (!isEnabled) return
+        if (!isEnabled || !prefs.press) return
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_PRESS, OVERRIDE_FLAGS)
-            } else {
-                // For older versions, use VIRTUAL_KEY for a consistent press feel
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY, OVERRIDE_FLAGS)
-            }
+            if (prefs.custom) pulse(view, 1f, 1f)
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_PRESS, OVERRIDE_FLAGS)
+            else view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY, OVERRIDE_FLAGS)
         } catch (e: Exception) {
             Log.e(TAG, "Error performing button press haptic feedback: ${e.message}")
         }
@@ -48,16 +90,11 @@ object HapticUtils {
      * Provides haptic feedback for gamepad button release events (buttons up).
      */
     fun performButtonReleaseFeedback(view: View) {
-        if (!isEnabled) return
+        if (!isEnabled || !prefs.release) return
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                view.performHapticFeedback(
-                    HapticFeedbackConstants.KEYBOARD_RELEASE, OVERRIDE_FLAGS
-                )
-            } else {
-                // For older versions, use a very light alternative
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, OVERRIDE_FLAGS)
-            }
+            if (prefs.custom) pulse(view, 0.6f, 0.6f)
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_RELEASE, OVERRIDE_FLAGS)
+            else view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, OVERRIDE_FLAGS)
         } catch (e: Exception) {
             Log.e(TAG, "Error performing button release haptic feedback: ${e.message}")
         }
@@ -65,17 +102,13 @@ object HapticUtils {
 
     /**
      * Provides haptic feedback when an analog stick gesture starts.
-     * Uses GESTURE_START (API 30+) for modern devices, with fallback.
      */
     fun performGestureStartFeedback(view: View) {
-        if (!isEnabled) return
+        if (!isEnabled || !prefs.sticks) return
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                view.performHapticFeedback(HapticFeedbackConstants.GESTURE_START, OVERRIDE_FLAGS)
-            } else {
-                // For older devices, use a subtle feedback
-                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK, OVERRIDE_FLAGS)
-            }
+            if (prefs.custom) pulse(view, 1f, 0.8f)
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) view.performHapticFeedback(HapticFeedbackConstants.GESTURE_START, OVERRIDE_FLAGS)
+            else view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK, OVERRIDE_FLAGS)
         } catch (e: Exception) {
             Log.e(TAG, "Error performing gesture start haptic feedback: ${e.message}")
         }
@@ -83,45 +116,42 @@ object HapticUtils {
 
     /**
      * Provides haptic feedback when analog stick is released and returns to center.
-     * Uses GESTURE_END (API 30+) for modern devices, with fallback.
      */
     fun performGestureEndFeedback(view: View) {
-        if (!isEnabled) return
+        if (!isEnabled || !prefs.sticks) return
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                view.performHapticFeedback(HapticFeedbackConstants.GESTURE_END, OVERRIDE_FLAGS)
-            } else {
-                // For older devices, use lighter feedback
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, OVERRIDE_FLAGS)
-            }
+            if (prefs.custom) pulse(view, 0.6f, 0.5f)
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) view.performHapticFeedback(HapticFeedbackConstants.GESTURE_END, OVERRIDE_FLAGS)
+            else view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP, OVERRIDE_FLAGS)
         } catch (e: Exception) {
             Log.e(TAG, "Error performing gesture end haptic feedback: ${e.message}")
         }
     }
 
     /**
-     * Provides subtle haptic feedback for analog stick movement at discrete thresholds.
-     * Only triggers when reaching significant displacement to avoid constant vibration.
-     * Uses CLOCK_TICK for a very light touch sensation that doesn't overwhelm.
+     * Provides subtle haptic feedback when the stick reaches its edge.
      *
      * @param normalizedDistance Distance from center (0-1 range)
      */
     fun performAnalogMovementFeedback(view: View, normalizedDistance: Float) {
-        if (!isEnabled) return
+        if (!isEnabled || !prefs.sticks) return
+        if (normalizedDistance < 0.95f) return
+        try {
+            if (prefs.custom) pulse(view, 0.5f, 0.7f)
+            else view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK, OVERRIDE_FLAGS)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error performing analog movement haptic feedback: ${e.message}")
+        }
+    }
 
-        // Following haptics principles: correlate frequency with subtlety
-        // Only provide feedback at significant movement thresholds to avoid annoyance
-        when {
-            normalizedDistance >= 0.95f -> {
-                // At edge tick
-                try {
-                    // Use CLOCK_TICK for subtle movement feedback
-                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK, OVERRIDE_FLAGS)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error performing analog movement haptic feedback: ${e.message}")
-                }
-            }
-            // No feedback for lower movement to avoid constant buzzing
+    /** A light tick as an analog trigger passes each quarter of its travel. */
+    fun performTriggerTick(view: View) {
+        if (!isEnabled || !prefs.triggers) return
+        try {
+            if (prefs.custom) pulse(view, 0.5f, 0.7f)
+            else view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK, OVERRIDE_FLAGS)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error performing trigger haptic feedback: ${e.message}")
         }
     }
 }

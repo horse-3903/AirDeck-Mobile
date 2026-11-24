@@ -169,7 +169,7 @@ private fun AnalogTrigger(
             raw >= 0.9f -> 1f
             else -> raw
         }
-        if ((v * 4).toInt() > (level * 4).toInt()) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        if ((v * 4).toInt() > (level * 4).toInt()) HapticUtils.performTriggerTick(view)
         level = v
         write(v)
     }

@@ -33,6 +33,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticPrefs
+import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -162,6 +164,8 @@ fun SettingsScreen(
         val pollingDelay by settingsRepository.pollingDelay.collectAsState(initial = defaultPollingDelay)
         val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = defaultHapticFeedbackEnabled)
         val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
+        val hapticPrefs by settingsRepository.hapticPrefs.collectAsState(initial = HapticPrefs())
+        val hapticView = androidx.compose.ui.platform.LocalView.current
         val dpadSingle by settingsRepository.dpadSingle.collectAsState(initial = defaultDpadSingle)
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
         val fullScreenEnabled by settingsRepository.fullScreenEnabled.collectAsState(initial = defaultFullScreenEnabled)
@@ -289,6 +293,53 @@ fun SettingsScreen(
                             applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
                         }
                     )
+                }
+
+                if (hapticEnabled) {
+                    SettingRow(
+                        label = stringResource(R.string.haptics_custom),
+                        helper = stringResource(R.string.haptics_custom_desc)
+                    ) {
+                        Switch(
+                            checked = hapticPrefs.custom,
+                            onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(custom = it)) } }
+                        )
+                    }
+                    if (hapticPrefs.custom) {
+                        SettingRow(label = stringResource(R.string.haptics_intensity), helper = "${hapticPrefs.intensity}%") {
+                            androidx.compose.material3.Slider(
+                                value = hapticPrefs.intensity.toFloat(),
+                                onValueChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(intensity = it.toInt())) } },
+                                onValueChangeFinished = { HapticUtils.performButtonPressFeedback(hapticView) },
+                                valueRange = 5f..100f,
+                                modifier = Modifier.width(CONTROL_WIDTH)
+                            )
+                        }
+                        SettingRow(label = stringResource(R.string.haptics_duration), helper = "${hapticPrefs.durationMs} ms") {
+                            androidx.compose.material3.Slider(
+                                value = hapticPrefs.durationMs.toFloat(),
+                                onValueChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(durationMs = it.toInt())) } },
+                                onValueChangeFinished = { HapticUtils.performButtonPressFeedback(hapticView) },
+                                valueRange = 5f..80f,
+                                modifier = Modifier.width(CONTROL_WIDTH)
+                            )
+                        }
+                    }
+                    SettingRow(label = stringResource(R.string.haptics_press)) {
+                        Switch(checked = hapticPrefs.press, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(press = it)) } })
+                    }
+                    SettingRow(label = stringResource(R.string.haptics_release)) {
+                        Switch(checked = hapticPrefs.release, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(release = it)) } })
+                    }
+                    SettingRow(label = stringResource(R.string.haptics_sticks)) {
+                        Switch(checked = hapticPrefs.sticks, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(sticks = it)) } })
+                    }
+                    SettingRow(label = stringResource(R.string.haptics_triggers)) {
+                        Switch(checked = hapticPrefs.triggers, onCheckedChange = { applyScope.launch { settingsRepository.setHapticPrefs(hapticPrefs.copy(triggers = it)) } })
+                    }
+                    SettingRow(label = stringResource(R.string.haptics_test)) {
+                        OutlinedButton(onClick = { HapticUtils.performButtonPressFeedback(hapticView) }) { Text(stringResource(R.string.haptics_test)) }
+                    }
                 }
 
                 SettingRow(

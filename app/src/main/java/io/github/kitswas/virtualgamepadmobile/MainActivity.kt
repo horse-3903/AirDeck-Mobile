@@ -44,6 +44,7 @@ import io.github.kitswas.virtualgamepadmobile.ui.screens.GamepadCustomizationScr
 import io.github.kitswas.virtualgamepadmobile.ui.screens.MainMenu
 import io.github.kitswas.virtualgamepadmobile.ui.screens.SettingsScreen
 import io.github.kitswas.virtualgamepadmobile.ui.theme.VirtualGamePadMobileTheme
+import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticPrefs
 import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
 
 
@@ -85,6 +86,11 @@ class MainActivity : ComponentActivity() {
 
         LaunchedEffect(hapticEnabled.value) {
             HapticUtils.isEnabled = hapticEnabled.value
+        }
+
+        val hapticPrefs = settingsRepository.hapticPrefs.collectAsState(initial = HapticPrefs())
+        LaunchedEffect(hapticPrefs.value) {
+            HapticUtils.prefs = hapticPrefs.value
         }
 
         val fullScreenEnabled = settingsRepository.fullScreenEnabled.collectAsState(

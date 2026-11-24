@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticPrefs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
@@ -110,6 +111,31 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    val hapticPrefs: Flow<HapticPrefs> = dataStore.data.map { p ->
+        val d = HapticPrefs()
+        HapticPrefs(
+            custom = p[HAPTIC_CUSTOM] ?: d.custom,
+            intensity = p[HAPTIC_INTENSITY] ?: d.intensity,
+            durationMs = p[HAPTIC_DURATION] ?: d.durationMs,
+            press = p[HAPTIC_PRESS] ?: d.press,
+            release = p[HAPTIC_RELEASE] ?: d.release,
+            sticks = p[HAPTIC_STICKS] ?: d.sticks,
+            triggers = p[HAPTIC_TRIGGERS] ?: d.triggers,
+        )
+    }
+
+    suspend fun setHapticPrefs(prefs: HapticPrefs) {
+        dataStore.edit { p ->
+            p[HAPTIC_CUSTOM] = prefs.custom
+            p[HAPTIC_INTENSITY] = prefs.intensity
+            p[HAPTIC_DURATION] = prefs.durationMs
+            p[HAPTIC_PRESS] = prefs.press
+            p[HAPTIC_RELEASE] = prefs.release
+            p[HAPTIC_STICKS] = prefs.sticks
+            p[HAPTIC_TRIGGERS] = prefs.triggers
+        }
+    }
+
     suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[HAPTIC_FEEDBACK_ENABLED] = enabled
@@ -198,6 +224,13 @@ class SettingsRepository(context: Context) {
         private val GAMEPAD_STYLE = intPreferencesKey("gamepad_style")
         private val POLLING_DELAY = intPreferencesKey("polling_delay")
         private val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
+        private val HAPTIC_CUSTOM = booleanPreferencesKey("haptic_custom")
+        private val HAPTIC_INTENSITY = intPreferencesKey("haptic_intensity")
+        private val HAPTIC_DURATION = intPreferencesKey("haptic_duration")
+        private val HAPTIC_PRESS = booleanPreferencesKey("haptic_press")
+        private val HAPTIC_RELEASE = booleanPreferencesKey("haptic_release")
+        private val HAPTIC_STICKS = booleanPreferencesKey("haptic_sticks")
+        private val HAPTIC_TRIGGERS = booleanPreferencesKey("haptic_triggers")
         private val STICK_SNAP = booleanPreferencesKey("stick_snap")
         private val DPAD_SINGLE = booleanPreferencesKey("dpad_single")
         private val BUTTON_CONFIGS = stringPreferencesKey("button_configs")
