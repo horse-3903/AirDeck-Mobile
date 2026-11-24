@@ -231,13 +231,13 @@
     <string name="component_back">Back</string>
     <string name="back_button_label">Back</string>
     <string name="leave_gamepad_title">Leave controller?</string>
-    <string name="leave_gamepad_message">Keep Connected lets you come back without reconnecting. Disconnect ends the session.</string>
+    <string name="leave_gamepad_message">Return to the home screen while staying connected, or disconnect from your PC.</string>
     <string name="leave_gamepad_confirm">Disconnect</string>
     <string name="qr_scan_title">Find a QR code</string>
     <string name="qr_scan_torch">Flashlight</string>
     <string name="qr_scan_gallery">Choose from gallery</string>
     <string name="qr_scan_gallery_none">No QR code found in that image</string>
-    <string name="leave_gamepad_keep">Keep Connected</string>
+    <string name="leave_gamepad_keep">Leave Connected</string>
     <string name="menu_return">Return to controller</string>
     <string name="menu_return_slot">Return to controller</string>
     <string name="notification_channel_name">Connection</string>
@@ -251,7 +251,7 @@
     <string name="notification_close">Close</string>
     <string name="menu_status_connected">Connected to %1$s  |  Controller %2$d</string>
     <string name="menu_status_connected_plain">Connected to %1$s</string>
-    <string name="leave_gamepad_stay">Stay Here</string>
+    <string name="leave_gamepad_stay">Cancel</string>
     <string name="connect_title">Connect to PC</string>
     <string name="connect_or_manual">or connect manually</string>
     <string name="connect_where">Find the IP address and port on your PC\'s server screen.</string>
