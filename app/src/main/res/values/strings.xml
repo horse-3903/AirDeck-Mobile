@@ -290,6 +290,9 @@
     <string name="settings_reset_all">Reset settings</string>
     <string name="settings_dpad_orthogonal">Orthogonal D-pad</string>
     <string name="settings_dpad_orthogonal_desc">One direction at a time with no diagonals. Slide your thumb across the pad to switch direction.</string>
+    <string name="disconnect_title">Disconnect controller?</string>
+    <string name="disconnect_message">Your PC will stop receiving controller input until you reconnect.</string>
+    <string name="disconnect_confirm">Confirm</string>
     <string name="quick_settings_title">Quick settings</string>
     <string name="quick_theme">Theme</string>
     <string name="quick_style">Button style</string>

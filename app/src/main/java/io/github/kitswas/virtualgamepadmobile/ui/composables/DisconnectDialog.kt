@@ -58,22 +58,16 @@ private fun UnplugIcon(modifier: Modifier = Modifier, color: Color) {
     }
 }
 
-/**
- * Confirmation shown when leaving the controller, styled like the browser controller's dialog:
- * an icon, a centred title and text, and equal-width actions. Cancel, Leave Connected (back to the
- * home screen, still connected) and Disconnect (filled red).
- */
+/** The browser controller's disconnect confirmation: icon, title, text and two equal buttons. */
 @Composable
-fun LeaveDialog(
+fun DisconnectDialog(
     onCancel: () -> Unit,
-    onKeepConnected: () -> Unit,
-    onDisconnect: () -> Unit,
+    onConfirm: () -> Unit,
 ) {
     Dialog(
         onDismissRequest = onCancel,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        // Keep the controller visible behind the dialog
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { window?.setDimAmount(0.5f) }
 
@@ -83,8 +77,8 @@ fun LeaveDialog(
             tonalElevation = 6.dp,
             shadowElevation = 12.dp,
             modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .widthIn(min = 420.dp, max = 500.dp)
+                .fillMaxWidth(0.4f)
+                .widthIn(min = 300.dp, max = 340.dp)
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
@@ -101,14 +95,14 @@ fun LeaveDialog(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = stringResource(R.string.leave_gamepad_title),
+                    text = stringResource(R.string.disconnect_title),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = stringResource(R.string.leave_gamepad_message),
+                    text = stringResource(R.string.disconnect_message),
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     textAlign = TextAlign.Center,
@@ -132,21 +126,13 @@ fun LeaveDialog(
                     ) {
                         Text(stringResource(R.string.leave_gamepad_stay), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                     }
-                    OutlinedButton(
-                        onClick = onKeepConnected,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        shape = buttonShape,
-                        modifier = buttonModifier
-                    ) {
-                        Text(stringResource(R.string.leave_gamepad_keep), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
-                    }
                     Button(
-                        onClick = onDisconnect,
+                        onClick = onConfirm,
                         shape = buttonShape,
                         colors = ButtonDefaults.buttonColors(containerColor = DangerRed, contentColor = Color.White),
                         modifier = buttonModifier
                     ) {
-                        Text(stringResource(R.string.leave_gamepad_confirm), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(stringResource(R.string.disconnect_confirm), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                     }
                 }
             }

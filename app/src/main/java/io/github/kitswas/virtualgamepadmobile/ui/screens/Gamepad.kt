@@ -37,7 +37,7 @@ import io.github.kitswas.virtualgamepadmobile.ui.composables.GearButton
 import io.github.kitswas.virtualgamepadmobile.ui.composables.QuickSettingsDialog
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LinkStatus
 import io.github.kitswas.virtualgamepadmobile.ui.composables.DrawGamepad
-import io.github.kitswas.virtualgamepadmobile.ui.composables.LeaveDialog
+import io.github.kitswas.virtualgamepadmobile.ui.composables.DisconnectDialog
 import io.github.kitswas.virtualgamepadmobile.ui.utils.findActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -83,17 +83,43 @@ fun GamePad(
         connectionViewModel?.enqueueGamepadState(gamepadState)
     }
 
-    var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
+    var showDisconnectConfirm by rememberSaveable { mutableStateOf(false) }
+    var userDisconnected by rememberSaveable { mutableStateOf(false) }
     var showQuickSettings by rememberSaveable { mutableStateOf(false) }
     DrawGamepad(
         screenWidth, screenHeight, gamepadState, buttonConfigs,
-        onBack = { showLeaveConfirm = true },
+        onBack = {
+            // Back goes straight to the main page and the connection stays open
+            leaving.value = true
+            isStopping.value = true
+            releaseEverything()
+            if (userDisconnected) ConnectionService.close(context)
+            onNavigateBack()
+        },
         glowSlot = if (connectionState?.connected == true) connectionState?.controllerSlot else null,
         topCenter = { rowHeight ->
             ConnectionBadge(
-                status = if (connectionState?.connected == true) LinkStatus.CONNECTED else LinkStatus.CONNECTING,
+                status = when {
+                    userDisconnected -> LinkStatus.DISCONNECTED
+                    connectionState?.connected == true -> LinkStatus.CONNECTED
+                    else -> LinkStatus.CONNECTING
+                },
                 slot = connectionState?.controllerSlot,
-                onClick = { showLeaveConfirm = true },
+                onClick = {
+                    when {
+                        // Tap again to reconnect
+                        userDisconnected -> {
+                            userDisconnected = false
+                            connectionViewModel?.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
+                        }
+                        connectionState?.connected == true -> showDisconnectConfirm = true
+                        // Still trying to reconnect: stop
+                        else -> {
+                            userDisconnected = true
+                            connectionViewModel?.disconnect()
+                        }
+                    }
+                },
                 height = rowHeight,
                 modifier = androidx.compose.ui.Modifier
                     .align(androidx.compose.ui.Alignment.TopCenter)
@@ -111,24 +137,14 @@ fun GamePad(
     if (showQuickSettings) {
         QuickSettingsDialog(settingsRepository = settingsRepository, onDismiss = { showQuickSettings = false })
     }
-    if (showLeaveConfirm) {
-        LeaveDialog(
-            onCancel = { showLeaveConfirm = false },
-            onKeepConnected = {
-                showLeaveConfirm = false
-                leaving.value = true
-                isStopping.value = true
+    if (showDisconnectConfirm) {
+        DisconnectDialog(
+            onCancel = { showDisconnectConfirm = false },
+            onConfirm = {
+                showDisconnectConfirm = false
                 releaseEverything()
-                onNavigateBack()
-            },
-            onDisconnect = {
-                showLeaveConfirm = false
-                leaving.value = true
-                isStopping.value = true
-                releaseEverything()
+                userDisconnected = true
                 connectionViewModel?.disconnect()
-                ConnectionService.close(context)
-                onNavigateBack()
             }
         )
     }
@@ -136,11 +152,11 @@ fun GamePad(
     // A dropped connection is retried for a while, with the badge showing the hourglass, before giving up
     val connected = connectionState?.connected
     val lostMessage = stringResource(R.string.gamepad_connection_lost)
-    LaunchedEffect(connected, leaving.value) {
-        if (connectionViewModel == null || leaving.value || connected != false) return@LaunchedEffect
+    LaunchedEffect(connected, leaving.value, userDisconnected) {
+        if (connectionViewModel == null || leaving.value || userDisconnected || connected != false) return@LaunchedEffect
         var recovered = false
         var attempts = 0
-        while (attempts < 30 && !leaving.value && !recovered) {
+        while (attempts < 30 && !leaving.value && !userDisconnected && !recovered) {
             delay(1500)
             connectionViewModel.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
             var waited = 0
@@ -153,7 +169,7 @@ fun GamePad(
             recovered = connectionViewModel.uiState.value.connected
             attempts++
         }
-        if (!recovered && !leaving.value) {
+        if (!recovered && !leaving.value && !userDisconnected) {
             Log.d(tag, lostMessage)
             Toast.makeText(context, lostMessage, Toast.LENGTH_LONG).show()
             onNavigateBack()

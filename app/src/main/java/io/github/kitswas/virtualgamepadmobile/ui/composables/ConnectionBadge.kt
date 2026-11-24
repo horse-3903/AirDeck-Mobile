@@ -142,18 +142,28 @@ fun ConnectionBadge(
 fun SlotGlow(slot: Int?, modifier: Modifier = Modifier) {
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val alpha by animateFloatAsState(
-        targetValue = if (slot == null) 0f else if (light) 0.16f else 0.26f,
+        targetValue = if (slot == null) 0f else if (light) 0.16f else 0.14f,
         animationSpec = tween(500),
         label = "slotGlow"
     )
-    val color = slotColor(slot ?: 1).copy(alpha = alpha)
+    val color = slotColor(slot ?: 1)
     Canvas(modifier = modifier.fillMaxSize()) {
-        val d = size.minDimension * 0.2f
-        val clear = Color.Transparent
-        drawRect(Brush.verticalGradient(listOf(color, clear), 0f, d), Offset.Zero, Size(size.width, d))
-        drawRect(Brush.verticalGradient(listOf(clear, color), size.height - d, size.height), Offset(0f, size.height - d), Size(size.width, d))
-        drawRect(Brush.horizontalGradient(listOf(color, clear), 0f, d), Offset.Zero, Size(d, size.height))
-        drawRect(Brush.horizontalGradient(listOf(clear, color), size.width - d, size.width), Offset(size.width - d, 0f), Size(d, size.height))
+        // Fades quickly like the browser's inset shadow: strongest at the very edge, gone by 12 percent of the height
+        val d = size.height * 0.12f
+        val stops = arrayOf(
+            0f to color.copy(alpha = alpha),
+            0.35f to color.copy(alpha = alpha * 0.4f),
+            1f to Color.Transparent
+        )
+        val reversed = arrayOf(
+            0f to Color.Transparent,
+            0.65f to color.copy(alpha = alpha * 0.4f),
+            1f to color.copy(alpha = alpha)
+        )
+        drawRect(Brush.verticalGradient(colorStops = stops, startY = 0f, endY = d), Offset.Zero, Size(size.width, d))
+        drawRect(Brush.verticalGradient(colorStops = reversed, startY = size.height - d, endY = size.height), Offset(0f, size.height - d), Size(size.width, d))
+        drawRect(Brush.horizontalGradient(colorStops = stops, startX = 0f, endX = d), Offset.Zero, Size(d, size.height))
+        drawRect(Brush.horizontalGradient(colorStops = reversed, startX = size.width - d, endX = size.width), Offset(size.width - d, 0f), Size(d, size.height))
     }
 }
 
@@ -177,16 +187,14 @@ fun GearButton(
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.size(height * 0.5f)) {
-            val c = Offset(size.width / 2f, size.height / 2f)
-            val r = size.minDimension / 2f
-            val stroke = Stroke(width = r * 0.22f, cap = StrokeCap.Round)
-            drawCircle(glyph, radius = r * 0.36f, center = c, style = stroke)
-            for (i in 0 until 8) {
-                val angle = Math.toRadians(i * 45.0)
-                val dx = Math.cos(angle).toFloat()
-                val dy = Math.sin(angle).toFloat()
-                drawLine(glyph, Offset(c.x + dx * r * 0.66f, c.y + dy * r * 0.66f), Offset(c.x + dx * r * 0.96f, c.y + dy * r * 0.96f), r * 0.26f, StrokeCap.Round)
+            scale(size.width / 24f, pivot = Offset.Zero) {
+                val stroke = Stroke(width = 2f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                drawCircle(glyph, radius = 3.2f, center = Offset(12f, 12f), style = stroke)
+                drawPath(PathParser().parsePathString(GEAR_PATH).toPath(), glyph, style = stroke)
             }
         }
     }
 }
+
+private const val GEAR_PATH =
+    "M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
