@@ -269,9 +269,7 @@ private fun AnalogTrigger(
         }
         Text(
             text = if (held) "$label  ${(level * 100).toInt()}%" else label,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 8.dp),
+            modifier = Modifier.align(Alignment.Center),
             color = PsStyle.Glyph,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
         )
