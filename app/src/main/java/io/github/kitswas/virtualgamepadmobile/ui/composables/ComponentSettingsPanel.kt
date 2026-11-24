@@ -15,6 +15,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.clickable
+import io.github.kitswas.virtualgamepadmobile.data.TriggerMode
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -173,6 +176,35 @@ fun ComponentSettingsPanel(
                 )
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (component == ButtonComponent.LEFT_TRIGGER || component == ButtonComponent.RIGHT_TRIGGER) {
+                Text(
+                    text = stringResource(R.string.panel_trigger_mode),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                TriggerMode.entries.forEach { m ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onConfigChange(config.copy(triggerMode = m)) }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = config.triggerMode == m,
+                            onClick = { onConfigChange(config.copy(triggerMode = m)) }
+                        )
+                        Column {
+                            Text(stringResource(m.nameRes), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                stringResource(m.descRes),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
             LabeledSlider(
                 title = stringResource(R.string.panel_size),
                 valueText = "${(config.scale * 100).toInt()}%",

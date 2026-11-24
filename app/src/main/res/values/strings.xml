@@ -290,4 +290,19 @@
     <string name="settings_reset_all">Reset settings</string>
     <string name="settings_stick_snap">Snap stick to touch</string>
     <string name="settings_stick_snap_desc">Touching anywhere inside a stick\'s circle moves it there. Turn off to drag from the stick cap only.</string>
+    <string name="panel_trigger_mode">Trigger input</string>
+    <string name="trigger_mode_digital">Button</string>
+    <string name="trigger_mode_digital_desc">Plain tap: fully on or off</string>
+    <string name="trigger_mode_slide">Slide track</string>
+    <string name="trigger_mode_slide_desc">Finger height on the trigger sets the value, bottom is light and top is full</string>
+    <string name="trigger_mode_drag">Drag from touch</string>
+    <string name="trigger_mode_drag_desc">Start anywhere, then drag up to press harder</string>
+    <string name="trigger_mode_zones">Two zones</string>
+    <string name="trigger_mode_zones_desc">Lower half is half pull, upper half is full pull</string>
+    <string name="trigger_mode_ramp">Hold to ramp</string>
+    <string name="trigger_mode_ramp_desc">Value rises smoothly while held, good for racing</string>
+    <string name="trigger_mode_force">Touch pressure</string>
+    <string name="trigger_mode_force_desc">Press harder for more. Needs a screen that reports pressure</string>
+    <string name="trigger_mode_tilt">Tilt while held</string>
+    <string name="trigger_mode_tilt_desc">Hold, then tilt the phone to raise the value</string>
 </resources>

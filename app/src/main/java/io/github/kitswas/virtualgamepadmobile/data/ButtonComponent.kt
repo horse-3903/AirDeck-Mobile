@@ -71,6 +71,22 @@ enum class ButtonComponent(
 }
 
 /**
+ * How a trigger turns touch input into a 0..1 analog value
+ */
+@Immutable
+@Serializable
+@Parcelize
+enum class TriggerMode(@StringRes val nameRes: Int, @StringRes val descRes: Int) : Parcelable {
+    DIGITAL(R.string.trigger_mode_digital, R.string.trigger_mode_digital_desc),
+    SLIDE(R.string.trigger_mode_slide, R.string.trigger_mode_slide_desc),
+    DRAG(R.string.trigger_mode_drag, R.string.trigger_mode_drag_desc),
+    ZONES(R.string.trigger_mode_zones, R.string.trigger_mode_zones_desc),
+    RAMP(R.string.trigger_mode_ramp, R.string.trigger_mode_ramp_desc),
+    FORCE(R.string.trigger_mode_force, R.string.trigger_mode_force_desc),
+    TILT(R.string.trigger_mode_tilt, R.string.trigger_mode_tilt_desc);
+}
+
+/**
  * Configuration for a single button component
  */
 @Stable
@@ -82,7 +98,8 @@ data class ButtonConfig(
     val scale: Float = 1.0f,
     val offsetX: Float = 0f,
     val offsetY: Float = 0f,
-    val anchor: ButtonAnchor = component.defaultAnchor
+    val anchor: ButtonAnchor = component.defaultAnchor,
+    val triggerMode: TriggerMode = TriggerMode.DIGITAL
 ) : Parcelable {
     companion object {
         fun default(component: ButtonComponent) = ButtonConfig(component)
