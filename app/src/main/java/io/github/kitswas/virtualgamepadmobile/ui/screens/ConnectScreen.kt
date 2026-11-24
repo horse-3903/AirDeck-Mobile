@@ -184,22 +184,18 @@ fun ConnectMenu(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            var ipAddress by rememberSaveable { mutableStateOf(initialIp) }
-            var port by rememberSaveable { mutableStateOf(initialPort) }
-            var isIPValid by rememberSaveable { mutableStateOf(validateIP(initialIp)) }
-            var isPortValid by rememberSaveable { mutableStateOf(validatePort(initialPort)) }
-            var ipTouched by rememberSaveable { mutableStateOf(false) }
-            var portTouched by rememberSaveable { mutableStateOf(false) }
+            fun join(ip: String, port: String) = if (ip.isBlank()) "" else if (port.isBlank()) ip else "$ip:$port"
+            var address by rememberSaveable { mutableStateOf(join(initialIp, initialPort)) }
+            var touched by rememberSaveable { mutableStateOf(false) }
+            val ipAddress = getIP(address.trim())
+            val port = if (address.contains(":")) getPort(address.trim()) else ""
+            val isIPValid = validateIP(ipAddress)
+            val isPortValid = validatePort(port)
 
             // Update state when parameters arrive asynchronously from DataStore
             LaunchedEffect(initialIp, initialPort) {
-                if (ipAddress.isBlank() && initialIp.isNotBlank()) {
-                    ipAddress = initialIp
-                    isIPValid = validateIP(initialIp)
-                }
-                if (port.isBlank() && initialPort.isNotBlank()) {
-                    port = initialPort
-                    isPortValid = validatePort(initialPort)
+                if (address.isBlank() && initialIp.isNotBlank()) {
+                    address = join(initialIp, initialPort)
                 }
             }
 
@@ -255,48 +251,22 @@ fun ConnectMenu(
             )
 
             TextField(
-                label = { Text(text = stringResource(R.string.connect_ip_label)) },
-                value = ipAddress,
+                label = { Text(text = stringResource(R.string.connect_address_label)) },
+                placeholder = { Text("192.168.0.3:52500") },
+                value = address,
                 onValueChange = {
-                    ipAddress = it
-                    ipTouched = true
-                    isIPValid = validateIP(ipAddress)
+                    address = it
+                    touched = true
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
-                    imeAction = ImeAction.Next
-                ),
-                singleLine = true,
-                supportingText = {
-                    if (ipTouched && !isIPValid) Text(stringResource(R.string.connect_ip_invalid))
-                },
-                keyboardActions = KeyboardActions(
-                    onNext = {
-                        // Pressing Ime button would move the text indicator's focus to the bottom
-                        // field, if it exists!
-                        focusManager.moveFocus(FocusDirection.Down)
-                    }
-                ),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                isError = ipTouched && !isIPValid
-            )
-
-            TextField(
-                label = { Text(text = stringResource(R.string.connect_port_label)) },
-                value = port,
-                onValueChange = {
-                    port = it
-                    portTouched = true
-                    isPortValid = validatePort(port)
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 singleLine = true,
                 supportingText = {
-                    if (portTouched && !isPortValid) Text(stringResource(R.string.connect_port_invalid))
+                    if (touched && address.isNotBlank() && !(isIPValid && isPortValid)) {
+                        Text(stringResource(R.string.connect_address_invalid))
+                    }
                 },
                 keyboardActions = KeyboardActions(
                     onDone = {
@@ -306,7 +276,7 @@ fun ConnectMenu(
                 ),
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                isError = portTouched && !isPortValid
+                isError = touched && address.isNotBlank() && !(isIPValid && isPortValid)
             )
 
             Button(

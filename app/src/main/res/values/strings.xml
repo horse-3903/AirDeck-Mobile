@@ -305,4 +305,6 @@
     <string name="trigger_mode_force_desc">Press harder for more. Needs a screen that reports pressure</string>
     <string name="trigger_mode_tilt">Tilt while held</string>
     <string name="trigger_mode_tilt_desc">Hold, then tilt the phone to raise the value</string>
+    <string name="connect_address_label">Address (IP:port)</string>
+    <string name="connect_address_invalid">Use the form 192.168.0.3:52500</string>
 </resources>
