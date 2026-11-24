@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -112,12 +113,13 @@ fun ConnectionBadge(
     slot: Int?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 32.dp,
 ) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(percent = 50)
     Row(
         modifier = modifier
-            .width(84.dp)
-            .height(32.dp)
+            .width(height * 2.1f)
+            .height(height)
             .clip(shape)
             .background(PsStyle.Body)
             .border(1.5.dp, linkColor(status), shape)
@@ -125,7 +127,7 @@ fun ConnectionBadge(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
     ) {
-        LinkStatusIcon(status, Modifier.size(20.dp))
+        LinkStatusIcon(status, Modifier.size(height * 0.5f))
         Text(
             text = if (slot != null && status == LinkStatus.CONNECTED) "P$slot" else "\u2014",
             fontSize = 13.sp,
@@ -152,5 +154,39 @@ fun SlotGlow(slot: Int?, modifier: Modifier = Modifier) {
         drawRect(Brush.verticalGradient(listOf(clear, color), size.height - d, size.height), Offset(0f, size.height - d), Size(size.width, d))
         drawRect(Brush.horizontalGradient(listOf(color, clear), 0f, d), Offset.Zero, Size(d, size.height))
         drawRect(Brush.horizontalGradient(listOf(clear, color), size.width - d, size.width), Offset(size.width - d, 0f), Size(d, size.height))
+    }
+}
+
+/** Small round settings button that sits level with the Back button and the connection badge. */
+@Composable
+fun GearButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 32.dp,
+) {
+    val shape = RoundedCornerShape(percent = 50)
+    val glyph = PsStyle.Glyph
+    androidx.compose.foundation.layout.Box(
+        modifier = modifier
+            .width(height * 1.6f)
+            .height(height)
+            .clip(shape)
+            .background(PsStyle.Body)
+            .border(1.5.dp, PsStyle.Border, shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(height * 0.5f)) {
+            val c = Offset(size.width / 2f, size.height / 2f)
+            val r = size.minDimension / 2f
+            val stroke = Stroke(width = r * 0.22f, cap = StrokeCap.Round)
+            drawCircle(glyph, radius = r * 0.36f, center = c, style = stroke)
+            for (i in 0 until 8) {
+                val angle = Math.toRadians(i * 45.0)
+                val dx = Math.cos(angle).toFloat()
+                val dy = Math.sin(angle).toFloat()
+                drawLine(glyph, Offset(c.x + dx * r * 0.66f, c.y + dy * r * 0.66f), Offset(c.x + dx * r * 0.96f, c.y + dy * r * 0.96f), r * 0.26f, StrokeCap.Round)
+            }
+        }
     }
 }

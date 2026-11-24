@@ -42,6 +42,7 @@ fun DrawGamepad(
     selectedComponent: ButtonComponent? = null,
     onBack: (() -> Unit)? = null,
     glowSlot: Int? = null,
+    topCenter: (@Composable androidx.compose.foundation.layout.BoxScope.(Dp) -> Unit)? = null,
 ) {
     // Assuming Landscape orientation
     val baseDp = heightDp
@@ -84,6 +85,8 @@ fun DrawGamepad(
                 .padding(deadZonePadding.dp)
                 .fillMaxSize()
         ) {
+            topCenter?.invoke(this, (baseDp / 8).dp)
+
             // Left Analog Stick
             RenderComponent(ButtonComponent.LEFT_ANALOG_STICK) { config, mod ->
                 AnalogStick(

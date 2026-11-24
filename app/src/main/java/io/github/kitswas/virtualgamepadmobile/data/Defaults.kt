@@ -39,19 +39,23 @@ val defaultButtonConfigs = mapOf(
     // Triggers in the top corners with the bumpers just under them
     ButtonComponent.LEFT_TRIGGER to ButtonConfig(
         component = ButtonComponent.LEFT_TRIGGER,
+        offsetX = 0.14f,
         anchor = ButtonAnchor.TOP_LEFT
     ),
     ButtonComponent.RIGHT_TRIGGER to ButtonConfig(
         component = ButtonComponent.RIGHT_TRIGGER,
+        offsetX = -0.14f,
         anchor = ButtonAnchor.TOP_RIGHT
     ),
     ButtonComponent.LEFT_SHOULDER to ButtonConfig(
         component = ButtonComponent.LEFT_SHOULDER,
+        offsetX = 0.13f,
         offsetY = 0.25f,
         anchor = ButtonAnchor.TOP_LEFT
     ),
     ButtonComponent.RIGHT_SHOULDER to ButtonConfig(
         component = ButtonComponent.RIGHT_SHOULDER,
+        offsetX = -0.13f,
         offsetY = 0.25f,
         anchor = ButtonAnchor.TOP_RIGHT
     ),

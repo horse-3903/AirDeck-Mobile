@@ -290,6 +290,13 @@
     <string name="settings_reset_all">Reset settings</string>
     <string name="settings_dpad_orthogonal">Orthogonal D-pad</string>
     <string name="settings_dpad_orthogonal_desc">One direction at a time with no diagonals. Slide your thumb across the pad to switch direction.</string>
+    <string name="quick_settings_title">Quick settings</string>
+    <string name="quick_theme">Theme</string>
+    <string name="quick_style">Button style</string>
+    <string name="quick_layout">Layout</string>
+    <string name="quick_layout_copied">Layout copied to the clipboard</string>
+    <string name="quick_layout_imported">Layout imported from the clipboard</string>
+    <string name="quick_layout_invalid">The clipboard does not hold a valid layout</string>
     <string name="settings_stick_snap">Snap stick to touch</string>
     <string name="settings_stick_snap_desc">Touching anywhere inside a stick\'s circle moves it there. Turn off to drag from the stick cap only.</string>
     <string name="panel_trigger_mode">Trigger input</string>

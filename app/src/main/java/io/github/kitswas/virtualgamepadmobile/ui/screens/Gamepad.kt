@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
@@ -32,6 +33,8 @@ import io.github.kitswas.virtualgamepadmobile.data.defaultPollingDelay
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionViewModel
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionService
 import io.github.kitswas.virtualgamepadmobile.ui.composables.ConnectionBadge
+import io.github.kitswas.virtualgamepadmobile.ui.composables.GearButton
+import io.github.kitswas.virtualgamepadmobile.ui.composables.QuickSettingsDialog
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LinkStatus
 import io.github.kitswas.virtualgamepadmobile.ui.composables.DrawGamepad
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LeaveDialog
@@ -81,22 +84,30 @@ fun GamePad(
     }
 
     var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
+    var showQuickSettings by rememberSaveable { mutableStateOf(false) }
     DrawGamepad(
         screenWidth, screenHeight, gamepadState, buttonConfigs,
         onBack = { showLeaveConfirm = true },
-        glowSlot = if (connectionState?.connected == true) connectionState?.controllerSlot else null
+        glowSlot = if (connectionState?.connected == true) connectionState?.controllerSlot else null,
+        topCenter = { rowHeight ->
+            ConnectionBadge(
+                status = if (connectionState?.connected == true) LinkStatus.CONNECTED else LinkStatus.CONNECTING,
+                slot = connectionState?.controllerSlot,
+                onClick = { showLeaveConfirm = true },
+                height = rowHeight,
+                modifier = androidx.compose.ui.Modifier.align(androidx.compose.ui.Alignment.TopCenter)
+            )
+            GearButton(
+                onClick = { showQuickSettings = true },
+                height = rowHeight,
+                modifier = androidx.compose.ui.Modifier
+                    .align(androidx.compose.ui.Alignment.TopCenter)
+                    .offset(x = (screenHeight * 0.3f).dp)
+            )
+        }
     )
-    androidx.compose.foundation.layout.Box(
-        modifier = androidx.compose.ui.Modifier
-            .fillMaxSize()
-            .padding(top = 6.dp),
-        contentAlignment = androidx.compose.ui.Alignment.TopCenter
-    ) {
-        ConnectionBadge(
-            status = if (connectionState?.connected == true) LinkStatus.CONNECTED else LinkStatus.CONNECTING,
-            slot = connectionState?.controllerSlot,
-            onClick = { showLeaveConfirm = true }
-        )
+    if (showQuickSettings) {
+        QuickSettingsDialog(settingsRepository = settingsRepository, onDismiss = { showQuickSettings = false })
     }
     if (showLeaveConfirm) {
         LeaveDialog(
