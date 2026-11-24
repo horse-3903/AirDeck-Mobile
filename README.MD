@@ -1,6 +1,6 @@
 <div align="center">
 
-# VirtualGamePad-Mobile
+# AirDeck-Mobile
 
 Android app that turns a phone into a game controller for a Windows PC, with a layout you can edit and settings for almost everything.
 
@@ -8,10 +8,10 @@ Android app that turns a phone into a game controller for a Windows PC, with a l
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-KTS-02303A?style=flat-square&logo=gradle&logoColor=white)
-![License](https://img.shields.io/github/license/horse-3903/VirtualGamePad-Mobile?style=flat-square)
-![Last Commit](https://img.shields.io/github/last-commit/horse-3903/VirtualGamePad-Mobile/modern-ui?style=flat-square)
+![License](https://img.shields.io/github/license/horse-3903/AirDeck-Mobile?style=flat-square)
+![Last Commit](https://img.shields.io/github/last-commit/horse-3903/AirDeck-Mobile/modern-ui?style=flat-square)
 
-[Releases](https://github.com/horse-3903/VirtualGamePad-Mobile/releases) | [PC server](https://github.com/horse-3903/VirtualGamePad-PC) | [Upstream project](https://kitswas.github.io/VirtualGamePad/)
+[Releases](https://github.com/horse-3903/AirDeck-Mobile/releases) | [PC server](https://github.com/horse-3903/AirDeck-PC) | [Portfolio page](https://horse-3903.github.io/showcase/airdeck/) | [Upstream project](https://kitswas.github.io/VirtualGamePad/)
 
 </div>
 
@@ -19,7 +19,7 @@ Android app that turns a phone into a game controller for a Windows PC, with a l
 
 ## Overview
 
-**VirtualGamePad-Mobile** is the Android client for VirtualGamePad. It draws a full controller on the screen, sends your input to the [PC server](https://github.com/horse-3903/VirtualGamePad-PC) over Wi-Fi, and keeps the connection alive in a foreground service while you switch apps. This repository is a fork of [kitswas/VirtualGamePad-Mobile](https://github.com/kitswas/VirtualGamePad-Mobile) 0.4.2, and the work lives on the `modern-ui` branch.
+**AirDeck-Mobile** is the Android client for AirDeck. It draws a full controller on the screen, sends your input to the [PC server](https://github.com/horse-3903/AirDeck-PC) over Wi-Fi, and keeps the connection alive in a foreground service while you switch apps. AirDeck started as a fork of [kitswas/VirtualGamePad-Mobile](https://github.com/kitswas/VirtualGamePad-Mobile) 0.4.2 and was renamed once the changes became large. The work lives on the `modern-ui` branch.
 
 The goal of the fork is a controller that looks and behaves the same as the server's browser page, with more room to tune it. Every control position, size and trigger mode can be changed, and the settings screen covers sticks, D-pad, haptics, display and reconnect behaviour.
 
@@ -62,13 +62,13 @@ The app also uses DataStore for settings, CameraX with ZXing for QR scanning, an
 - Android Studio, or a JDK 17 or newer
 - Android SDK with platform 36 (the app targets 34 and needs Android 8.0 or newer)
 - Git, with submodule support
-- A running [PC server](https://github.com/horse-3903/VirtualGamePad-PC) on the same network
+- A running [PC server](https://github.com/horse-3903/AirDeck-PC) on the same network
 
 ### Installation
 
 ```bash
-git clone --recurse-submodules -b modern-ui https://github.com/horse-3903/VirtualGamePad-Mobile.git
-cd VirtualGamePad-Mobile
+git clone --recurse-submodules -b modern-ui https://github.com/horse-3903/AirDeck-Mobile.git
+cd AirDeck-Mobile
 ./gradlew assembleDebug
 ```
 
@@ -78,7 +78,7 @@ On Windows use `.\gradlew.bat assembleDebug` and set `JAVA_HOME` to a JDK first.
 
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell monkey -p io.github.kitswas.virtualgamepadmobile -c android.intent.category.LAUNCHER 1
+adb shell monkey -p io.github.horse3903.airdeck -c android.intent.category.LAUNCHER 1
 ```
 
 Then connect:
@@ -89,7 +89,7 @@ Then connect:
 
 To test without a phone, use the Android emulator. It reaches the host PC at `10.0.2.2`, so enter `10.0.2.2:<port>`. The app locks to landscape, and `adb shell settings put system user_rotation 1` forces it in the emulator.
 
-Pre-built debug APKs are on the [releases page](https://github.com/horse-3903/VirtualGamePad-Mobile/releases). They are debug signed, so install them by sideloading.
+Pre-built debug APKs are on the [releases page](https://github.com/horse-3903/AirDeck-Mobile/releases). They are debug signed, so install them by sideloading.
 
 ### Controls
 
@@ -144,8 +144,8 @@ Settings are grouped into Appearance, Layout, Display, Sticks, D-pad, Haptics an
 ## Project Structure
 
 ```text
-VirtualGamePad-Mobile/
-├── app/src/main/java/io/github/kitswas/virtualgamepadmobile/
+AirDeck-Mobile/
+├── app/src/main/java/io/github/horse3903/airdeck/
 │   ├── data/                 # settings repository, defaults, button configs, layout import
 │   ├── network/              # connection view model, foreground service, diagnostics
 │   └── ui/
@@ -165,7 +165,7 @@ VirtualGamePad-Mobile/
 
 ## Deployment
 
-Releases are GitHub pre-releases named `v0.4.2-modern-ui.N`, each with a debug-signed APK and a `SHA256SUMS.txt`. A signed release build needs a keystore.
+Releases are GitHub pre-releases. The ones before 0.5.0 are named `v0.4.2-modern-ui.N` and use the old package id. Each has a debug-signed APK and a `SHA256SUMS.txt`. A signed release build needs a keystore.
 
 ```bash
 cp signing.properties.template signing.properties
@@ -173,8 +173,8 @@ cp signing.properties.template signing.properties
 ```
 
 ```bash
-gh release create v0.4.2-modern-ui.4 VirtualGamePad-Mobile-0.4.2-modern-ui.4-debug.apk SHA256SUMS.txt \
-  --repo horse-3903/VirtualGamePad-Mobile --prerelease --notes-file notes.md
+gh release create v0.5.0 AirDeck-Mobile-0.5.0-debug.apk SHA256SUMS.txt \
+  --repo horse-3903/AirDeck-Mobile --prerelease --notes-file notes.md
 ```
 
 ---
@@ -194,4 +194,4 @@ gh release create v0.4.2-modern-ui.4 VirtualGamePad-Mobile-0.4.2-modern-ui.4-deb
 
 ## Credits and licence
 
-The app, the protocol and the original interface are the work of [kitswas](https://github.com/kitswas). This fork adds the matching browser-style layout, the new sticks and D-pad, the connection badge, reconnect and the expanded settings. Released under the GNU General Public License v3.0, see [LICENCE.TXT](LICENCE.TXT).
+The app, the protocol and the original interface are the work of [kitswas](https://github.com/kitswas), whose project is [VirtualGamePad](https://kitswas.github.io/VirtualGamePad/). AirDeck adds the matching browser-style layout, the new sticks and D-pad, the connection badge, reconnect and the expanded settings. Released under the GNU General Public License v3.0, see [LICENCE.TXT](LICENCE.TXT).

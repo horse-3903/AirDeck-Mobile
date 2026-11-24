@@ -1,5 +1,5 @@
 ﻿<resources>
-    <string name="app_name">VirtualGamePadMobile</string>
+    <string name="app_name">AirDeck</string>
 
     <!-- Main Menu -->
     <string name="menu_start">Connect to PC</string>
@@ -21,11 +21,11 @@
     <string name="settings_error_save">Error saving settings</string>
 
     <!-- About Screen -->
-    <string name="about_title">🎮 Virtual GamePad Mobile</string>
+    <string name="about_title">🎮 AirDeck</string>
     <string name="about_version">Version %s</string>
     <string name="about_view_license">View Licence</string>
     <string name="about_latest_release">Latest Release</string>
-    <string name="about_description">A mobile application that lets your phone work as a gamepad for PC games.</string>
+    <string name="about_description">Turns your phone into a game controller for your PC. Based on VirtualGamePad by kitswas.</string>
     <string name="about_source_code">Source Code</string>
     <string name="about_project_website">Project Website</string>
     <string name="about_report_issues">Report Issues</string>
@@ -192,7 +192,7 @@
     <string name="error_max_value">Value must be at most %s</string>
     <string name="error_invalid_number">Please enter a valid number</string>
 
-    <string name="menu_title">Virtual Gamepad</string>
+    <string name="menu_title">AirDeck</string>
     <string name="menu_tagline">Turn your phone into a controller for your PC</string>
     <string name="done">Done</string>
     <string name="presets_button">Presets</string>
@@ -263,7 +263,7 @@
     <string name="error_headline_unreachable">That address can\'t be reached</string>
     <string name="error_headline_closed">The PC closed the connection</string>
     <string name="error_headline_generic">Couldn\'t connect to your PC</string>
-    <string name="error_body_refused">The server at %1$s:%2$s did not accept the connection. Make sure Virtual Gamepad is running on your PC, then check the address and port.</string>
+    <string name="error_body_refused">The server at %1$s:%2$s did not accept the connection. Make sure the AirDeck server is running on your PC, then check the address and port.</string>
     <string name="error_body_timeout">Nothing answered at %1$s:%2$s. Check the address and port, and that your phone and PC can reach each other on the network.</string>
     <string name="error_body_unreachable">This phone has no route to %1$s:%2$s. Check the address and your network connection.</string>
     <string name="error_body_closed">The server at %1$s:%2$s ended the connection. It may have been stopped or be full.</string>
@@ -272,7 +272,7 @@
     <string name="error_edit_connection">Edit Connection</string>
     <string name="error_show_details">Show technical details</string>
     <string name="error_hide_details">Hide technical details</string>
-    <string name="notification_title">Virtual Gamepad</string>
+    <string name="notification_title">AirDeck</string>
     <string name="reset_layout_confirm">Reset Layout</string>
     <string name="discard_title">Discard changes?</string>
     <string name="discard_message">Your layout changes have not been saved.</string>

@@ -11,17 +11,17 @@ plugins {
 }
 
 android {
-    namespace = "io.github.kitswas.virtualgamepadmobile"
+    namespace = "io.github.horse3903.airdeck"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.kitswas.virtualgamepadmobile"
+        applicationId = "io.github.horse3903.airdeck"
         // Defines the minimum API level required to run the app.
         minSdk = 26
         // Specifies the API level used to test the app.
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.4.2"
+        versionCode = 12
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

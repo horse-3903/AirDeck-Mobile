@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VirtualGamePadMobile"
+rootProject.name = "AirDeck"
 include(":app")
