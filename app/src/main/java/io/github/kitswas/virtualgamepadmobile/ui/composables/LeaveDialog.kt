@@ -1,17 +1,22 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -20,10 +25,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -31,10 +44,24 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import io.github.kitswas.virtualgamepadmobile.R
 
+private val DangerRed = Color(0xFFD03030)
+
+/** Same unplug mark as the browser controller: a plug with a slash through it. */
+@Composable
+private fun UnplugIcon(modifier: Modifier = Modifier, color: Color) {
+    Canvas(modifier) {
+        scale(size.width / 24f, pivot = Offset.Zero) {
+            val stroke = Stroke(2f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            drawPath(PathParser().parsePathString("M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0V7zM12 16v5").toPath(), color, style = stroke)
+            drawPath(PathParser().parsePathString("M3 3l18 18").toPath(), color, style = stroke)
+        }
+    }
+}
+
 /**
- * Confirmation shown when leaving the controller: go back to the home screen while staying
- * connected, or disconnect from the PC. Labels never wrap and the dialog is wide enough for
- * all three actions.
+ * Confirmation shown when leaving the controller, styled like the browser controller's dialog:
+ * an icon, a centred title and text, and equal-width actions. Cancel, Leave Connected (back to the
+ * home screen, still connected) and Disconnect (filled red).
  */
 @Composable
 fun LeaveDialog(
@@ -42,83 +69,84 @@ fun LeaveDialog(
     onKeepConnected: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
-    val compactPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp)
     Dialog(
         onDismissRequest = onCancel,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         // Keep the controller visible behind the dialog
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect { window?.setDimAmount(0.32f) }
+        SideEffect { window?.setDimAmount(0.5f) }
 
         Surface(
-            shape = MaterialTheme.shapes.medium,
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            tonalElevation = 6.dp,
+            shadowElevation = 12.dp,
             modifier = Modifier
                 .fillMaxWidth(0.6f)
-                .widthIn(min = 440.dp, max = 520.dp)
+                .widthIn(min = 420.dp, max = 500.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(DangerRed.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    UnplugIcon(Modifier.size(22.dp), DangerRed)
+                }
+                Spacer(Modifier.height(12.dp))
                 Text(
                     text = stringResource(R.string.leave_gamepad_title),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = stringResource(R.string.leave_gamepad_message),
                     fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(18.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val buttonShape = RoundedCornerShape(12.dp)
+                    val buttonModifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
                     OutlinedButton(
                         onClick = onCancel,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        shape = MaterialTheme.shapes.small,
-                        contentPadding = compactPadding,
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        shape = buttonShape,
+                        modifier = buttonModifier
                     ) {
-                        Text(
-                            stringResource(R.string.leave_gamepad_stay),
-                            fontSize = 15.sp,
-                            maxLines = 1,
-                            softWrap = false
-                        )
+                        Text(stringResource(R.string.leave_gamepad_stay), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                     }
                     OutlinedButton(
-                        onClick = onDisconnect,
-                        shape = MaterialTheme.shapes.small,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                        contentPadding = compactPadding,
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        onClick = onKeepConnected,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        shape = buttonShape,
+                        modifier = buttonModifier
                     ) {
-                        Text(
-                            stringResource(R.string.leave_gamepad_confirm),
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.error,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Clip
-                        )
+                        Text(stringResource(R.string.leave_gamepad_keep), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                     }
                     Button(
-                        onClick = onKeepConnected,
-                        shape = MaterialTheme.shapes.small,
-                        contentPadding = compactPadding,
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        onClick = onDisconnect,
+                        shape = buttonShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed, contentColor = Color.White),
+                        modifier = buttonModifier
                     ) {
-                        Text(
-                            stringResource(R.string.leave_gamepad_keep),
-                            fontSize = 15.sp,
-                            maxLines = 1,
-                            softWrap = false
-                        )
+                        Text(stringResource(R.string.leave_gamepad_confirm), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                     }
                 }
             }

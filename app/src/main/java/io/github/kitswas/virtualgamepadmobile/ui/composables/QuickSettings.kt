@@ -76,6 +76,8 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
     val invalid = stringResource(R.string.quick_layout_invalid)
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        androidx.compose.runtime.SideEffect { window?.setDimAmount(0.5f) }
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
