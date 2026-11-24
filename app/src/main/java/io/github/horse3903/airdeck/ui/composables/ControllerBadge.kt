@@ -21,7 +21,7 @@ import io.github.horse3903.airdeck.R
 
 val SlotColors = listOf(
     Color(0xFFE5484D), Color(0xFF3E8EF7), Color(0xFFF5C518),
-    Color(0xFF30A46C), Color(0xFFF97316), Color(0xFFA855F7)
+    Color(0xFF30A46C), Color(0xFFF97316), Color(0xFFA855F7), Color(0xFF14B8A6), Color(0xFFEC4899)
 )
 
 fun slotColor(slot: Int): Color = SlotColors[(slot - 1).coerceIn(0, SlotColors.size - 1)]
