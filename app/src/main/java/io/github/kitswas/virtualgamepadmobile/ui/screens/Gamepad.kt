@@ -33,7 +33,6 @@ import io.github.kitswas.virtualgamepadmobile.network.ConnectionViewModel
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionService
 import io.github.kitswas.virtualgamepadmobile.ui.composables.ConnectionBadge
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LinkStatus
-import io.github.kitswas.virtualgamepadmobile.ui.composables.SlotGlow
 import io.github.kitswas.virtualgamepadmobile.ui.composables.DrawGamepad
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LeaveDialog
 import io.github.kitswas.virtualgamepadmobile.ui.utils.findActivity
@@ -84,9 +83,9 @@ fun GamePad(
     var showLeaveConfirm by rememberSaveable { mutableStateOf(false) }
     DrawGamepad(
         screenWidth, screenHeight, gamepadState, buttonConfigs,
-        onBack = { showLeaveConfirm = true }
+        onBack = { showLeaveConfirm = true },
+        glowSlot = if (connectionState?.connected == true) connectionState?.controllerSlot else null
     )
-    SlotGlow(slot = if (connectionState?.connected == true) connectionState?.controllerSlot else null)
     androidx.compose.foundation.layout.Box(
         modifier = androidx.compose.ui.Modifier
             .fillMaxSize()

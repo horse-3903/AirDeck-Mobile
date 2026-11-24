@@ -140,7 +140,7 @@ fun ConnectionBadge(
 fun SlotGlow(slot: Int?, modifier: Modifier = Modifier) {
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val alpha by animateFloatAsState(
-        targetValue = if (slot == null) 0f else if (light) 0.42f else 0.26f,
+        targetValue = if (slot == null) 0f else if (light) 0.16f else 0.26f,
         animationSpec = tween(500),
         label = "slotGlow"
     )

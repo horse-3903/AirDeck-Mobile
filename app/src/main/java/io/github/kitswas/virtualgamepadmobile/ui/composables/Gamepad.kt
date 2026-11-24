@@ -41,6 +41,7 @@ fun DrawGamepad(
     onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
     selectedComponent: ButtonComponent? = null,
     onBack: (() -> Unit)? = null,
+    glowSlot: Int? = null,
 ) {
     // Assuming Landscape orientation
     val baseDp = heightDp
@@ -76,6 +77,8 @@ fun DrawGamepad(
     // First we make a box that will contain the gamepad
     // And put padding around it so that it doesn't touch the edges of the screen
     Surface(color = MaterialTheme.colorScheme.background) {
+        // The glow sits behind every control
+        SlotGlow(slot = glowSlot)
         Box(
             modifier = Modifier
                 .padding(deadZonePadding.dp)
