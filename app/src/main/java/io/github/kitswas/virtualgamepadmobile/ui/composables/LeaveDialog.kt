@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
@@ -43,50 +42,51 @@ fun LeaveDialog(
     onKeepConnected: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
-    val compactPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+    val compactPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp)
     Dialog(
         onDismissRequest = onCancel,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         // Keep the controller visible behind the dialog
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect { window?.setDimAmount(0.45f) }
+        SideEffect { window?.setDimAmount(0.32f) }
 
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             modifier = Modifier
-                .fillMaxWidth(0.82f)
-                .widthIn(min = 420.dp, max = 560.dp)
+                .fillMaxWidth(0.6f)
+                .widthIn(min = 440.dp, max = 520.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
                 Text(
                     text = stringResource(R.string.leave_gamepad_title),
-                    fontSize = 17.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = stringResource(R.string.leave_gamepad_message),
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(22.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(
+                    OutlinedButton(
                         onClick = onCancel,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         shape = MaterialTheme.shapes.small,
                         contentPadding = compactPadding,
-                        modifier = Modifier.heightIn(min = 44.dp)
+                        modifier = Modifier.heightIn(min = 48.dp)
                     ) {
                         Text(
                             stringResource(R.string.leave_gamepad_stay),
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -96,11 +96,11 @@ fun LeaveDialog(
                         shape = MaterialTheme.shapes.small,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                         contentPadding = compactPadding,
-                        modifier = Modifier.heightIn(min = 44.dp)
+                        modifier = Modifier.heightIn(min = 48.dp)
                     ) {
                         Text(
                             stringResource(R.string.leave_gamepad_confirm),
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.error,
                             maxLines = 1,
                             softWrap = false,
@@ -111,11 +111,11 @@ fun LeaveDialog(
                         onClick = onKeepConnected,
                         shape = MaterialTheme.shapes.small,
                         contentPadding = compactPadding,
-                        modifier = Modifier.heightIn(min = 44.dp)
+                        modifier = Modifier.heightIn(min = 48.dp)
                     ) {
                         Text(
                             stringResource(R.string.leave_gamepad_keep),
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             maxLines = 1,
                             softWrap = false
                         )

@@ -35,24 +35,25 @@ fun ControllerBadge(slot: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(50))
-            .background(color.copy(alpha = 0.16f))
+            .background(Color.White.copy(alpha = 0.10f))
             .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Neutral pill and text; only this controller's own dot carries its colour
         for (index in 1..6) {
             Row(
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(slotColor(index).copy(alpha = if (index == slot) 1f else 0.28f))
+                    .background(if (index == slot) color else Color.White.copy(alpha = 0.22f))
             ) {}
         }
         Text(
             text = stringResource(R.string.notification_controller, slot),
             fontSize = 11.sp,
             fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            color = color
+            color = Color.White.copy(alpha = 0.92f)
         )
     }
 }
