@@ -209,7 +209,7 @@ fun MenuButton(
                 painter = iconPainter,
                 contentDescription = stringResource(R.string.content_desc_button, gameButton.name),
                 modifier = Modifier.size(size / 2),
-                tint = PsStyle.Glyph
+                tint = PsStyle.Glyph.copy(alpha = 0.7f)
             )
         } else {
             Icon(
@@ -287,7 +287,7 @@ fun CentralButtons(
         MenuButton(
             type = MenuButtonType.VIEW,
             modifier = mod,
-            size = (baseDp / 8 * config.scale).dp,
+            size = (baseDp / 10 * config.scale).dp,
             gamepadState = gamepadState,
         )
     }
@@ -297,7 +297,7 @@ fun CentralButtons(
         MenuButton(
             type = MenuButtonType.MENU,
             modifier = mod,
-            size = (baseDp / 8 * config.scale).dp,
+            size = (baseDp / 10 * config.scale).dp,
             gamepadState = gamepadState,
         )
     }

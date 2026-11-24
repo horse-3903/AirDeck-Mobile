@@ -85,8 +85,8 @@ fun DrawGamepad(
             RenderComponent(ButtonComponent.LEFT_ANALOG_STICK) { config, mod ->
                 AnalogStick(
                     modifier = mod,
-                    outerCircleWidth = (baseDp / 8 * config.scale).dp,
-                    innerCircleRadius = (baseDp / 12 * config.scale).dp,
+                    outerCircleWidth = (baseDp / 10 * config.scale).dp,
+                    innerCircleRadius = (baseDp / 14 * config.scale).dp,
                     gamepadState = gamepadState,
                     type = AnalogStickType.LEFT,
                 )
@@ -96,8 +96,8 @@ fun DrawGamepad(
             RenderComponent(ButtonComponent.RIGHT_ANALOG_STICK) { config, mod ->
                 AnalogStick(
                     modifier = mod,
-                    outerCircleWidth = (baseDp / 8 * config.scale).dp,
-                    innerCircleRadius = (baseDp / 12 * config.scale).dp,
+                    outerCircleWidth = (baseDp / 10 * config.scale).dp,
+                    innerCircleRadius = (baseDp / 14 * config.scale).dp,
                     gamepadState = gamepadState,
                     type = AnalogStickType.RIGHT,
                 )

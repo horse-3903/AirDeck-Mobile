@@ -57,6 +57,9 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.kitswas.virtualgamepadmobile.R
 import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
 
+// Round at the top like a real trigger, flatter where the finger rests
+private val TriggerShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 8.dp, bottomEnd = 8.dp)
+
 enum class TriggerType {
     LEFT, RIGHT
 }
@@ -119,7 +122,7 @@ private fun DigitalTrigger(
         Button(
             onClick = {},
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(16.dp),
+            shape = TriggerShape,
             contentPadding = PaddingValues(0.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
@@ -207,7 +210,7 @@ private fun AnalogTrigger(
         onDispose { listener?.let { manager?.unregisterListener(it) } }
     }
 
-    val shape = RoundedCornerShape(16.dp)
+    val shape = TriggerShape
     val label = when (LocalGamepadStyle.current) {
         GamepadStyle.XBOX -> if (type == TriggerType.LEFT) "LT" else "RT"
         GamepadStyle.PLAYSTATION -> if (type == TriggerType.LEFT) "L2" else "R2"

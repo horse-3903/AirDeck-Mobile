@@ -88,8 +88,8 @@ fun GamePad(
         androidx.compose.foundation.layout.Box(
             modifier = androidx.compose.ui.Modifier
                 .fillMaxSize()
-                .padding(bottom = 6.dp),
-            contentAlignment = androidx.compose.ui.Alignment.BottomCenter
+                .padding(top = 6.dp),
+            contentAlignment = androidx.compose.ui.Alignment.TopCenter
         ) {
             ControllerBadge(slot = slot)
         }

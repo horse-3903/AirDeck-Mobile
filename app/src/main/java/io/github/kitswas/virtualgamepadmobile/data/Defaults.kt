@@ -13,92 +13,64 @@ const val defaultStickSnap = true
 // Note: Offset values are multipliers of baseDp (heightDp in landscape)
 // These will be applied as: offsetX * baseDp or offsetY * baseDp at runtime
 val defaultButtonConfigs = mapOf(
+    // Left stick upper left, D-pad lower centre-left, right stick lower centre-right, face buttons upper right
     ButtonComponent.LEFT_ANALOG_STICK to ButtonConfig(
         component = ButtonComponent.LEFT_ANALOG_STICK,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0f,
-        offsetY = 0f,
-        anchor = ButtonAnchor.TOP_LEFT
+        offsetX = 0.04f,
+        offsetY = 0.1f,
+        anchor = ButtonAnchor.CENTER_LEFT
     ),
     ButtonComponent.RIGHT_ANALOG_STICK to ButtonConfig(
         component = ButtonComponent.RIGHT_ANALOG_STICK,
-        visible = true,
-        scale = 1.0f,
-        offsetX = -0.25f, // -baseDp/4
-        offsetY = 0f,
+        offsetX = -0.5f,
         anchor = ButtonAnchor.BOTTOM_RIGHT
     ),
     ButtonComponent.DPAD to ButtonConfig(
         component = ButtonComponent.DPAD,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0.333f, // baseDp/3
-        offsetY = 0f,
+        offsetX = 0.5f,
         anchor = ButtonAnchor.BOTTOM_LEFT
     ),
     ButtonComponent.FACE_BUTTONS to ButtonConfig(
         component = ButtonComponent.FACE_BUTTONS,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0f,
-        offsetY = 0f,
+        offsetY = 0.38f,
         anchor = ButtonAnchor.TOP_RIGHT
     ),
+    // Triggers in the top corners with the bumpers just under them
     ButtonComponent.LEFT_TRIGGER to ButtonConfig(
         component = ButtonComponent.LEFT_TRIGGER,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0f,
-        offsetY = 0f,
-        anchor = ButtonAnchor.BOTTOM_LEFT
+        anchor = ButtonAnchor.TOP_LEFT
     ),
     ButtonComponent.RIGHT_TRIGGER to ButtonConfig(
         component = ButtonComponent.RIGHT_TRIGGER,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0f,
-        offsetY = 0f,
-        anchor = ButtonAnchor.BOTTOM_RIGHT
+        anchor = ButtonAnchor.TOP_RIGHT
     ),
     ButtonComponent.LEFT_SHOULDER to ButtonConfig(
         component = ButtonComponent.LEFT_SHOULDER,
-        visible = true,
-        scale = 1.0f,
-        offsetX = -0.25f, // -baseDp/4
-        offsetY = 0f,
-        anchor = ButtonAnchor.TOP_CENTER
+        offsetY = 0.25f,
+        anchor = ButtonAnchor.TOP_LEFT
     ),
     ButtonComponent.RIGHT_SHOULDER to ButtonConfig(
         component = ButtonComponent.RIGHT_SHOULDER,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0.25f, // baseDp/4
-        offsetY = 0f,
-        anchor = ButtonAnchor.TOP_CENTER
+        offsetY = 0.25f,
+        anchor = ButtonAnchor.TOP_RIGHT
     ),
+    // Small system buttons grouped in the middle
     ButtonComponent.SELECT_BUTTON to ButtonConfig(
         component = ButtonComponent.SELECT_BUTTON,
-        visible = true,
-        scale = 1.0f,
-        offsetX = -0.25f, // -baseDp/4
-        offsetY = 0.25f, // baseDp/4
+        offsetX = -0.09f,
+        offsetY = 0.18f,
         anchor = ButtonAnchor.TOP_CENTER
     ),
     ButtonComponent.START_BUTTON to ButtonConfig(
         component = ButtonComponent.START_BUTTON,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0.25f, // baseDp/4
-        offsetY = 0.25f, // baseDp/4
+        offsetX = 0.09f,
+        offsetY = 0.18f,
         anchor = ButtonAnchor.TOP_CENTER
     ),
+    // Back sits aside so the connection status can own the top centre
     ButtonComponent.BACK_BUTTON to ButtonConfig(
         component = ButtonComponent.BACK_BUTTON,
-        visible = true,
-        scale = 1.0f,
-        offsetX = 0f,
-        offsetY = 0f,
+        offsetX = -0.3f,
         anchor = ButtonAnchor.TOP_CENTER
     )
 )

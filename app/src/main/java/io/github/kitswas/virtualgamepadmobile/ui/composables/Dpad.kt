@@ -3,6 +3,7 @@ package io.github.kitswas.virtualgamepadmobile.ui.composables
 import androidx.compose.foundation.shape.RoundedCornerShape
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,17 @@ import io.github.kitswas.virtualgamepadmobile.ui.utils.HapticUtils
 
 enum class DpadButtonType {
     UP, DOWN, LEFT, RIGHT
+}
+
+// Only the outer corners are rounded so the four arms read as one cross
+private fun armShape(type: DpadButtonType): RoundedCornerShape {
+    val r = 14.dp
+    return when (type) {
+        DpadButtonType.UP -> RoundedCornerShape(topStart = r, topEnd = r)
+        DpadButtonType.DOWN -> RoundedCornerShape(bottomStart = r, bottomEnd = r)
+        DpadButtonType.LEFT -> RoundedCornerShape(topStart = r, bottomStart = r)
+        DpadButtonType.RIGHT -> RoundedCornerShape(topEnd = r, bottomEnd = r)
+    }
 }
 
 @Composable
@@ -81,7 +93,7 @@ fun DpadButton(
             .size(size)
             .padding(0.dp),
         onClick = {},
-        shape = RoundedCornerShape(percent = 30),
+        shape = armShape(type),
         colors = IconButtonDefaults.outlinedIconButtonColors(
             containerColor = if (isPressed) PsStyle.BodyPressed else PsStyle.Body,
         ),
@@ -108,8 +120,14 @@ fun Dpad(
     size: Dp = 360.dp,
     gamepadState: GamepadReading,
 ) {
-    val buttonSize = size * 0.33f
+    val buttonSize = size * 0.34f
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        // Fills the middle of the cross
+        Box(
+            modifier = Modifier
+                .size(buttonSize)
+                .background(PsStyle.Body)
+        )
         DpadButton(
             type = DpadButtonType.UP,
             modifier = Modifier.align(Alignment.TopCenter),
