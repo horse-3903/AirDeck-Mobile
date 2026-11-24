@@ -402,34 +402,24 @@ fun GamepadCustomizationScreen(
             // Interactive layout: tap or drag any component to edit it
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val canvasHeight = maxHeight.value.toInt()
-                val panelWidth = 340.dp
-                // The inspector gets its own column, so no control is ever hidden behind it
-                val canvasWidth = if (selectedComponent != null) maxWidth - panelWidth - 16.dp else maxWidth
-                Box(
-                    modifier = Modifier
-                        .width(canvasWidth)
-                        .fillMaxHeight()
-                        .align(Alignment.CenterStart)
-                ) {
-                    DrawGamepad(
-                        widthDp = canvasWidth.value.toInt(),
-                        heightDp = canvasHeight,
-                        gamepadState = editorState,
-                        buttonConfigs = currentConfigs,
-                        onComponentTap = { selectedComponent = it },
-                        selectedComponent = selectedComponent,
-                        onComponentDrag = { component, dx, dy ->
-                            val config = currentConfigs[component] ?: ButtonConfig.default(component)
-                            val updated = config.copy(
-                                offsetX = (config.offsetX + dx.value / canvasHeight)
-                                    .coerceIn(OFFSET_VALUE_RANGE),
-                                offsetY = (config.offsetY + dy.value / canvasHeight)
-                                    .coerceIn(OFFSET_VALUE_RANGE),
-                            )
-                            modifiedConfigs = currentConfigs + (component to updated)
-                        }
-                    )
-                }
+                DrawGamepad(
+                    widthDp = maxWidth.value.toInt(),
+                    heightDp = canvasHeight,
+                    gamepadState = editorState,
+                    buttonConfigs = currentConfigs,
+                    onComponentTap = { selectedComponent = it },
+                    selectedComponent = selectedComponent,
+                    onComponentDrag = { component, dx, dy ->
+                        val config = currentConfigs[component] ?: ButtonConfig.default(component)
+                        val updated = config.copy(
+                            offsetX = (config.offsetX + dx.value / canvasHeight)
+                                .coerceIn(OFFSET_VALUE_RANGE),
+                            offsetY = (config.offsetY + dy.value / canvasHeight)
+                                .coerceIn(OFFSET_VALUE_RANGE),
+                        )
+                        modifiedConfigs = currentConfigs + (component to updated)
+                    }
+                )
                 if (selectedComponent == null) {
                     Text(
                         text = stringResource(R.string.customization_tap_hint),
@@ -441,12 +431,18 @@ fun GamepadCustomizationScreen(
 
                 selectedComponent?.let { component ->
                     val config = currentConfigs[component] ?: ButtonConfig.default(component)
+                    // Open on the side away from the control being edited
+                    val panelOnRight = when (config.anchor) {
+                        ButtonAnchor.TOP_LEFT, ButtonAnchor.CENTER_LEFT, ButtonAnchor.BOTTOM_LEFT -> true
+                        ButtonAnchor.TOP_RIGHT, ButtonAnchor.CENTER_RIGHT, ButtonAnchor.BOTTOM_RIGHT -> false
+                        else -> config.offsetX <= 0f
+                    }
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier
-                            .align(Alignment.CenterEnd)
+                            .align(if (panelOnRight) Alignment.CenterEnd else Alignment.CenterStart)
                             .padding(8.dp)
                             .width(340.dp)
                             .fillMaxHeight()

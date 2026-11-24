@@ -33,6 +33,14 @@ class SettingsRepository(context: Context) {
         preferences[POLLING_DELAY] ?: defaultPollingDelay
     }
 
+    val stickSnap: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[STICK_SNAP] ?: defaultStickSnap
+    }
+
+    suspend fun setStickSnap(enabled: Boolean) {
+        dataStore.edit { preferences -> preferences[STICK_SNAP] = enabled }
+    }
+
     val hapticFeedbackEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[HAPTIC_FEEDBACK_ENABLED] ?: defaultHapticFeedbackEnabled
     }
@@ -182,6 +190,7 @@ class SettingsRepository(context: Context) {
         private val GAMEPAD_STYLE = intPreferencesKey("gamepad_style")
         private val POLLING_DELAY = intPreferencesKey("polling_delay")
         private val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
+        private val STICK_SNAP = booleanPreferencesKey("stick_snap")
         private val BUTTON_CONFIGS = stringPreferencesKey("button_configs")
         private val PRESETS = stringPreferencesKey("button_presets")
         private val LAST_CONNECTION_IP_ADDRESS = stringPreferencesKey("last_connection_ip_address")

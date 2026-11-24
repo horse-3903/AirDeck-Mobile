@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">VirtualGamePadMobile</string>
 
     <!-- Main Menu -->
@@ -288,4 +288,6 @@
     <string name="settings_full_screen_desc">Hide the system bars while the app is open.</string>
     <string name="settings_remember_desc">Prefill the last IP address and port.</string>
     <string name="settings_reset_all">Reset settings</string>
+    <string name="settings_stick_snap">Snap stick to touch</string>
+    <string name="settings_stick_snap_desc">Touching anywhere inside a stick\'s circle moves it there. Turn off to drag from the stick cap only.</string>
 </resources>

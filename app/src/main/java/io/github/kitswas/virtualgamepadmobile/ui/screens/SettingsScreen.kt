@@ -1,5 +1,6 @@
 package io.github.kitswas.virtualgamepadmobile.ui.screens
 
+import io.github.kitswas.virtualgamepadmobile.data.defaultStickSnap
 import io.github.kitswas.virtualgamepadmobile.data.defaultGamepadStyle
 import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
 import android.os.Parcelable
@@ -159,6 +160,7 @@ fun SettingsScreen(
         val gamepadStyle by settingsRepository.gamepadStyle.collectAsState(initial = defaultGamepadStyle)
         val pollingDelay by settingsRepository.pollingDelay.collectAsState(initial = defaultPollingDelay)
         val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = defaultHapticFeedbackEnabled)
+        val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
         val fullScreenEnabled by settingsRepository.fullScreenEnabled.collectAsState(initial = defaultFullScreenEnabled)
 
@@ -251,6 +253,16 @@ fun SettingsScreen(
                         maxValue = 200,
                         step = 10,
                         modifier = Modifier.width(CONTROL_WIDTH)
+                    )
+                }
+
+                SettingRow(
+                    label = stringResource(R.string.settings_stick_snap),
+                    helper = stringResource(R.string.settings_stick_snap_desc)
+                ) {
+                    Switch(
+                        checked = stickSnap,
+                        onCheckedChange = { applyScope.launch { settingsRepository.setStickSnap(it) } }
                     )
                 }
 

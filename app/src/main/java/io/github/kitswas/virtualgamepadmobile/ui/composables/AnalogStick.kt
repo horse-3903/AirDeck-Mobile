@@ -143,12 +143,65 @@ fun AnalogStick(
     val view = LocalView.current
 
     val state = remember { AnalogStickUiState() }
+    val snap = LocalStickSnap.current
     val maxOffset = with(density) {
         (innerCircleRadius + outerCircleWidth).toPx()
     }
 
+    val rimRadius = with(density) { (innerCircleRadius + outerCircleWidth + ringWidth).toPx() }
     Box(
-        modifier = modifier.testTag("AnalogStick_${type.name}"),
+        modifier = modifier
+            .testTag("AnalogStick_${type.name}")
+            .then(
+                if (!snap) Modifier else Modifier.pointerInput(type) {
+                    var inside = false
+                    detectDragGestures(
+                        onDragStart = { start ->
+                            val dx = start.x - size.width / 2f
+                            val dy = start.y - size.height / 2f
+                            inside = sqrt(dx * dx + dy * dy) <= rimRadius
+                            if (inside) {
+                                HapticUtils.performGestureStartFeedback(view)
+                                // Jump the stick to where the finger landed
+                                val length = sqrt(dx * dx + dy * dy)
+                                val factor = if (length > maxOffset) maxOffset / length else 1f
+                                state.offsetX = dx * factor
+                                state.offsetY = dy * factor
+                                state.visualX = state.offsetX
+                                state.visualY = state.offsetY
+                                updateThumbstickValues(
+                                    type, gamepadState, state.visualX / maxOffset, state.visualY / maxOffset
+                                )
+                            }
+                        },
+                        onDragEnd = {
+                            if (inside) {
+                                resetAnalogStick(state, type, gamepadState)
+                                HapticUtils.performGestureEndFeedback(view)
+                            }
+                            inside = false
+                        },
+                        onDragCancel = {
+                            if (inside) resetAnalogStick(state, type, gamepadState)
+                            inside = false
+                        },
+                        onDrag = { change, dragAmount ->
+                            if (inside) {
+                                change.consume()
+                                handleAnalogDrag(
+                                    state = state,
+                                    dragX = dragAmount.x,
+                                    dragY = dragAmount.y,
+                                    maxOffset = maxOffset,
+                                    type = type,
+                                    gamepadState = gamepadState,
+                                    view = view,
+                                )
+                            }
+                        }
+                    )
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
         // Ring around the base
@@ -173,7 +226,8 @@ fun AnalogStick(
             modifier = Modifier
                 .testTag("AnalogStick_${type.name}_Handle")
                 .size(innerCircleRadius * 2)
-                .pointerInput(Unit) {
+                .pointerInput(snap) {
+                    if (snap) return@pointerInput
                     detectDragGestures(
                         onDragStart = { _ ->
                             HapticUtils.performGestureStartFeedback(view)

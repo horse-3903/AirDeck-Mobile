@@ -9,6 +9,9 @@ import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
 
 val LocalGamepadStyle = staticCompositionLocalOf { GamepadStyle.PLAYSTATION }
 
+/** True when touching anywhere inside a stick's circle moves the stick there. */
+val LocalStickSnap = staticCompositionLocalOf { true }
+
 /** Gamepad palette that follows the app theme (dark or light). */
 internal object PsStyle {
     private val isLight: Boolean

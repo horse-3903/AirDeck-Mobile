@@ -1,6 +1,8 @@
 package io.github.kitswas.virtualgamepadmobile
 
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LocalGamepadStyle
+import io.github.kitswas.virtualgamepadmobile.ui.composables.LocalStickSnap
+import io.github.kitswas.virtualgamepadmobile.data.defaultStickSnap
 import io.github.kitswas.virtualgamepadmobile.data.defaultGamepadStyle
 import androidx.compose.runtime.CompositionLocalProvider
 import android.Manifest
@@ -111,7 +113,11 @@ class MainActivity : ComponentActivity() {
             val gamepadStyle by settingsRepository.gamepadStyle.collectAsState(
                 initial = defaultGamepadStyle
             )
-            CompositionLocalProvider(LocalGamepadStyle provides gamepadStyle) {
+            val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
+            CompositionLocalProvider(
+                LocalGamepadStyle provides gamepadStyle,
+                LocalStickSnap provides stickSnap
+            ) {
                 NavTree(
                     connectionViewModel = connectionViewModel,
                     settingsRepository = settingsRepository,
