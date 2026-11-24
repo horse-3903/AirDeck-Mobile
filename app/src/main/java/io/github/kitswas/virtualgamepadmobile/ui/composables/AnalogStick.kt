@@ -1,6 +1,16 @@
 package io.github.kitswas.virtualgamepadmobile.ui.composables
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalViewConfiguration
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.hypot
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
@@ -127,12 +137,17 @@ private fun toggleThumbstickButton(
     HapticUtils.performGestureEndFeedback(view)
 }
 
+/**
+ * An analog stick drawn like the browser controller's: a round base, a thin movement ring and a cap with a dot.
+ * With snap on, touching anywhere inside the base puts the stick right there at once, sliding moves it, and
+ * holding still for 450 ms presses the stick like a button.
+ */
 @Composable
 fun AnalogStick(
     modifier: Modifier = Modifier,
-    ringColor: Color = PsStyle.StickRing,
+    ringColor: Color = PsStyle.Border,
     ringWidth: Dp = 3.dp,
-    outerCircleColor: Color = PsStyle.StickBase,
+    outerCircleColor: Color = PsStyle.Body,
     outerCircleWidth: Dp = 4.dp,
     innerCircleColor: Color = PsStyle.StickCap,
     innerCircleRadius: Dp = 32.dp,
@@ -141,91 +156,90 @@ fun AnalogStick(
 ) {
     val density = LocalDensity.current
     val view = LocalView.current
+    val touchSlop = LocalViewConfiguration.current.touchSlop
 
     val state = remember { AnalogStickUiState() }
     val snap = LocalStickSnap.current
-    val maxOffset = with(density) {
-        (innerCircleRadius + outerCircleWidth).toPx()
-    }
+    val diameter = (innerCircleRadius + outerCircleWidth + ringWidth) * 2
+    val diameterPx = with(density) { diameter.toPx() }
+    val maxOffset = diameterPx * 0.28f
+    val knobSize = diameter * 0.44f
+    val pressedColor = PsStyle.Glyph
 
-    val rimRadius = with(density) { (innerCircleRadius + outerCircleWidth + ringWidth).toPx() }
     Box(
         modifier = modifier
             .testTag("AnalogStick_${type.name}")
+            .size(diameter)
             .then(
                 if (!snap) Modifier else Modifier.pointerInput(type) {
-                    var inside = false
-                    detectDragGestures(
-                        onDragStart = { start ->
-                            val dx = start.x - size.width / 2f
-                            val dy = start.y - size.height / 2f
-                            inside = sqrt(dx * dx + dy * dy) <= rimRadius
-                            if (inside) {
-                                HapticUtils.performGestureStartFeedback(view)
-                                // Jump the stick to where the finger landed
-                                val length = sqrt(dx * dx + dy * dy)
-                                val factor = if (length > maxOffset) maxOffset / length else 1f
-                                state.offsetX = dx * factor
-                                state.offsetY = dy * factor
-                                state.visualX = state.offsetX
-                                state.visualY = state.offsetY
-                                updateThumbstickValues(
-                                    type, gamepadState, state.visualX / maxOffset, state.visualY / maxOffset
-                                )
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val centre = Offset(size.width / 2f, size.height / 2f)
+                        if (hypot(down.position.x - centre.x, down.position.y - centre.y) > diameterPx / 2f) return@awaitEachGesture
+                        down.consume()
+                        HapticUtils.performGestureStartFeedback(view)
+
+                        fun place(position: Offset) {
+                            var dx = position.x - centre.x
+                            var dy = position.y - centre.y
+                            val length = hypot(dx, dy)
+                            if (length > maxOffset) {
+                                dx *= maxOffset / length
+                                dy *= maxOffset / length
                             }
-                        },
-                        onDragEnd = {
-                            if (inside) {
-                                resetAnalogStick(state, type, gamepadState)
-                                HapticUtils.performGestureEndFeedback(view)
-                            }
-                            inside = false
-                        },
-                        onDragCancel = {
-                            if (inside) resetAnalogStick(state, type, gamepadState)
-                            inside = false
-                        },
-                        onDrag = { change, dragAmount ->
-                            if (inside) {
-                                change.consume()
-                                handleAnalogDrag(
-                                    state = state,
-                                    dragX = dragAmount.x,
-                                    dragY = dragAmount.y,
-                                    maxOffset = maxOffset,
-                                    type = type,
-                                    gamepadState = gamepadState,
-                                    view = view,
-                                )
-                            }
+                            state.offsetX = dx
+                            state.offsetY = dy
+                            state.visualX = dx
+                            state.visualY = dy
+                            updateThumbstickValues(type, gamepadState, dx / maxOffset, dy / maxOffset)
+                            val normalized = (length / maxOffset).coerceIn(0f, 1f)
+                            if (normalized > 0.3f) HapticUtils.performAnalogMovementFeedback(view, normalized)
                         }
-                    )
+
+                        place(down.position)
+                        var moved = false
+                        var longPressed = false
+                        val started = down.uptimeMillis
+                        while (true) {
+                            val wait = if (moved || longPressed) null else (450L - (android.os.SystemClock.uptimeMillis() - started)).coerceAtLeast(1L)
+                            val event = if (wait == null) awaitPointerEvent() else withTimeoutOrNull(wait) { awaitPointerEvent() }
+                            if (event == null) {
+                                longPressed = true
+                                toggleThumbstickButton(state, type, gamepadState, view)
+                                continue
+                            }
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            change.consume()
+                            if (!change.pressed) break
+                            if (hypot(change.position.x - down.position.x, change.position.y - down.position.y) > touchSlop) moved = true
+                            place(change.position)
+                        }
+                        resetAnalogStick(state, type, gamepadState)
+                        HapticUtils.performGestureEndFeedback(view)
+                    }
                 }
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Ring around the base
-        Circle(
-            colour = ringColor,
-            modifier = Modifier
-                .size((innerCircleRadius + outerCircleWidth + ringWidth) * 2),
-            contentAlignment = Alignment.Center
-        ) {
-            // Base
-            Circle(
-                modifier = Modifier
-                    .size((innerCircleRadius + outerCircleWidth) * 2),
-                contentAlignment = Alignment.Center,
-                colour = outerCircleColor,
-            ) {}
-        }
-
-        // The cap is a sibling of the base so it is never clipped and can stick out past the rim
-        Circle(
-            colour = innerCircleColor,
+        // Base
+        Box(
+            Modifier
+                .size(diameter)
+                .clip(CircleShape)
+                .background(outerCircleColor)
+                .border(1.5.dp, if (state.isPressed) pressedColor else ringColor, CircleShape)
+        )
+        // Movement ring
+        Box(
+            Modifier
+                .size(diameter * 0.56f)
+                .border(1.dp, ringColor.copy(alpha = 0.7f), CircleShape)
+        )
+        // Cap with its dot; a sibling of the base so it can move freely
+        Box(
             modifier = Modifier
                 .testTag("AnalogStick_${type.name}_Handle")
-                .size(innerCircleRadius * 2)
+                .size(knobSize)
                 .pointerInput(snap) {
                     if (snap) return@pointerInput
                     detectDragGestures(
@@ -250,7 +264,8 @@ fun AnalogStick(
                         }
                     )
                 }
-                .pointerInput(Unit) {
+                .pointerInput(snap) {
+                    if (snap) return@pointerInput
                     detectTapGestures(
                         onLongPress = { _ ->
                             toggleThumbstickButton(state, type, gamepadState, view)
@@ -263,11 +278,17 @@ fun AnalogStick(
                         state.visualY.roundToInt()
                     )
                 }
+                .clip(CircleShape)
+                .background(if (state.isPressed) pressedColor else innerCircleColor)
+                .border(1.5.dp, ringColor, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Circle(
-                colour = PsStyle.StickCapInner,
-                modifier = Modifier.size(innerCircleRadius * 1.1f)
-            ) {}
+            Box(
+                Modifier
+                    .size(knobSize * 0.32f)
+                    .clip(CircleShape)
+                    .background(ringColor)
+            )
         }
     }
 }
