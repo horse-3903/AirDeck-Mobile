@@ -4,10 +4,11 @@ val defaultColorScheme = ColorScheme.SYSTEM
 val defaultBaseColor = BaseColor.BLUE
 val defaultGamepadStyle = GamepadStyle.PLAYSTATION
 const val defaultPollingDelay = 80 // in milliseconds
-const val defaultHapticFeedbackEnabled = false // vibrations
+const val defaultHapticFeedbackEnabled = true // vibrations
 const val defaultSaveConnectionCredentials = false
 const val defaultFullScreenEnabled = true
 const val defaultStickSnap = true
+const val defaultDpadOrthogonal = true
 
 // Default button configurations with offsets matching the original layout
 // Note: Offset values are multipliers of baseDp (heightDp in landscape)
@@ -57,13 +58,13 @@ val defaultButtonConfigs = mapOf(
     // Small system buttons grouped in the middle
     ButtonComponent.SELECT_BUTTON to ButtonConfig(
         component = ButtonComponent.SELECT_BUTTON,
-        offsetX = -0.09f,
+        offsetX = -0.42f,
         offsetY = 0.18f,
         anchor = ButtonAnchor.TOP_CENTER
     ),
     ButtonComponent.START_BUTTON to ButtonConfig(
         component = ButtonComponent.START_BUTTON,
-        offsetX = 0.09f,
+        offsetX = 0.42f,
         offsetY = 0.18f,
         anchor = ButtonAnchor.TOP_CENTER
     ),

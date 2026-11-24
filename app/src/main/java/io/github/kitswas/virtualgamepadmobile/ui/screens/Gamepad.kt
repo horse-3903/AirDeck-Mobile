@@ -31,7 +31,9 @@ import io.github.kitswas.virtualgamepadmobile.data.defaultButtonConfigs
 import io.github.kitswas.virtualgamepadmobile.data.defaultPollingDelay
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionViewModel
 import io.github.kitswas.virtualgamepadmobile.network.ConnectionService
-import io.github.kitswas.virtualgamepadmobile.ui.composables.ControllerBadge
+import io.github.kitswas.virtualgamepadmobile.ui.composables.ConnectionBadge
+import io.github.kitswas.virtualgamepadmobile.ui.composables.LinkStatus
+import io.github.kitswas.virtualgamepadmobile.ui.composables.SlotGlow
 import io.github.kitswas.virtualgamepadmobile.ui.composables.DrawGamepad
 import io.github.kitswas.virtualgamepadmobile.ui.composables.LeaveDialog
 import io.github.kitswas.virtualgamepadmobile.ui.utils.findActivity
@@ -84,15 +86,18 @@ fun GamePad(
         screenWidth, screenHeight, gamepadState, buttonConfigs,
         onBack = { showLeaveConfirm = true }
     )
-    connectionState?.controllerSlot?.let { slot ->
-        androidx.compose.foundation.layout.Box(
-            modifier = androidx.compose.ui.Modifier
-                .fillMaxSize()
-                .padding(top = 6.dp),
-            contentAlignment = androidx.compose.ui.Alignment.TopCenter
-        ) {
-            ControllerBadge(slot = slot)
-        }
+    SlotGlow(slot = if (connectionState?.connected == true) connectionState?.controllerSlot else null)
+    androidx.compose.foundation.layout.Box(
+        modifier = androidx.compose.ui.Modifier
+            .fillMaxSize()
+            .padding(top = 6.dp),
+        contentAlignment = androidx.compose.ui.Alignment.TopCenter
+    ) {
+        ConnectionBadge(
+            status = if (connectionState?.connected == true) LinkStatus.CONNECTED else LinkStatus.CONNECTING,
+            slot = connectionState?.controllerSlot,
+            onClick = { showLeaveConfirm = true }
+        )
     }
     if (showLeaveConfirm) {
         LeaveDialog(
@@ -116,18 +121,29 @@ fun GamePad(
         )
     }
 
-    // Monitor connection state and handle errors
-
-    val connectionLostMessage = connectionState?.takeIf { !it.connected }?.let { state ->
-        state.error?.let {
-            stringResource(R.string.gamepad_connection_lost_error, it)
-        } ?: stringResource(R.string.gamepad_connection_lost)
-    }
-
-    LaunchedEffect(connectionLostMessage) {
-        if (connectionLostMessage != null && !leaving.value) {
-            Log.d(tag, connectionLostMessage)
-            Toast.makeText(context, connectionLostMessage, Toast.LENGTH_LONG).show()
+    // A dropped connection is retried for a while, with the badge showing the hourglass, before giving up
+    val connected = connectionState?.connected
+    val lostMessage = stringResource(R.string.gamepad_connection_lost)
+    LaunchedEffect(connected, leaving.value) {
+        if (connectionViewModel == null || leaving.value || connected != false) return@LaunchedEffect
+        var recovered = false
+        var attempts = 0
+        while (attempts < 30 && !leaving.value && !recovered) {
+            delay(1500)
+            connectionViewModel.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
+            var waited = 0
+            while (waited < 4000) {
+                val state = connectionViewModel.uiState.value
+                if (state.connected || state.error != null) break
+                delay(200)
+                waited += 200
+            }
+            recovered = connectionViewModel.uiState.value.connected
+            attempts++
+        }
+        if (!recovered && !leaving.value) {
+            Log.d(tag, lostMessage)
+            Toast.makeText(context, lostMessage, Toast.LENGTH_LONG).show()
             onNavigateBack()
         }
     }

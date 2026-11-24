@@ -288,6 +288,8 @@
     <string name="settings_full_screen_desc">Hide the system bars while the app is open.</string>
     <string name="settings_remember_desc">Prefill the last IP address and port.</string>
     <string name="settings_reset_all">Reset settings</string>
+    <string name="settings_dpad_orthogonal">Orthogonal D-pad</string>
+    <string name="settings_dpad_orthogonal_desc">One direction at a time with no diagonals. Slide your thumb across the pad to switch direction.</string>
     <string name="settings_stick_snap">Snap stick to touch</string>
     <string name="settings_stick_snap_desc">Touching anywhere inside a stick\'s circle moves it there. Turn off to drag from the stick cap only.</string>
     <string name="panel_trigger_mode">Trigger input</string>
