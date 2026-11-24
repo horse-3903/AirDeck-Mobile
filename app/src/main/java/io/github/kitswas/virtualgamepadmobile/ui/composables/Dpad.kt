@@ -132,9 +132,9 @@ private fun DrawScope.drawPlayStationDpad(colors: DpadColors, pressed: Set<DpadB
 private data class Quad(val type: DpadButtonType, val x: Float, val y: Float, val rot: Float)
 
 /**
- * The directional pad. One touch anywhere on it picks the direction from where the thumb is, and sliding
- * switches direction. In orthogonal mode only one of up, down, left, right is ever held; otherwise two
- * neighbouring directions are held together near the diagonals.
+ * The directional pad. Each touch on it picks its direction from where the finger is, and sliding switches
+ * direction. By default several directions can be held at once: a finger near a diagonal holds two, and two
+ * fingers hold two. In single mode only one of up, down, left, right is ever held.
  */
 @Composable
 fun Dpad(
@@ -142,7 +142,7 @@ fun Dpad(
     size: Dp = 360.dp,
     gamepadState: GamepadReading,
 ) {
-    val orthogonal = LocalDpadOrthogonal.current
+    val single = LocalDpadSingle.current
     val style = LocalGamepadStyle.current
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val colors = remember(light) { DpadColors(light) }
@@ -165,7 +165,7 @@ fun Dpad(
     Box(
         modifier = modifier
             .size(size)
-            .pointerInput(orthogonal) {
+            .pointerInput(single) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     fun pick(position: Offset): Set<DpadButtonType> {
@@ -174,7 +174,7 @@ fun Dpad(
                         if (hypot(dx, dy) < this@pointerInput.size.width * 0.07f) return emptySet()
                         val ax = abs(dx)
                         val ay = abs(dy)
-                        if (!orthogonal) {
+                        if (!single) {
                             val result = mutableSetOf<DpadButtonType>()
                             val d = hypot(dx, dy)
                             if (dy / d < -0.38f) result += DpadButtonType.UP
@@ -199,12 +199,17 @@ fun Dpad(
                     }
                     down.consume()
                     setDirections(pick(down.position))
+                    // Every finger on the pad adds its direction, so two fingers hold two directions
+                    var firstId = down.id
                     do {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        change.consume()
-                        if (change.pressed) setDirections(pick(change.position))
-                    } while (change.pressed)
+                        event.changes.forEach { it.consume() }
+                        var pressed = event.changes.filter { it.pressed }
+                        if (single) pressed = pressed.filter { it.id == firstId }.ifEmpty { pressed.take(1) }
+                        if (single && pressed.isNotEmpty()) firstId = pressed.first().id
+                        val union = pressed.flatMap { pick(it.position) }.toSet()
+                        setDirections(union)
+                    } while (event.changes.any { it.pressed })
                     setDirections(emptySet())
                 }
             }

@@ -288,8 +288,8 @@
     <string name="settings_full_screen_desc">Hide the system bars while the app is open.</string>
     <string name="settings_remember_desc">Prefill the last IP address and port.</string>
     <string name="settings_reset_all">Reset settings</string>
-    <string name="settings_dpad_orthogonal">Orthogonal D-pad</string>
-    <string name="settings_dpad_orthogonal_desc">One direction at a time with no diagonals. Slide your thumb across the pad to switch direction.</string>
+    <string name="settings_dpad_single">One direction at a time</string>
+    <string name="settings_dpad_single_desc">Hold a single direction with no diagonals. Off lets you hold several at once, including diagonals and with two fingers.</string>
     <string name="disconnect_title">Disconnect controller?</string>
     <string name="disconnect_message">Your PC will stop receiving controller input until you reconnect.</string>
     <string name="disconnect_confirm">Confirm</string>

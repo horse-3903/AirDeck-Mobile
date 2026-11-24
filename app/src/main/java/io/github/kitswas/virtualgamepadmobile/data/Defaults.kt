@@ -8,7 +8,7 @@ const val defaultHapticFeedbackEnabled = true // vibrations
 const val defaultSaveConnectionCredentials = false
 const val defaultFullScreenEnabled = true
 const val defaultStickSnap = true
-const val defaultDpadOrthogonal = true
+const val defaultDpadSingle = false
 
 // Default button configurations with offsets matching the original layout
 // Note: Offset values are multipliers of baseDp (heightDp in landscape)

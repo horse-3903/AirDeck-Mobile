@@ -1,7 +1,7 @@
 package io.github.kitswas.virtualgamepadmobile.ui.screens
 
 import io.github.kitswas.virtualgamepadmobile.data.defaultStickSnap
-import io.github.kitswas.virtualgamepadmobile.data.defaultDpadOrthogonal
+import io.github.kitswas.virtualgamepadmobile.data.defaultDpadSingle
 import io.github.kitswas.virtualgamepadmobile.data.defaultGamepadStyle
 import io.github.kitswas.virtualgamepadmobile.data.GamepadStyle
 import android.os.Parcelable
@@ -162,7 +162,7 @@ fun SettingsScreen(
         val pollingDelay by settingsRepository.pollingDelay.collectAsState(initial = defaultPollingDelay)
         val hapticEnabled by settingsRepository.hapticFeedbackEnabled.collectAsState(initial = defaultHapticFeedbackEnabled)
         val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
-        val dpadOrthogonal by settingsRepository.dpadOrthogonal.collectAsState(initial = defaultDpadOrthogonal)
+        val dpadSingle by settingsRepository.dpadSingle.collectAsState(initial = defaultDpadSingle)
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
         val fullScreenEnabled by settingsRepository.fullScreenEnabled.collectAsState(initial = defaultFullScreenEnabled)
 
@@ -269,12 +269,12 @@ fun SettingsScreen(
                 }
 
                 SettingRow(
-                    label = stringResource(R.string.settings_dpad_orthogonal),
-                    helper = stringResource(R.string.settings_dpad_orthogonal_desc)
+                    label = stringResource(R.string.settings_dpad_single),
+                    helper = stringResource(R.string.settings_dpad_single_desc)
                 ) {
                     Switch(
-                        checked = dpadOrthogonal,
-                        onCheckedChange = { applyScope.launch { settingsRepository.setDpadOrthogonal(it) } }
+                        checked = dpadSingle,
+                        onCheckedChange = { applyScope.launch { settingsRepository.setDpadSingle(it) } }
                     )
                 }
 

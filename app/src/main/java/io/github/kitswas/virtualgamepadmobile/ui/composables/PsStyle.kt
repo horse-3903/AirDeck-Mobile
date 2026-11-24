@@ -13,7 +13,7 @@ val LocalGamepadStyle = staticCompositionLocalOf { GamepadStyle.PLAYSTATION }
 val LocalStickSnap = staticCompositionLocalOf { true }
 
 /** True when the D-pad gives one direction at a time (no diagonals) and a slide switches direction. */
-val LocalDpadOrthogonal = staticCompositionLocalOf { true }
+val LocalDpadSingle = staticCompositionLocalOf { false }
 
 /** Gamepad palette that follows the app theme (dark or light). */
 internal object PsStyle {
