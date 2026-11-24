@@ -59,13 +59,13 @@ val defaultButtonConfigs = mapOf(
     ButtonComponent.SELECT_BUTTON to ButtonConfig(
         component = ButtonComponent.SELECT_BUTTON,
         offsetX = -0.42f,
-        offsetY = 0.18f,
+        offsetY = 0.32f,
         anchor = ButtonAnchor.TOP_CENTER
     ),
     ButtonComponent.START_BUTTON to ButtonConfig(
         component = ButtonComponent.START_BUTTON,
         offsetX = 0.42f,
-        offsetY = 0.18f,
+        offsetY = 0.32f,
         anchor = ButtonAnchor.TOP_CENTER
     ),
     // Back sits aside so the connection status can own the top centre
