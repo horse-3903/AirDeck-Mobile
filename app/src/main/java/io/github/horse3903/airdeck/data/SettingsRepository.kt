@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
+/** The built-in layout. It is kept as a saved layout but cannot be renamed, deleted or changed. */
+const val FACTORY_LAYOUT = "Default"
+
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class SettingsRepository(context: Context) {
@@ -78,6 +81,37 @@ class SettingsRepository(context: Context) {
 
     val presetGroups: Flow<Map<String, List<LayoutGroup>>> =
         dataStore.data.map { preferences -> decodePresetGroups(preferences[PRESET_GROUPS]) }
+
+    /** The saved layout currently in use, or null when the working layout was never saved under a name. */
+    val activeLayout: Flow<String?> = dataStore.data.map { preferences -> preferences[ACTIVE_LAYOUT] }
+
+    suspend fun setActiveLayout(name: String?) {
+        dataStore.edit { preferences ->
+            if (name == null) preferences.remove(ACTIVE_LAYOUT) else preferences[ACTIVE_LAYOUT] = name
+        }
+    }
+
+    /** Makes a saved layout the working one. */
+    suspend fun applyPreset(name: String) {
+        dataStore.edit { preferences ->
+            val configs = decodePresets(preferences[PRESETS])[name] ?: return@edit
+            preferences[BUTTON_CONFIGS] = Json.encodeToString(configs)
+            decodePresetGroups(preferences[PRESET_GROUPS])[name]?.let { preferences[LAYOUT_GROUPS] = encodeGroups(it) }
+            preferences[ACTIVE_LAYOUT] = name
+        }
+    }
+
+    suspend fun renamePreset(old: String, new: String) {
+        if (old == new) return
+        dataStore.edit { preferences ->
+            val configs = decodePresets(preferences[PRESETS])
+            if (old !in configs || new in configs) return@edit
+            preferences[PRESETS] = Json.encodeToString(configs.mapKeys { (k, _) -> if (k == old) new else k })
+            val groups = decodePresetGroups(preferences[PRESET_GROUPS])
+            preferences[PRESET_GROUPS] = Json.encodeToString(groups.mapKeys { (k, _) -> if (k == old) new else k })
+            if (preferences[ACTIVE_LAYOUT] == old) preferences[ACTIVE_LAYOUT] = new
+        }
+    }
 
     val presets: Flow<Map<String, Map<ButtonComponent, ButtonConfig>>> =
         dataStore.data.map { preferences -> decodePresets(preferences[PRESETS]) }
@@ -235,6 +269,7 @@ class SettingsRepository(context: Context) {
             preferences[PRESETS] = Json.encodeToString(updated)
             preferences[PRESET_GROUPS] =
                 Json.encodeToString(decodePresetGroups(preferences[PRESET_GROUPS]) - name)
+            if (preferences[ACTIVE_LAYOUT] == name) preferences.remove(ACTIVE_LAYOUT)
         }
     }
 
@@ -322,6 +357,7 @@ class SettingsRepository(context: Context) {
         private val LAYOUT_GROUPS = stringPreferencesKey("layout_groups")
         private val PRESETS = stringPreferencesKey("button_presets")
         private val PRESET_GROUPS = stringPreferencesKey("button_preset_groups")
+        private val ACTIVE_LAYOUT = stringPreferencesKey("active_layout")
         private val LAST_CONNECTION_IP_ADDRESS = stringPreferencesKey("last_connection_ip_address")
         private val LAST_CONNECTION_PORT = stringPreferencesKey("last_connection_port")
         private val SAVE_CONNECTION_CREDENTIALS =

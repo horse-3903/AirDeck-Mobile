@@ -110,3 +110,23 @@ fun snapScale(oldScale: Float, newScale: Float, self: Rect, others: List<Rect>, 
     }
     return best.coerceIn(SCALE_VALUE_RANGE)
 }
+
+/**
+ * Nudges a width or height stretch so the control's size on screen matches another size, when already
+ * within [tolerance] (a fraction). [selfSize] is the control's current size in pixels at stretch [old].
+ */
+fun snapStretch(old: Float, new: Float, selfSize: Float, otherSizes: List<Float>, tolerance: Float = 0.04f): Float {
+    if (selfSize <= 0f || old <= 0f) return new
+    var best = new
+    var bestError = tolerance
+    for (size in otherSizes) {
+        if (size <= 0f) continue
+        val candidate = old * size / selfSize
+        val error = abs(candidate / new - 1f)
+        if (error < bestError) {
+            bestError = error
+            best = candidate
+        }
+    }
+    return best.coerceIn(STRETCH_VALUE_RANGE)
+}

@@ -77,6 +77,8 @@ fun GamePad(
     val connectionState by connectionViewModel?.uiState?.collectAsState()
         ?: remember { mutableStateOf(null) }
 
+    val stoppedByUser = connectionState?.userStopped == true
+
     fun releaseEverything() {
         gamepadState.ButtonsUp = gamepadState.ButtonsDown
         gamepadState.ButtonsDown = 0
@@ -99,13 +101,13 @@ fun GamePad(
             leaving.value = true
             isStopping.value = true
             releaseEverything()
-            if (userDisconnected) ConnectionService.close(context)
+            if (userDisconnected || stoppedByUser) ConnectionService.close(context)
             onNavigateBack()
         },
         glowSlot = if (connectionState?.connected == true) connectionState?.controllerSlot else null,
         topControls = TopControls(
             status = when {
-                userDisconnected -> LinkStatus.DISCONNECTED
+                userDisconnected || stoppedByUser -> LinkStatus.DISCONNECTED
                 connectionState?.connected == true -> LinkStatus.CONNECTED
                 else -> LinkStatus.CONNECTING
             },
@@ -113,7 +115,7 @@ fun GamePad(
             onBadgeClick = {
                 when {
                     // Tap again to reconnect
-                    userDisconnected -> {
+                    userDisconnected || stoppedByUser -> {
                         userDisconnected = false
                         connectionViewModel?.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
                     }
@@ -153,8 +155,8 @@ fun GamePad(
     // A dropped connection is retried for a while, with the badge showing the hourglass, before giving up
     val connected = connectionState?.connected
     val lostMessage = stringResource(R.string.gamepad_connection_lost)
-    LaunchedEffect(connected, leaving.value, userDisconnected) {
-        if (connectionViewModel == null || leaving.value || userDisconnected || connected != false) return@LaunchedEffect
+    LaunchedEffect(connected, leaving.value, userDisconnected, stoppedByUser) {
+        if (connectionViewModel == null || leaving.value || userDisconnected || stoppedByUser || connected != false) return@LaunchedEffect
         if (!prefs.autoReconnect) {
             Toast.makeText(context, lostMessage, Toast.LENGTH_LONG).show()
             onNavigateBack()
@@ -164,6 +166,7 @@ fun GamePad(
         val deadline = android.os.SystemClock.elapsedRealtime() + prefs.reconnectSeconds * 1000L
         while (android.os.SystemClock.elapsedRealtime() < deadline && !leaving.value && !userDisconnected && !recovered) {
             delay(1500)
+            if (connectionViewModel.uiState.value.userStopped) return@LaunchedEffect
             connectionViewModel.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
             var waited = 0
             while (waited < 4000) {
@@ -174,7 +177,7 @@ fun GamePad(
             }
             recovered = connectionViewModel.uiState.value.connected
         }
-        if (!recovered && !leaving.value && !userDisconnected) {
+        if (!recovered && !leaving.value && !userDisconnected && !connectionViewModel.uiState.value.userStopped) {
             Log.d(tag, lostMessage)
             Toast.makeText(context, lostMessage, Toast.LENGTH_LONG).show()
             onNavigateBack()

@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 
 // Centralized value ranges for button configuration
 val SCALE_VALUE_RANGE = 0.5f..2f
+val STRETCH_VALUE_RANGE = 0.5f..2f
 val OFFSET_VALUE_RANGE = -0.5f..0.5f
 
 /**
@@ -103,6 +104,9 @@ data class ButtonConfig(
     val component: ButtonComponent,
     val visible: Boolean = true,
     val scale: Float = 1.0f,
+    /** Stretches the control on top of [scale]: 1 is its natural shape, below 1 narrower or shorter. */
+    val widthScale: Float = 1.0f,
+    val heightScale: Float = 1.0f,
     val offsetX: Float = 0f,
     val offsetY: Float = 0f,
     val anchor: ButtonAnchor = component.defaultAnchor,

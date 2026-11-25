@@ -42,6 +42,7 @@ import io.github.horse3903.airdeck.data.groupOf
 import io.github.horse3903.airdeck.data.moveToGroup
 import io.github.horse3903.airdeck.data.snapPosition
 import io.github.horse3903.airdeck.data.snapScale
+import io.github.horse3903.airdeck.data.snapStretch
 import io.github.horse3903.airdeck.data.unionOf
 import io.github.horse3903.airdeck.data.withNewGroup
 import io.github.horse3903.airdeck.ui.composables.EditorHit
@@ -51,6 +52,14 @@ import io.github.horse3903.airdeck.ui.composables.LayoutEditorOverlay
 import io.github.horse3903.airdeck.ui.composables.NEW_GROUP_ID
 import io.github.horse3903.airdeck.ui.composables.groupArea
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
@@ -151,7 +160,6 @@ fun GamepadCustomizationScreen(
     var showPreview by rememberSaveable { mutableStateOf(false) }
     var showExportDialog by rememberSaveable { mutableStateOf(false) }
     var showImportDialog by rememberSaveable { mutableStateOf(false) }
-    var showPresets by rememberSaveable { mutableStateOf(false) }
     var showResetConfirm by rememberSaveable { mutableStateOf(false) }
     var showDiscard by rememberSaveable { mutableStateOf(false) }
     var selectedComponent by rememberSaveable { mutableStateOf<ButtonComponent?>(null) }
@@ -160,10 +168,8 @@ fun GamepadCustomizationScreen(
     val savedGroups by settingsRepository.layoutGroups.collectAsState(initial = defaultLayoutGroups)
     val groups = remember(modifiedGroupsJson, savedGroups) { decodeGroups(modifiedGroupsJson) ?: savedGroups }
     val hasChanges = modifiedConfigs != null || modifiedGroupsJson != null
-    val presets by settingsRepository.presets.collectAsState(initial = emptyMap())
-    val presetGroups by settingsRepository.presetGroups.collectAsState(initial = emptyMap())
-    val presetScope = rememberCoroutineScope()
     var importJsonText by rememberSaveable { mutableStateOf("") }
+    val activeLayout by settingsRepository.activeLayout.collectAsState(initial = null)
 
     // Get the current configs to preview (modified or saved)
     val currentConfigs = modifiedConfigs ?: buttonConfigs
@@ -262,27 +268,6 @@ fun GamepadCustomizationScreen(
         )
     }
 
-    if (showPresets) {
-        PresetsDialog(
-            presets = presets,
-            hasUnsavedChanges = hasChanges,
-            onSave = { name ->
-                val configs = currentConfigs
-                val savedGroups = groups
-                presetScope.launch { settingsRepository.savePreset(name, configs, savedGroups) }
-            },
-            onLoad = { name, configs ->
-                recordEdit()
-                modifiedConfigs = configs
-                // A preset saved before groups existed leaves the current groups alone
-                presetGroups[name]?.let { modifiedGroupsJson = encodeGroups(it) }
-                showPresets = false
-            },
-            onDelete = { name -> presetScope.launch { settingsRepository.deletePreset(name) } },
-            onDismiss = { showPresets = false }
-        )
-    }
-
     if (showExportDialog) {
         ExportConfigDialog(
             buttonConfigs = currentConfigs,
@@ -321,6 +306,15 @@ fun GamepadCustomizationScreen(
     val session = remember { DragSession() }
     var guideX by remember { mutableStateOf<Float?>(null) }
     var guideY by remember { mutableStateOf<Float?>(null) }
+    var guideToken by remember { mutableStateOf(0) }
+    // Guide lines from a slider fade away shortly after it stops
+    androidx.compose.runtime.LaunchedEffect(guideToken) {
+        if (guideToken > 0) {
+            kotlinx.coroutines.delay(700)
+            guideX = null
+            guideY = null
+        }
+    }
 
     fun selectGroup(id: String) { selectedGroupId = id; selectedComponent = null }
     fun selectControl(component: ButtonComponent) { selectedGroupId = null; selectedComponent = component }
@@ -421,7 +415,6 @@ fun GamepadCustomizationScreen(
             onRedo = { redoEdit() },
             onSelectEdit = { showPreview = false },
             onSelectPreview = { selectedComponent = null; selectedGroupId = null; showPreview = true },
-            onPresets = { showPresets = true },
             onImport = { showImportDialog = true },
             onExport = { showExportDialog = true },
             onReset = { showResetConfirm = true },
@@ -430,6 +423,15 @@ fun GamepadCustomizationScreen(
                     try {
                         modifiedConfigs?.let { settingsRepository.setAllButtonConfigs(it) }
                         decodeGroups(modifiedGroupsJson)?.let { settingsRepository.setLayoutGroups(it) }
+                        // Edits belong to the saved layout in use
+                        activeLayout?.let { name ->
+                            if (name != io.github.horse3903.airdeck.data.FACTORY_LAYOUT) {
+                                settingsRepository.savePreset(name, currentConfigs, groups)
+                            } else if (hasChanges) {
+                                // Edits to the built-in layout become an unsaved layout of their own
+                                settingsRepository.setActiveLayout(null)
+                            }
+                        }
                         Log.i(logTag, "Layout saved")
                     } catch (e: Exception) {
                         Log.e(logTag, "Error saving layout", e)
@@ -447,12 +449,12 @@ fun GamepadCustomizationScreen(
             val area = groupArea(pickedGroup, bounds, 0f)
             val onRight = area == null || area.center.x < canvasWidth * density.density / 2f
             val groupVisible = pickedGroup.members.all { (currentConfigs[it] ?: ButtonConfig.default(it)).visible }
+            SidePanel(onRight) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier
-                    .align(if (onRight) Alignment.CenterEnd else Alignment.CenterStart)
                     .padding(8.dp)
                     .width(340.dp)
                     .fillMaxHeight()
@@ -476,6 +478,7 @@ fun GamepadCustomizationScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             }
+            }
         }
 
         selectedComponent?.takeIf { !showPreview }?.let { component ->
@@ -492,12 +495,12 @@ fun GamepadCustomizationScreen(
                 groups.map { GroupChoice(it.id, groupLabel(it)) } + newChoice
             val memberOf = groupOf(groups, component)
             val currentChoice = choices.first { it.id == memberOf?.id }
+            SidePanel(panelOnRight) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier
-                    .align(if (panelOnRight) Alignment.CenterEnd else Alignment.CenterStart)
                     .padding(8.dp)
                     .width(340.dp)
                     .fillMaxHeight()
@@ -517,6 +520,37 @@ fun GamepadCustomizationScreen(
                                 )
                             )
                         }
+                        if (own != null) {
+                            val others = bounds.filterKeys { it != component }.values.toList()
+                            if (next.widthScale != config.widthScale) {
+                                next = next.copy(
+                                    widthScale = snapStretch(
+                                        config.widthScale, next.widthScale, own.width,
+                                        others.flatMap { listOf(it.width, it.height) }
+                                    )
+                                )
+                            }
+                            if (next.heightScale != config.heightScale) {
+                                next = next.copy(
+                                    heightScale = snapStretch(
+                                        config.heightScale, next.heightScale, own.height,
+                                        others.flatMap { listOf(it.width, it.height) }
+                                    )
+                                )
+                            }
+                            // The position sliders pull towards the edges and centres of other controls, like dragging does
+                            val movedX = next.offsetX != config.offsetX
+                            val movedY = next.offsetY != config.offsetY
+                            if (movedX || movedY) {
+                                val shift = Offset((next.offsetX - config.offsetX) * unitPx, (next.offsetY - config.offsetY) * unitPx)
+                                val snap = snapPosition(own.translate(shift), others, snapPx)
+                                if (movedX) next = next.copy(offsetX = (next.offsetX + snap.dx / unitPx).coerceIn(OFFSET_VALUE_RANGE))
+                                if (movedY) next = next.copy(offsetY = (next.offsetY + snap.dy / unitPx).coerceIn(OFFSET_VALUE_RANGE))
+                                guideX = if (movedX) snap.xLine else null
+                                guideY = if (movedY) snap.yLine else null
+                                guideToken++
+                            }
+                        }
                         recordEdit(coalesce = true)
                         modifiedConfigs = currentConfigs + (component to next)
                     },
@@ -535,8 +569,22 @@ fun GamepadCustomizationScreen(
                     }
                 )
             }
+            }
         }
     }
+}
+
+/** A settings panel that slides in from the edge it sits on. */
+@Composable
+private fun BoxScope.SidePanel(onRight: Boolean, content: @Composable () -> Unit) {
+    val state = remember { MutableTransitionState(false).apply { targetState = true } }
+    AnimatedVisibility(
+        visibleState = state,
+        modifier = Modifier
+            .align(if (onRight) Alignment.CenterEnd else Alignment.CenterStart)
+            .fillMaxHeight(),
+        enter = slideInHorizontally(tween(260)) { if (onRight) it else -it } + fadeIn(tween(200))
+    ) { content() }
 }
 
 @Composable
@@ -593,7 +641,6 @@ private fun EditToolbar(
     onRedo: () -> Unit,
     onSelectEdit: () -> Unit,
     onSelectPreview: () -> Unit,
-    onPresets: () -> Unit,
     onImport: () -> Unit,
     onExport: () -> Unit,
     onReset: () -> Unit,
@@ -643,9 +690,6 @@ private fun EditToolbar(
                         expanded = overflowOpen,
                         onDismissRequest = { overflowOpen = false }
                     ) {
-                        OverflowItem(R.drawable.ic_presets, stringResource(R.string.presets_button)) {
-                            overflowOpen = false; onPresets()
-                        }
                         OverflowItem(R.drawable.ic_file_upload, stringResource(R.string.customization_import)) {
                             overflowOpen = false; onImport()
                         }
@@ -726,7 +770,7 @@ private fun EditToolbar(
                 }
             }
         }
-        if (showHint) {
+        AnimatedVisibility(visible = showHint, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
             Text(
                 text = stringResource(R.string.customization_tap_hint),
                 style = MaterialTheme.typography.bodySmall,
@@ -850,158 +894,6 @@ private fun ConfigDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     actions()
-                }
-            }
-        }
-    }
-}
-
-/**
- * Dialog for saving, loading and deleting named layout presets
- */
-@Composable
-fun PresetsDialog(
-    presets: Map<String, Map<ButtonComponent, ButtonConfig>>,
-    hasUnsavedChanges: Boolean,
-    onSave: (String) -> Unit,
-    onLoad: (String, Map<ButtonComponent, ButtonConfig>) -> Unit,
-    onDelete: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var name by rememberSaveable { mutableStateOf("") }
-    var pendingDelete by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingLoad by rememberSaveable { mutableStateOf<String?>(null) }
-    val trimmed = name.trim()
-    val exists = trimmed in presets
-
-    pendingDelete?.let { target ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.presets_delete_title)) },
-            text = { Text(stringResource(R.string.presets_delete_message, target)) },
-            confirmButton = {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = { onDelete(target); pendingDelete = null }
-                ) { Text(stringResource(R.string.presets_delete)) }
-            },
-            dismissButton = {
-                TextButton(shape = MaterialTheme.shapes.small, onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-    pendingLoad?.let { target ->
-        AlertDialog(
-            onDismissRequest = { pendingLoad = null },
-            title = { Text(stringResource(R.string.presets_load_title)) },
-            text = { Text(stringResource(R.string.presets_load_message, target)) },
-            confirmButton = {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = { presets[target]?.let { onLoad(target, it) }; pendingLoad = null }
-                ) { Text(stringResource(R.string.presets_load)) }
-            },
-            dismissButton = {
-                TextButton(shape = MaterialTheme.shapes.small, onClick = { pendingLoad = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-
-    ConfigDialog(
-        title = stringResource(R.string.presets_title),
-        onDismiss = onDismiss,
-        maxWidth = WideDialogWidth,
-        actions = {
-            Button(shape = MaterialTheme.shapes.small, onClick = onDismiss) {
-                Text(stringResource(R.string.presets_close))
-            }
-        }
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.weight(1f),
-                    shape = MaterialTheme.shapes.small,
-                    label = { Text(stringResource(R.string.presets_name_label)) },
-                    singleLine = true
-                )
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    enabled = trimmed.isNotEmpty(),
-                    modifier = Modifier.height(56.dp),
-                    onClick = {
-                        onSave(trimmed)
-                        name = ""
-                    }
-                ) {
-                    Text(
-                        stringResource(
-                            if (exists) R.string.presets_update else R.string.presets_save_current
-                        )
-                    )
-                }
-            }
-            if (presets.isEmpty()) {
-                Text(
-                    stringResource(R.string.presets_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 160.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    presets.keys.sorted().forEach { presetName ->
-                        Surface(
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(start = 16.dp, end = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    presetName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedButton(
-                                    shape = MaterialTheme.shapes.small,
-                                    onClick = {
-                                        if (hasUnsavedChanges) {
-                                            pendingLoad = presetName
-                                        } else {
-                                            presets[presetName]?.let { onLoad(presetName, it) }
-                                        }
-                                    }
-                                ) { Text(stringResource(R.string.presets_load)) }
-                                IconButton(onClick = { pendingDelete = presetName }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_delete),
-                                        contentDescription = stringResource(R.string.presets_delete),
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }

@@ -17,12 +17,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.TransformOrigin
+import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import io.github.horse3903.airdeck.data.ButtonComponent
 import io.github.horse3903.airdeck.data.ButtonConfig
+
+/** Stretches a control's width and height independently. Its layout size and touch area follow. */
+private fun Modifier.stretch(sx: Float, sy: Float): Modifier =
+    if (sx == 1f && sy == 1f) this else layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout((placeable.width * sx).roundToInt(), (placeable.height * sy).roundToInt()) {
+            placeable.placeWithLayer(0, 0) {
+                scaleX = sx
+                scaleY = sy
+                transformOrigin = TransformOrigin(0f, 0f)
+            }
+        }
+    }
 
 /**
  * Places a gamepad component at its configured offset.
@@ -44,8 +60,9 @@ fun EditableComponent(
         x = (config.offsetX * baseDp).dp,
         y = (config.offsetY * baseDp).dp
     )
+    val stretch = Modifier.stretch(config.widthScale, config.heightScale)
     if (!editing) {
-        content(offsetModifier)
+        content(offsetModifier.then(stretch))
         return
     }
     val currentOnBounds by rememberUpdatedState(onBounds)
@@ -60,6 +77,6 @@ fun EditableComponent(
                 ) else Modifier
             )
     ) {
-        content(Modifier)
+        content(stretch)
     }
 }

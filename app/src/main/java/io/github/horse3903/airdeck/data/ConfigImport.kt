@@ -67,6 +67,8 @@ private fun parseControls(root: JsonObject, legacy: Boolean): Map<ButtonComponen
             component = component,
             visible = primitive("visible")?.booleanOrNull ?: base.visible,
             scale = (primitive("scale")?.floatOrNull ?: base.scale).coerceIn(SCALE_VALUE_RANGE),
+            widthScale = (primitive("widthScale")?.floatOrNull ?: base.widthScale).coerceIn(STRETCH_VALUE_RANGE),
+            heightScale = (primitive("heightScale")?.floatOrNull ?: base.heightScale).coerceIn(STRETCH_VALUE_RANGE),
             offsetX = (primitive("offsetX")?.floatOrNull ?: base.offsetX).coerceIn(OFFSET_VALUE_RANGE),
             offsetY = (primitive("offsetY")?.floatOrNull ?: base.offsetY).coerceIn(OFFSET_VALUE_RANGE),
             anchor = primitive("anchor")?.contentOrNull
@@ -95,4 +97,43 @@ private fun parseGroups(array: JsonArray): List<LayoutGroup> {
         if (members.isNotEmpty()) groups += LayoutGroup(id, name, members)
     }
     return groups
+}
+
+/** Every saved layout as one text: `{ "version": 2, "presets": { "name": { buttons, groups }, ... } }`. */
+fun exportPresets(
+    presets: Map<String, Map<ButtonComponent, ButtonConfig>>,
+    presetGroups: Map<String, List<LayoutGroup>>
+): String {
+    val root = buildJsonObject {
+        put("version", LAYOUT_FORMAT_VERSION)
+        put("presets", buildJsonObject {
+            for ((name, buttons) in presets) {
+                put(name, buildJsonObject {
+                    put("buttons", exportJson.encodeToJsonElement(buttons))
+                    put("groups", exportJson.encodeToJsonElement(presetGroups[name] ?: defaultLayoutGroups))
+                })
+            }
+        })
+    }
+    return exportJson.encodeToString(JsonObject.serializer(), root)
+}
+
+/**
+ * Reads saved layouts from text made by [exportPresets]. A single exported layout is accepted too and
+ * comes back under [singleName]. Throws when the text is not a JSON object or holds no layouts.
+ */
+fun parsePresets(text: String, singleName: String): Map<String, LayoutBundle> {
+    val root = Json.parseToJsonElement(text).jsonObject
+    val many = root["presets"] as? JsonObject
+    val result = linkedMapOf<String, LayoutBundle>()
+    if (many != null) {
+        for ((name, value) in many) {
+            if (name.isBlank() || value !is JsonObject) continue
+            result[name] = parseLayout(value.toString())
+        }
+    } else {
+        result[singleName] = parseLayout(text)
+    }
+    require(result.isNotEmpty())
+    return result
 }

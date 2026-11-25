@@ -94,6 +94,12 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
      * This now enqueues a connection command.
      */
     fun connect(ipAddress: String, port: Int) {
+        val current = _uiState.value
+        // Already on this server or already dialling it: a second socket would show up on the PC as a second controller
+        if ((current.connected || current.isConnecting) && current.ipAddress == ipAddress && current.port == port) {
+            _uiState.update { it.copy(userStopped = false) }
+            return
+        }
         lastIpAddress = ipAddress
         lastPort = port
         _uiState.update {
@@ -102,7 +108,8 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
                 ipAddress = ipAddress,
                 port = port,
                 error = null,
-                connected = false
+                connected = false,
+                userStopped = false
             )
         }
 
@@ -114,6 +121,8 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
      * This now enqueues a disconnect command.
      */
     fun disconnect() {
+        // Set at once, so a reconnect loop sees it before the disconnect itself is processed
+        _uiState.update { it.copy(userStopped = true) }
         enqueueCommand(NetworkCommand.Disconnect)
     }
 
@@ -177,6 +186,19 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
      * Process a connect command.
      */
     private fun processConnectCommand(command: NetworkCommand.Connect) {
+        if (_uiState.value.userStopped) return
+        // A repeated request while already connected there changes nothing
+        if (clientSocket != null && _uiState.value.connected &&
+            _uiState.value.ipAddress == command.ipAddress && _uiState.value.port == command.port
+        ) return
+        // Never leave an earlier socket open: the PC would keep it as an extra controller
+        clientSocket?.let { old ->
+            clientSocket = null
+            try {
+                old.close()
+            } catch (_: IOException) {
+            }
+        }
         try {
             // Create and configure socket
             val socket = Socket()
@@ -367,7 +389,7 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
             commandQueue.clear()
 
             _uiState.update {
-                ConnectionState() // Reset to initial state
+                ConnectionState(userStopped = it.userStopped) // Reset to initial state
             }
 
             Log.d(tag, "Disconnected")

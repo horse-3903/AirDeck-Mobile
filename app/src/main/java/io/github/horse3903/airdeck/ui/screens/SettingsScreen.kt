@@ -5,6 +5,16 @@ import io.github.horse3903.airdeck.data.defaultDpadSingle
 import io.github.horse3903.airdeck.data.defaultGamepadStyle
 import io.github.horse3903.airdeck.data.GamepadStyle
 import android.os.Parcelable
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +36,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import io.github.horse3903.airdeck.data.ButtonComponent
+import io.github.horse3903.airdeck.data.ButtonConfig
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,6 +51,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -230,6 +246,17 @@ private fun SectionHeader(text: String) {
     )
 }
 
+@Composable
+private fun NavRow(label: String, helper: String? = null, onClick: () -> Unit) {
+    SettingRow(label = label, helper = helper, onClick = onClick) {
+        Text(
+            text = "\u203A",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -239,6 +266,8 @@ fun SettingsScreen(
 ) {
     var settingsChanges by rememberSaveable { mutableStateOf(SettingsChanges()) }
     val applyScope = rememberCoroutineScope()
+    var page by rememberSaveable { mutableStateOf("main") }
+    BackHandler(enabled = page != "main") { page = "main" }
 
     Scaffold { paddingValues ->
         val colorScheme by settingsRepository.colorScheme.collectAsState(initial = defaultColorScheme)
@@ -260,15 +289,34 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.SpaceAround,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Fixed title at the top
-            Text(
-                stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+            // Fixed title at the top, with the back arrow on the left
+            Box(modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 11.dp), contentAlignment = Alignment.Center) {
+                IconButton(
+                    onClick = { if (page == "main") onNavigateBack() else page = "main" },
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_back),
+                        contentDescription = stringResource(R.string.back),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Crossfade(targetState = page, animationSpec = tween(200), label = "title") { p ->
+                Text(
+                    when (p) {
+                        "appearance" -> stringResource(R.string.sec_appearance)
+                        "sticks" -> stringResource(R.string.sec_sticks)
+                        "dpad" -> stringResource(R.string.sec_dpad)
+                        "haptics" -> stringResource(R.string.sec_haptics)
+                        "connection" -> stringResource(R.string.sec_connection)
+                        "layouts" -> stringResource(R.string.layouts_title)
+                        else -> stringResource(R.string.settings_title)
+                    },
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                }
+            }
 
             // Scrollable settings content
             val scrollState = rememberScrollState()
@@ -284,29 +332,20 @@ fun SettingsScreen(
                 fun save(p: io.github.horse3903.airdeck.data.AppPrefs) { applyScope.launch { settingsRepository.setAppPrefs(p) } }
                 fun saveHaptics(p: HapticPrefs) { applyScope.launch { settingsRepository.setHapticPrefs(p) } }
 
-                SectionHeader(stringResource(R.string.sec_appearance))
-                SettingRow(label = stringResource(R.string.settings_color_scheme)) {
-                    ColorSchemeChoice(
-                        modifier = Modifier.fillMaxWidth(),
-                        selected = settingsChanges.colorScheme ?: colorScheme,
-                        onSelect = {
-                            settingsChanges = settingsChanges.copy(colorScheme = it)
-                            applyScope.launch { settingsRepository.setColorScheme(it) }
-                        },
-                        labelFor = { stringResource(it.nameRes) }
-                    )
-                }
-                SettingRow(
-                    label = stringResource(R.string.settings_gamepad_style),
-                    helper = stringResource(R.string.settings_gamepad_style_desc)
-                ) {
-                    GamepadStyleChoice(
-                        modifier = Modifier.fillMaxWidth(),
-                        selected = gamepadStyle,
-                        onSelect = { applyScope.launch { settingsRepository.setGamepadStyle(it) } },
-                        labelFor = { stringResource(it.nameRes) }
-                    )
-                }
+                AnimatedContent(
+                    targetState = page,
+                    transitionSpec = {
+                        val forward = targetState != "main"
+                        (slideInHorizontally(tween(260)) { if (forward) it / 8 else -it / 8 } + fadeIn(tween(220))) togetherWith
+                            (slideOutHorizontally(tween(180)) { if (forward) -it / 8 else it / 8 } + fadeOut(tween(140))) using
+                            SizeTransform(clip = false)
+                    },
+                    label = "page"
+                ) { current ->
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                when (current) {
+                    "layouts" -> LayoutsPage(settingsRepository, onNavigateToGamepadCustomization)
+                    "appearance" -> {
                 SliderRow(stringResource(R.string.pref_opacity), null, "${prefs.opacity}%", prefs.opacity, 20..100, { save(prefs.copy(opacity = it)) })
                 SwitchRow(stringResource(R.string.pref_glow), stringResource(R.string.pref_glow_desc), prefs.glowEnabled) { save(prefs.copy(glowEnabled = it)) }
                 SliderRow(
@@ -314,60 +353,47 @@ fun SettingsScreen(
                     { save(prefs.copy(glowStrength = it)) }, enabled = prefs.glowEnabled, indent = 16.dp
                 )
 
-                SectionHeader(stringResource(R.string.sec_layout))
-                SettingRow(
-                    label = stringResource(R.string.settings_customize_layout),
-                    helper = stringResource(R.string.settings_customize_layout_desc),
-                    onClick = onNavigateToGamepadCustomization
-                ) {
-                    Text(
-                        text = "\u203A",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                SectionHeader(stringResource(R.string.sec_display))
-                SwitchRow(stringResource(R.string.settings_full_screen), stringResource(R.string.settings_full_screen_desc), settingsChanges.fullScreenEnabled ?: fullScreenEnabled) {
-                    settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
-                    applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
-                }
-                SwitchRow(stringResource(R.string.pref_keep_on), stringResource(R.string.pref_keep_on_desc), prefs.keepScreenOn) { save(prefs.copy(keepScreenOn = it)) }
-
-                SectionHeader(stringResource(R.string.sec_sticks))
+                    }
+                    "sticks" -> {
                 SwitchRow(stringResource(R.string.settings_stick_snap), stringResource(R.string.settings_stick_snap_desc), stickSnap) {
                     applyScope.launch { settingsRepository.setStickSnap(it) }
                 }
                 SliderRow(stringResource(R.string.pref_dead_zone), stringResource(R.string.pref_dead_zone_desc), "${prefs.deadZone}%", prefs.deadZone, 0..40, { save(prefs.copy(deadZone = it)) })
                 SliderRow(stringResource(R.string.pref_sensitivity), stringResource(R.string.pref_sensitivity_desc), "${prefs.sensitivity}%", prefs.sensitivity, 50..150, { save(prefs.copy(sensitivity = it)) })
                 SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), prefs.clickEnabled) { save(prefs.copy(clickEnabled = it)) }
-                if (prefs.clickEnabled) {
+                AnimatedVisibility(visible = prefs.clickEnabled) {
+ Column {
                     SliderRow(stringResource(R.string.pref_click_ms), null, "${prefs.clickHoldMs} ms", prefs.clickHoldMs, 200..1500, { save(prefs.copy(clickHoldMs = it)) })
-                }
+                } }
                 SwitchRow(stringResource(R.string.pref_invert_left), null, prefs.invertLeftY) { save(prefs.copy(invertLeftY = it)) }
                 SwitchRow(stringResource(R.string.pref_invert_right), null, prefs.invertRightY) { save(prefs.copy(invertRightY = it)) }
 
-                SectionHeader(stringResource(R.string.sec_dpad))
+                    }
+                    "dpad" -> {
                 SwitchRow(stringResource(R.string.settings_dpad_single), stringResource(R.string.settings_dpad_single_desc), dpadSingle) {
                     applyScope.launch { settingsRepository.setDpadSingle(it) }
                 }
-                if (!dpadSingle) {
+                AnimatedVisibility(visible = !dpadSingle) {
+ Column {
                     SliderRow(stringResource(R.string.pref_diagonal), stringResource(R.string.pref_diagonal_desc), "${prefs.dpadDiagonal}%", prefs.dpadDiagonal, 20..60, { save(prefs.copy(dpadDiagonal = it)) })
-                }
+                } }
 
-                SectionHeader(stringResource(R.string.sec_haptics))
+                    }
+                    "haptics" -> {
                 SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), settingsChanges.hapticFeedbackEnabled ?: hapticEnabled) {
                     settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
                     applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
                 }
-                if (hapticEnabled) {
+                AnimatedVisibility(visible = hapticEnabled) {
+ Column {
                     SwitchRow(stringResource(R.string.haptics_custom), stringResource(R.string.haptics_custom_desc), hapticPrefs.custom) { saveHaptics(hapticPrefs.copy(custom = it)) }
-                    if (hapticPrefs.custom) {
+                    AnimatedVisibility(visible = hapticPrefs.custom) {
+ Column {
                         SliderRow(stringResource(R.string.haptics_intensity), null, "${hapticPrefs.intensity}%", hapticPrefs.intensity, 5..100,
                             { saveHaptics(hapticPrefs.copy(intensity = it)) }, { HapticUtils.performButtonPressFeedback(hapticView) })
                         SliderRow(stringResource(R.string.haptics_duration), null, "${hapticPrefs.durationMs} ms", hapticPrefs.durationMs, 5..80,
                             { saveHaptics(hapticPrefs.copy(durationMs = it)) }, { HapticUtils.performButtonPressFeedback(hapticView) })
-                    }
+                    } }
                     SwitchRow(stringResource(R.string.haptics_press), null, hapticPrefs.press) { saveHaptics(hapticPrefs.copy(press = it)) }
                     SwitchRow(stringResource(R.string.haptics_release), null, hapticPrefs.release) { saveHaptics(hapticPrefs.copy(release = it)) }
                     SwitchRow(stringResource(R.string.haptics_sticks), null, hapticPrefs.sticks) { saveHaptics(hapticPrefs.copy(sticks = it)) }
@@ -375,9 +401,10 @@ fun SettingsScreen(
                     SettingRow(label = stringResource(R.string.haptics_test)) {
                         OutlinedButton(onClick = { HapticUtils.performButtonPressFeedback(hapticView) }) { Text(stringResource(R.string.haptics_test)) }
                     }
-                }
+                } }
 
-                SectionHeader(stringResource(R.string.sec_connection))
+                    }
+                    "connection" -> {
                 SettingRow(
                     label = stringResource(R.string.settings_polling_interval),
                     helper = stringResource(R.string.settings_polling_interval_desc),
@@ -400,38 +427,68 @@ fun SettingsScreen(
                     applyScope.launch { settingsRepository.setSaveConnectionCredentials(it) }
                 }
                 SwitchRow(stringResource(R.string.pref_reconnect), stringResource(R.string.pref_reconnect_desc), prefs.autoReconnect) { save(prefs.copy(autoReconnect = it)) }
-                if (prefs.autoReconnect) {
+                AnimatedVisibility(visible = prefs.autoReconnect) {
+ Column {
                     SliderRow(stringResource(R.string.pref_reconnect_s), null, "${prefs.reconnectSeconds} s", prefs.reconnectSeconds, 10..600, { save(prefs.copy(reconnectSeconds = it)) })
-                }
+                } }
                 SwitchRow(stringResource(R.string.pref_confirm), stringResource(R.string.pref_confirm_desc), prefs.confirmDisconnect) { save(prefs.copy(confirmDisconnect = it)) }
+                    }
+                    else -> {
+                SettingRow(label = stringResource(R.string.settings_color_scheme)) {
+                    ColorSchemeChoice(
+                        modifier = Modifier.fillMaxWidth(),
+                        selected = settingsChanges.colorScheme ?: colorScheme,
+                        onSelect = {
+                            settingsChanges = settingsChanges.copy(colorScheme = it)
+                            applyScope.launch { settingsRepository.setColorScheme(it) }
+                        },
+                        labelFor = { stringResource(it.nameRes) }
+                    )
+                }
+                SettingRow(
+                    label = stringResource(R.string.settings_gamepad_style),
+                    helper = stringResource(R.string.settings_gamepad_style_desc)
+                ) {
+                    GamepadStyleChoice(
+                        modifier = Modifier.fillMaxWidth(),
+                        selected = gamepadStyle,
+                        onSelect = { applyScope.launch { settingsRepository.setGamepadStyle(it) } },
+                        labelFor = { stringResource(it.nameRes) }
+                    )
+                }
+                NavRow(stringResource(R.string.layouts_title), stringResource(R.string.layouts_nav_desc)) { page = "layouts" }
+                SwitchRow(stringResource(R.string.settings_full_screen), stringResource(R.string.settings_full_screen_desc), settingsChanges.fullScreenEnabled ?: fullScreenEnabled) {
+                    settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
+                    applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
+                }
+                SwitchRow(stringResource(R.string.pref_keep_on), stringResource(R.string.pref_keep_on_desc), prefs.keepScreenOn) { save(prefs.copy(keepScreenOn = it)) }
 
-            }
-
-            // Fixed buttons at the bottom
-            Row(
-                modifier = Modifier
-                    .widthIn(max = 560.dp)
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                TextButton(shape = MaterialTheme.shapes.small, modifier = Modifier.offset(x = (-12).dp), onClick = {
-                    settingsChanges = SettingsChanges()
-                    runBlocking { settingsRepository.resetAllSettings() }
-                    Log.i(logTag, "Settings reset to defaults")
-                }) {
+                SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), settingsChanges.hapticFeedbackEnabled ?: hapticEnabled) {
+                    settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
+                    applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
+                }
+                SectionHeader(stringResource(R.string.sec_more))
+                NavRow(stringResource(R.string.sec_appearance), stringResource(R.string.nav_appearance_desc)) { page = "appearance" }
+                NavRow(stringResource(R.string.sec_sticks), stringResource(R.string.nav_sticks_desc)) { page = "sticks" }
+                NavRow(stringResource(R.string.sec_dpad), stringResource(R.string.nav_dpad_desc)) { page = "dpad" }
+                NavRow(stringResource(R.string.sec_haptics), stringResource(R.string.nav_haptics_desc)) { page = "haptics" }
+                NavRow(stringResource(R.string.sec_connection), stringResource(R.string.nav_connection_desc)) { page = "connection" }
+                TextButton(
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    onClick = {
+                        settingsChanges = SettingsChanges()
+                        runBlocking { settingsRepository.resetAllSettings() }
+                        Log.i(logTag, "Settings reset to defaults")
+                    }
+                ) {
                     Text(stringResource(R.string.settings_reset_all), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                Spacer(modifier = Modifier.weight(1f))
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.width(120.dp).height(48.dp),
-                    onClick = onNavigateBack
-                ) {
-                    Text(stringResource(R.string.done))
+                    }
                 }
+                }
+                }
+
             }
         }
     }

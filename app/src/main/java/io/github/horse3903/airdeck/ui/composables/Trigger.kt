@@ -41,6 +41,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -216,12 +217,18 @@ private fun AnalogTrigger(
         GamepadStyle.PLAYSTATION -> if (type == TriggerType.LEFT) "L2" else "R2"
     }
 
+    val body = if (mode == TriggerMode.ZONES) {
+        Modifier.background(
+            Brush.verticalGradient(listOf(PsStyle.BorderPressed.copy(alpha = 0.35f), PsStyle.Body))
+        )
+    } else Modifier.background(PsStyle.Body)
+
     Box(
         modifier = modifier
             .width(size)
-            .height(size * 2f)
+            .height(size * 1.5f)
             .clip(shape)
-            .background(PsStyle.Body)
+            .then(body)
             .border(1.5.dp, if (held) PsStyle.BorderPressed else PsStyle.Border, shape)
             .pointerInput(mode) {
                 awaitEachGesture {
@@ -235,7 +242,7 @@ private fun AnalogTrigger(
                         when (mode) {
                             TriggerMode.SLIDE -> set(0.1f + 0.9f * (1f - y / h).coerceIn(0f, 1f))
                             TriggerMode.DRAG -> set(0.2f + 0.8f * ((y0 - y) / (h * 0.6f)).coerceIn(0f, 1f))
-                            TriggerMode.ZONES -> set(if (y < h / 2f) 1f else 0.5f)
+                            TriggerMode.ZONES -> if (y == y0) set(0.15f + 0.85f * (1f - y0 / h).coerceIn(0f, 1f))
                             TriggerMode.FORCE -> set((pressure * 1.6f).coerceIn(0.1f, 1f))
                             else -> {}
                         }
@@ -261,15 +268,6 @@ private fun AnalogTrigger(
                 .fillMaxHeight(level)
                 .background(PsStyle.BorderPressed.copy(alpha = 0.55f))
         )
-        if (mode == TriggerMode.ZONES) {
-            Box(
-                Modifier
-                    .align(Alignment.Center)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(PsStyle.Border)
-            )
-        }
         Text(
             text = if (held) "$label  ${(level * 100).toInt()}%" else label,
             modifier = Modifier.align(Alignment.Center),

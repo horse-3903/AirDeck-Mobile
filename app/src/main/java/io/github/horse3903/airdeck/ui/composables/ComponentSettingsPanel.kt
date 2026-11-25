@@ -39,6 +39,7 @@ import io.github.horse3903.airdeck.data.ButtonComponent
 import io.github.horse3903.airdeck.data.ButtonConfig
 import io.github.horse3903.airdeck.data.OFFSET_VALUE_RANGE
 import io.github.horse3903.airdeck.data.SCALE_VALUE_RANGE
+import io.github.horse3903.airdeck.data.STRETCH_VALUE_RANGE
 import androidx.compose.material3.ExperimentalMaterial3Api
 import java.util.Locale
 
@@ -234,6 +235,28 @@ fun ComponentSettingsPanel(
                 endLabel = "${(SCALE_VALUE_RANGE.endInclusive * 100).toInt()}%",
                 defaultValue = 1f,
                 onValueChange = { onConfigChange(config.copy(scale = it)) }
+            )
+            LabeledSlider(
+                title = stringResource(R.string.panel_width),
+                valueText = "${(config.widthScale * 100).toInt()}%",
+                value = config.widthScale,
+                range = STRETCH_VALUE_RANGE,
+                startLabel = "${(STRETCH_VALUE_RANGE.start * 100).toInt()}%",
+                centerLabel = null,
+                endLabel = "${(STRETCH_VALUE_RANGE.endInclusive * 100).toInt()}%",
+                defaultValue = 1f,
+                onValueChange = { onConfigChange(config.copy(widthScale = it)) }
+            )
+            LabeledSlider(
+                title = stringResource(R.string.panel_height),
+                valueText = "${(config.heightScale * 100).toInt()}%",
+                value = config.heightScale,
+                range = STRETCH_VALUE_RANGE,
+                startLabel = "${(STRETCH_VALUE_RANGE.start * 100).toInt()}%",
+                centerLabel = null,
+                endLabel = "${(STRETCH_VALUE_RANGE.endInclusive * 100).toInt()}%",
+                defaultValue = 1f,
+                onValueChange = { onConfigChange(config.copy(heightScale = it)) }
             )
             LabeledSlider(
                 title = stringResource(R.string.panel_horizontal),

@@ -87,16 +87,18 @@ fun MainMenu(
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(24.dp))
-                if (connection.connected) {
-                    Text(
-                        text = connection.controllerSlot?.let {
-                            stringResource(R.string.menu_status_connected, connection.ipAddress, it)
-                        } ?: stringResource(R.string.menu_status_connected_plain, connection.ipAddress),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(8.dp))
+                androidx.compose.animation.AnimatedVisibility(visible = connection.connected) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = connection.controllerSlot?.let {
+                                stringResource(R.string.menu_status_connected, connection.ipAddress, it)
+                            } ?: stringResource(R.string.menu_status_connected_plain, connection.ipAddress),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
                 Button(
                     onClick = if (connection.connected) onReturnToGamepad else onNavigateToConnectScreen,

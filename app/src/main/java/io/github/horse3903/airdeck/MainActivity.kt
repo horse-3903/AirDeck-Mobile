@@ -12,6 +12,14 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
@@ -144,7 +152,16 @@ class MainActivity : ComponentActivity() {
         settingsRepository: SettingsRepository,
         navController: NavHostController = rememberNavController(),
     ) {
-        NavHost(navController = navController, startDestination = "main_menu") {
+        // Pages fade and drift in a little; the full-screen controller only fades
+        NavHost(
+            navController = navController,
+            startDestination = "main_menu",
+            // The new page fades in over the old one, which stays put underneath, so the screen never dips to black
+            enterTransition = { fadeIn(tween(380)) + slideInVertically(tween(420, easing = FastOutSlowInEasing)) { it / 10 } },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { fadeOut(tween(320)) + slideOutVertically(tween(360, easing = FastOutSlowInEasing)) { it / 10 } }
+        ) {
             composable("main_menu") {
                 val connection by connectionViewModel.uiState.collectAsState()
                 MainMenu(
@@ -198,7 +215,13 @@ class MainActivity : ComponentActivity() {
                     port = port
                 )
             }
-            composable("gamepad") {
+            composable(
+                "gamepad",
+                enterTransition = { fadeIn(tween(350)) },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { fadeOut(tween(300)) }
+            ) {
                 GamePad(
                     connectionViewModel = connectionViewModel,
                     onNavigateBack = { navController.popBackStack() }
@@ -211,7 +234,13 @@ class MainActivity : ComponentActivity() {
                     settingsRepository = settingsRepository
                 )
             }
-            composable("gamepad_customization") {
+            composable(
+                "gamepad_customization",
+                enterTransition = { fadeIn(tween(350)) },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { fadeOut(tween(300)) }
+            ) {
                 GamepadCustomizationScreen(
                     onNavigateBack = { navController.popBackStack() },
                     settingsRepository = settingsRepository

@@ -1,6 +1,9 @@
 package io.github.horse3903.airdeck.ui.composables
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,11 +62,15 @@ fun <T> SegmentedChoice(
         ) {
             options.forEach { option ->
                 val isSelected = option == selected
+                val fill by animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                    tween(200), label = "fill"
+                )
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(9.dp))
-                        .background(if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+                        .background(fill)
                         .clickable { onSelect(option) }
                         .padding(horizontal = 10.dp, vertical = 7.dp),
                     contentAlignment = Alignment.Center
@@ -77,12 +84,15 @@ fun <T> SegmentedChoice(
 
 @Composable
 private fun SegmentLabel(text: String, selected: Boolean) {
+    val color by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        tween(200), label = "label"
+    )
     Text(
         text = text,
         fontSize = 11.sp,
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-        color = if (selected) MaterialTheme.colorScheme.onSurface
-        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        color = color
     )
 }
 
@@ -110,8 +120,11 @@ fun ColorSchemeChoice(
                     }
                 ),
                 contentDescription = null,
-                tint = if (isSelected) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                tint = animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    tween(200), label = "tint"
+                ).value,
                 modifier = Modifier.size(20.dp)
             )
             SegmentLabel(labelFor(scheme), isSelected)
