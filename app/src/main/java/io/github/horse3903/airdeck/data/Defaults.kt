@@ -87,7 +87,21 @@ val defaultButtonConfigs = mapOf(
     ButtonComponent.BACK_BUTTON to ButtonConfig(
         component = ButtonComponent.BACK_BUTTON,
         scale = 0.632f,
-        offsetX = -0.14f,
+        offsetX = -0.155f,
+        offsetY = -0.0274f,
+        anchor = ButtonAnchor.TOP_CENTER
+    ),
+    ButtonComponent.CONNECTION_BADGE to ButtonConfig(
+        component = ButtonComponent.CONNECTION_BADGE,
+        scale = 0.632f,
+        offsetX = 0f,
+        offsetY = -0.0274f,
+        anchor = ButtonAnchor.TOP_CENTER
+    ),
+    ButtonComponent.SETTINGS_BUTTON to ButtonConfig(
+        component = ButtonComponent.SETTINGS_BUTTON,
+        scale = 0.632f,
+        offsetX = 0.155f,
         offsetY = -0.0274f,
         anchor = ButtonAnchor.TOP_CENTER
     )

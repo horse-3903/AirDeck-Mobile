@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -23,16 +26,17 @@ import io.github.horse3903.airdeck.data.ButtonConfig
 
 /**
  * Places a gamepad component at its configured offset.
- * With [onTap] set (editor mode) the component is drawn with an outline, hidden components are
- * dimmed instead of removed, and every touch on it opens its settings instead of acting as input.
+ * In [editing] mode hidden components are dimmed instead of removed, the selected one gets an outline,
+ * and its bounds are reported so the editor can hit-test, group and snap. Touches are handled by the
+ * editor's overlay, not here.
  */
 @Composable
 fun EditableComponent(
     component: ButtonComponent,
     config: ButtonConfig,
     baseDp: Int,
-    onTap: ((ButtonComponent) -> Unit)?,
-    onDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
+    editing: Boolean,
+    onBounds: ((ButtonComponent, Rect) -> Unit)?,
     selected: Boolean = false,
     content: @Composable (Modifier) -> Unit,
 ) {
@@ -40,40 +44,22 @@ fun EditableComponent(
         x = (config.offsetX * baseDp).dp,
         y = (config.offsetY * baseDp).dp
     )
-    if (onTap == null) {
+    if (!editing) {
         content(offsetModifier)
         return
     }
-    val density = LocalDensity.current
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnBounds by rememberUpdatedState(onBounds)
     Box(
         modifier = offsetModifier
             .alpha(if (config.visible) 1f else 0.3f)
-            .border(
-                if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                else BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
-                RoundedCornerShape(10.dp)
+            .onGloballyPositioned { currentOnBounds?.invoke(component, it.boundsInRoot()) }
+            .then(
+                if (selected) Modifier.border(
+                    BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                    RoundedCornerShape(10.dp)
+                ) else Modifier
             )
     ) {
         content(Modifier)
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .pointerInput(component) {
-                    detectTapGestures(onTap = { currentOnTap?.invoke(component) })
-                }
-                .pointerInput(component) {
-                    detectDragGestures(
-                        onDragStart = { currentOnTap?.invoke(component) },
-                        onDrag = { change, amount ->
-                            change.consume()
-                            with(density) {
-                                currentOnDrag?.invoke(component, amount.x.toDp(), amount.y.toDp())
-                            }
-                        }
-                    )
-                }
-        )
     }
 }

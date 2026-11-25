@@ -14,8 +14,48 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import io.github.horse3903.airdeck.ui.composables.LinkStatus
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import android.os.SystemClock
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import io.github.horse3903.airdeck.data.LayoutGroup
+import io.github.horse3903.airdeck.data.decodeGroups
+import io.github.horse3903.airdeck.data.defaultLayoutGroups
+import io.github.horse3903.airdeck.data.dissolveGroup
+import io.github.horse3903.airdeck.data.encodeGroups
+import io.github.horse3903.airdeck.data.groupOf
+import io.github.horse3903.airdeck.data.moveToGroup
+import io.github.horse3903.airdeck.data.snapPosition
+import io.github.horse3903.airdeck.data.snapScale
+import io.github.horse3903.airdeck.data.unionOf
+import io.github.horse3903.airdeck.data.withNewGroup
+import io.github.horse3903.airdeck.ui.composables.EditorHit
+import io.github.horse3903.airdeck.ui.composables.GroupChoice
+import io.github.horse3903.airdeck.ui.composables.GroupSettingsPanel
+import io.github.horse3903.airdeck.ui.composables.LayoutEditorOverlay
+import io.github.horse3903.airdeck.ui.composables.NEW_GROUP_ID
+import io.github.horse3903.airdeck.ui.composables.groupArea
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.horse3903.airdeck.ui.composables.TopControls
 import io.github.horse3903.airdeck.ui.composables.ComponentSettingsPanel
 import io.github.horse3903.airdeck.data.OFFSET_VALUE_RANGE
 import io.github.horse3903.airdeck.data.ButtonAnchor
@@ -82,7 +122,8 @@ import io.github.horse3903.airdeck.ui.composables.ButtonConfigEditor
 import io.github.horse3903.airdeck.ui.composables.DrawGamepad
 import io.github.horse3903.airdeck.ui.composables.ResponsiveGrid
 import kotlinx.coroutines.runBlocking
-import io.github.horse3903.airdeck.data.parseLenientButtonConfigs
+import io.github.horse3903.airdeck.data.exportLayout
+import io.github.horse3903.airdeck.data.parseLayout
 import kotlinx.serialization.json.Json
 
 private const val logTag = "GamepadCustomization"
@@ -94,29 +135,6 @@ private fun sanitizeButtonConfigs(configs: Map<ButtonComponent, ButtonConfig>): 
     return ButtonComponent.entries.associateWith { component ->
         configs[component] ?: ButtonConfig.default(component)
     }
-}
-
-/**
- * Full-screen gamepad preview overlay
- */
-@SuppressLint("ConfigurationScreenWidthHeight")
-@Composable
-fun GamepadPreview(
-    buttonConfigs: Map<ButtonComponent, ButtonConfig>,
-) {
-    val configuration = LocalConfiguration.current
-    val screenHeight = configuration.screenHeightDp
-    val screenWidth = configuration.screenWidthDp
-
-    val gamepadState = remember { GamepadReading() }
-
-    // Draw the gamepad with current configuration
-    DrawGamepad(
-        widthDp = screenWidth,
-        heightDp = screenHeight,
-        gamepadState = gamepadState,
-        buttonConfigs = buttonConfigs
-    )
 }
 
 @Composable
@@ -137,25 +155,54 @@ fun GamepadCustomizationScreen(
     var showResetConfirm by rememberSaveable { mutableStateOf(false) }
     var showDiscard by rememberSaveable { mutableStateOf(false) }
     var selectedComponent by rememberSaveable { mutableStateOf<ButtonComponent?>(null) }
+    var selectedGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+    var modifiedGroupsJson by rememberSaveable { mutableStateOf<String?>(null) }
+    val savedGroups by settingsRepository.layoutGroups.collectAsState(initial = defaultLayoutGroups)
+    val groups = remember(modifiedGroupsJson, savedGroups) { decodeGroups(modifiedGroupsJson) ?: savedGroups }
+    val hasChanges = modifiedConfigs != null || modifiedGroupsJson != null
     val presets by settingsRepository.presets.collectAsState(initial = emptyMap())
+    val presetGroups by settingsRepository.presetGroups.collectAsState(initial = emptyMap())
     val presetScope = rememberCoroutineScope()
     var importJsonText by rememberSaveable { mutableStateOf("") }
 
     // Get the current configs to preview (modified or saved)
     val currentConfigs = modifiedConfigs ?: buttonConfigs
 
+    // Undo and redo: a snapshot of the unsaved edits is taken before each change. A run of quick changes,
+    // like dragging a slider, counts as one.
+    val undoStack = remember { mutableStateListOf<EditSnapshot>() }
+    val redoStack = remember { mutableStateListOf<EditSnapshot>() }
+    var lastRecorded by remember { mutableLongStateOf(0L) }
+    fun recordEdit(coalesce: Boolean = false) {
+        val now = SystemClock.elapsedRealtime()
+        val continuing = coalesce && now - lastRecorded < 800
+        lastRecorded = now
+        if (continuing) return
+        undoStack.add(EditSnapshot(modifiedConfigs, modifiedGroupsJson))
+        if (undoStack.size > 100) undoStack.removeAt(0)
+        redoStack.clear()
+    }
+    fun undoEdit() {
+        val snap = undoStack.removeLastOrNull() ?: return
+        redoStack.add(EditSnapshot(modifiedConfigs, modifiedGroupsJson))
+        modifiedConfigs = snap.configs
+        modifiedGroupsJson = snap.groupsJson
+        lastRecorded = 0L
+    }
+    fun redoEdit() {
+        val snap = redoStack.removeLastOrNull() ?: return
+        undoStack.add(EditSnapshot(modifiedConfigs, modifiedGroupsJson))
+        modifiedConfigs = snap.configs
+        modifiedGroupsJson = snap.groupsJson
+        lastRecorded = 0L
+    }
+
     // Handle back button to close preview
     BackHandler(enabled = showPreview) {
         showPreview = false
     }
-    BackHandler(enabled = !showPreview && modifiedConfigs != null) {
+    BackHandler(enabled = !showPreview && hasChanges) {
         showDiscard = true
-    }
-
-    if (showPreview) {
-        // Full-screen preview overlay
-        GamepadPreview(buttonConfigs = currentConfigs)
-        return
     }
 
     if (showDiscard) {
@@ -192,10 +239,15 @@ fun GamepadCustomizationScreen(
                     shape = MaterialTheme.shapes.small,
                     onClick = {
                         modifiedConfigs = null
+                        modifiedGroupsJson = null
+                        undoStack.clear()
+                        redoStack.clear()
                         runBlocking {
                             settingsRepository.setAllButtonConfigs(defaultButtonConfigs)
+                            settingsRepository.setLayoutGroups(defaultLayoutGroups)
                         }
                         selectedComponent = null
+                        selectedGroupId = null
                         showResetConfirm = false
                         Log.i(logTag, "Button configs reset to defaults")
                     }
@@ -213,13 +265,17 @@ fun GamepadCustomizationScreen(
     if (showPresets) {
         PresetsDialog(
             presets = presets,
-            hasUnsavedChanges = modifiedConfigs != null,
+            hasUnsavedChanges = hasChanges,
             onSave = { name ->
                 val configs = currentConfigs
-                presetScope.launch { settingsRepository.savePreset(name, configs) }
+                val savedGroups = groups
+                presetScope.launch { settingsRepository.savePreset(name, configs, savedGroups) }
             },
-            onLoad = { configs ->
+            onLoad = { name, configs ->
+                recordEdit()
                 modifiedConfigs = configs
+                // A preset saved before groups existed leaves the current groups alone
+                presetGroups[name]?.let { modifiedGroupsJson = encodeGroups(it) }
                 showPresets = false
             },
             onDelete = { name -> presetScope.launch { settingsRepository.deletePreset(name) } },
@@ -230,6 +286,7 @@ fun GamepadCustomizationScreen(
     if (showExportDialog) {
         ExportConfigDialog(
             buttonConfigs = currentConfigs,
+            groups = groups,
             onDismiss = { showExportDialog = false }
         )
     }
@@ -238,8 +295,10 @@ fun GamepadCustomizationScreen(
         ImportConfigDialog(
             importedJsonText = importJsonText,
             onJsonTextChange = { importJsonText = it },
-            onImport = { configs ->
+            onImport = { configs, importedGroups ->
+                recordEdit()
                 modifiedConfigs = configs
+                importedGroups?.let { modifiedGroupsJson = encodeGroups(it) }
                 showImportDialog = false
                 importJsonText = ""
                 Log.i(logTag, "Button configs imported")
@@ -252,215 +311,502 @@ fun GamepadCustomizationScreen(
     }
 
     val editorState = remember { GamepadReading() }
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val canvasWidth = configuration.screenWidthDp
+    val canvasHeight = configuration.screenHeightDp
+    val unitPx = density.density * canvasHeight
+    val snapPx = with(density) { 6.dp.toPx() }
+    val bounds = remember { mutableStateMapOf<ButtonComponent, Rect>() }
+    val session = remember { DragSession() }
+    var guideX by remember { mutableStateOf<Float?>(null) }
+    var guideY by remember { mutableStateOf<Float?>(null) }
 
-    Scaffold { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Top action bar
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val compact = true
-                var overflowOpen by remember { mutableStateOf(false) }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.height(44.dp),
-                            onClick = { if (modifiedConfigs != null) showDiscard = true else onNavigateBack() }
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        Text(
-                            text = stringResource(R.string.customization_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (compact) {
-                            Box {
-                                IconButton(onClick = { overflowOpen = true }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_more_vert),
-                                        contentDescription = stringResource(R.string.customization_more)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = overflowOpen,
-                                    onDismissRequest = { overflowOpen = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.presets_button)) },
-                                        onClick = { overflowOpen = false; showPresets = true }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.customization_import)) },
-                                        onClick = { overflowOpen = false; showImportDialog = true }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.customization_export)) },
-                                        onClick = { overflowOpen = false; showExportDialog = true }
-                                    )
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.reset_layout_menu),
-                                                color = MaterialTheme.colorScheme.error
-                                            )
-                                        },
-                                        onClick = { overflowOpen = false; showResetConfirm = true }
-                                    )
-                                }
-                            }
-                        } else {
-                            OutlinedButton(
-                                shape = MaterialTheme.shapes.small,
-                                modifier = Modifier.height(44.dp),
-                                onClick = { showPresets = true }
-                            ) {
-                                Text(stringResource(R.string.presets_button))
-                            }
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = Color.Transparent,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                modifier = Modifier.height(44.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = { showImportDialog = true }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_file_upload),
-                                            contentDescription = stringResource(R.string.customization_import)
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .width(1.dp)
-                                            .height(24.dp)
-                                            .background(MaterialTheme.colorScheme.outlineVariant)
-                                    )
-                                    IconButton(onClick = { showExportDialog = true }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_file_download),
-                                            contentDescription = stringResource(R.string.customization_export)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        OutlinedButton(
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.height(44.dp),
-                            onClick = { showPreview = true }
-                        ) {
-                            Text(stringResource(R.string.customization_preview_short))
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Button(
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier
-                                .height(44.dp)
-                                .widthIn(min = 88.dp),
-                            onClick = {
-                                modifiedConfigs?.let { configs ->
-                                    runBlocking {
-                                        try {
-                                            settingsRepository.setAllButtonConfigs(configs)
-                                            Log.i(logTag, "Button configs saved")
-                                        } catch (e: Exception) {
-                                            Log.e(logTag, "Error saving button configs", e)
-                                        }
-                                    }
-                                }
-                                onNavigateBack()
-                            }
-                        ) {
-                            Text(stringResource(R.string.save))
-                        }
-                    }
-                }
-            }
+    fun selectGroup(id: String) { selectedGroupId = id; selectedComponent = null }
+    fun selectControl(component: ButtonComponent) { selectedGroupId = null; selectedComponent = component }
+    fun setGroups(list: List<LayoutGroup>) { recordEdit(); modifiedGroupsJson = encodeGroups(list) }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            // Interactive layout: tap or drag any component to edit it
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val canvasHeight = maxHeight.value.toInt()
-                DrawGamepad(
-                    widthDp = maxWidth.value.toInt(),
-                    heightDp = canvasHeight,
-                    gamepadState = editorState,
-                    buttonConfigs = currentConfigs,
-                    onComponentTap = { selectedComponent = it },
-                    selectedComponent = selectedComponent,
-                    onComponentDrag = { component, dx, dy ->
-                        val config = currentConfigs[component] ?: ButtonConfig.default(component)
-                        val updated = config.copy(
-                            offsetX = (config.offsetX + dx.value / canvasHeight)
-                                .coerceIn(OFFSET_VALUE_RANGE),
-                            offsetY = (config.offsetY + dy.value / canvasHeight)
-                                .coerceIn(OFFSET_VALUE_RANGE),
-                        )
-                        modifiedConfigs = currentConfigs + (component to updated)
-                    }
-                )
-                if (selectedComponent == null) {
-                    Text(
-                        text = stringResource(R.string.customization_tap_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                selectedComponent?.let { component ->
-                    val config = currentConfigs[component] ?: ButtonConfig.default(component)
-                    // Open on the side away from the control being edited
-                    val panelOnRight = when (config.anchor) {
-                        ButtonAnchor.TOP_LEFT, ButtonAnchor.CENTER_LEFT, ButtonAnchor.BOTTOM_LEFT -> true
-                        ButtonAnchor.TOP_RIGHT, ButtonAnchor.CENTER_RIGHT, ButtonAnchor.BOTTOM_RIGHT -> false
-                        else -> config.offsetX <= 0f
-                    }
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier
-                            .align(if (panelOnRight) Alignment.CenterEnd else Alignment.CenterStart)
-                            .padding(8.dp)
-                            .width(340.dp)
-                            .fillMaxHeight()
-                    ) {
-                        ComponentSettingsPanel(
-                            component = component,
-                            config = config,
-                            onConfigChange = { newConfig ->
-                                modifiedConfigs = currentConfigs + (component to newConfig)
-                            },
-                            onDone = { selectedComponent = null },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
+    // A first tap on a grouped control picks its group. A tap on a control inside the picked group
+    // (or beside an already picked control of it) edits that control alone.
+    fun onTapHit(hit: EditorHit?) {
+        when (hit) {
+            null -> { selectedGroupId = null; selectedComponent = null }
+            is EditorHit.Group -> selectGroup(hit.id)
+            is EditorHit.Control -> {
+                val group = groupOf(groups, hit.component)
+                val inPicked = group != null &&
+                    (selectedGroupId == group.id || selectedComponent?.let { it in group.members } == true)
+                if (group == null || inPicked) selectControl(hit.component) else selectGroup(group.id)
             }
         }
     }
+
+    // Dragging moves the picked group as a whole, or a single control
+    fun onDragStartHit(hit: EditorHit?) {
+        val members: List<ButtonComponent>? = when (hit) {
+            null -> null
+            is EditorHit.Group -> { selectGroup(hit.id); groups.firstOrNull { it.id == hit.id }?.members }
+            is EditorHit.Control -> {
+                val group = groupOf(groups, hit.component)
+                when {
+                    group == null -> { selectControl(hit.component); listOf(hit.component) }
+                    selectedGroupId == group.id -> group.members
+                    selectedComponent?.let { it in group.members } == true -> {
+                        selectControl(hit.component); listOf(hit.component)
+                    }
+                    else -> { selectGroup(group.id); group.members }
+                }
+            }
+        }
+        if (members.orEmpty().isNotEmpty()) recordEdit()
+        session.begin(members.orEmpty(), bounds, currentConfigs)
+    }
+
+    fun onDragBy(amount: Offset) {
+        val start = session.startRect ?: return
+        session.total += amount
+        val snap = snapPosition(start.translate(session.total), session.others, snapPx)
+        guideX = snap.xLine
+        guideY = snap.yLine
+        val fx = session.total.x + snap.dx
+        val fy = session.total.y + snap.dy
+        var next = session.base
+        for (member in session.members) {
+            val (ox, oy) = session.startOffsets[member] ?: continue
+            val config = session.base[member] ?: ButtonConfig.default(member)
+            next = next + (member to config.copy(
+                offsetX = (ox + fx / unitPx).coerceIn(OFFSET_VALUE_RANGE),
+                offsetY = (oy + fy / unitPx).coerceIn(OFFSET_VALUE_RANGE),
+            ))
+        }
+        modifiedConfigs = next
+    }
+
+    // Same size as the play screen, so what you edit is what you get. Preview makes it playable.
+    Box(modifier = Modifier.fillMaxSize()) {
+        DrawGamepad(
+            widthDp = canvasWidth,
+            heightDp = canvasHeight,
+            gamepadState = editorState,
+            buttonConfigs = currentConfigs,
+            editing = !showPreview,
+            onComponentBounds = { component, rect -> bounds[component] = rect },
+            selectedComponent = if (showPreview) null else selectedComponent,
+            onBack = { showPreview = false },
+            glowSlot = if (showPreview) 1 else null,
+            topControls = TopControls(LinkStatus.CONNECTED, 1, {}, {}),
+        )
+
+        if (!showPreview) {
+            LayoutEditorOverlay(
+                bounds = bounds,
+                groups = groups,
+                selectedGroupId = selectedGroupId,
+                guideX = guideX,
+                guideY = guideY,
+                onTap = { onTapHit(it) },
+                onDragStart = { onDragStartHit(it) },
+                onDrag = { onDragBy(it) },
+                onDragEnd = { guideX = null; guideY = null },
+            )
+        }
+
+        EditToolbar(
+            previewing = showPreview,
+            showHint = !showPreview && selectedComponent == null && selectedGroupId == null,
+            onCancel = { if (hasChanges) showDiscard = true else onNavigateBack() },
+            canUndo = undoStack.isNotEmpty(),
+            canRedo = redoStack.isNotEmpty(),
+            onUndo = { undoEdit() },
+            onRedo = { redoEdit() },
+            onSelectEdit = { showPreview = false },
+            onSelectPreview = { selectedComponent = null; selectedGroupId = null; showPreview = true },
+            onPresets = { showPresets = true },
+            onImport = { showImportDialog = true },
+            onExport = { showExportDialog = true },
+            onReset = { showResetConfirm = true },
+            onDone = {
+                runBlocking {
+                    try {
+                        modifiedConfigs?.let { settingsRepository.setAllButtonConfigs(it) }
+                        decodeGroups(modifiedGroupsJson)?.let { settingsRepository.setLayoutGroups(it) }
+                        Log.i(logTag, "Layout saved")
+                    } catch (e: Exception) {
+                        Log.e(logTag, "Error saving layout", e)
+                    }
+                }
+                onNavigateBack()
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = (canvasHeight * 0.061f - 27f).coerceAtLeast(0f).dp)
+        )
+
+        val pickedGroup = selectedGroupId?.takeIf { !showPreview }?.let { id -> groups.firstOrNull { it.id == id } }
+        if (pickedGroup != null) {
+            val area = groupArea(pickedGroup, bounds, 0f)
+            val onRight = area == null || area.center.x < canvasWidth * density.density / 2f
+            val groupVisible = pickedGroup.members.all { (currentConfigs[it] ?: ButtonConfig.default(it)).visible }
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .align(if (onRight) Alignment.CenterEnd else Alignment.CenterStart)
+                    .padding(8.dp)
+                    .width(340.dp)
+                    .fillMaxHeight()
+            ) {
+                GroupSettingsPanel(
+                    title = groupLabel(pickedGroup),
+                    members = pickedGroup.members.map { it to stringResource(it.nameRes) },
+                    allVisible = groupVisible,
+                    onVisibleChange = { visible ->
+                        recordEdit()
+                        modifiedConfigs = currentConfigs + pickedGroup.members.map {
+                            it to (currentConfigs[it] ?: ButtonConfig.default(it)).copy(visible = visible)
+                        }
+                    },
+                    onSelectMember = { selectControl(it) },
+                    onUngroup = {
+                        setGroups(dissolveGroup(groups, pickedGroup.id))
+                        selectedGroupId = null
+                    },
+                    onDone = { selectedGroupId = null },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        selectedComponent?.takeIf { !showPreview }?.let { component ->
+            val config = currentConfigs[component] ?: ButtonConfig.default(component)
+            // Open on the side away from the control being edited
+            val panelOnRight = when (config.anchor) {
+                ButtonAnchor.TOP_LEFT, ButtonAnchor.CENTER_LEFT, ButtonAnchor.BOTTOM_LEFT -> true
+                ButtonAnchor.TOP_RIGHT, ButtonAnchor.CENTER_RIGHT, ButtonAnchor.BOTTOM_RIGHT -> false
+                else -> config.offsetX <= 0f
+            }
+            val noneChoice = GroupChoice(null, stringResource(R.string.group_none))
+            val newChoice = GroupChoice(NEW_GROUP_ID, stringResource(R.string.group_new))
+            val choices = listOf(noneChoice) +
+                groups.map { GroupChoice(it.id, groupLabel(it)) } + newChoice
+            val memberOf = groupOf(groups, component)
+            val currentChoice = choices.first { it.id == memberOf?.id }
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .align(if (panelOnRight) Alignment.CenterEnd else Alignment.CenterStart)
+                    .padding(8.dp)
+                    .width(340.dp)
+                    .fillMaxHeight()
+            ) {
+                ComponentSettingsPanel(
+                    component = component,
+                    config = config,
+                    onConfigChange = { newConfig ->
+                        var next = newConfig
+                        val own = bounds[component]
+                        if (next.scale != config.scale && own != null) {
+                            // A light pull towards another control's width or height
+                            next = next.copy(
+                                scale = snapScale(
+                                    config.scale, next.scale, own,
+                                    bounds.filterKeys { it != component }.values.toList()
+                                )
+                            )
+                        }
+                        recordEdit(coalesce = true)
+                        modifiedConfigs = currentConfigs + (component to next)
+                    },
+                    onDone = { selectedComponent = null },
+                    modifier = Modifier.fillMaxSize(),
+                    groupChoices = choices,
+                    currentGroup = currentChoice,
+                    onGroupChange = { choice ->
+                        setGroups(
+                            when (choice.id) {
+                                null -> moveToGroup(groups, component, null)
+                                NEW_GROUP_ID -> withNewGroup(groups, component)
+                                else -> moveToGroup(groups, component, choice.id)
+                            }
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun groupLabel(group: LayoutGroup): String = when (group.id) {
+    "left_shoulders" -> stringResource(R.string.group_left_shoulders)
+    "right_shoulders" -> stringResource(R.string.group_right_shoulders)
+    "left_controls" -> stringResource(R.string.group_left_controls)
+    "right_controls" -> stringResource(R.string.group_right_controls)
+    "top_bar" -> stringResource(R.string.group_top_bar)
+    else -> group.name
+}
+
+/** The unsaved layout edits at one point in time, for undo and redo. */
+private class EditSnapshot(val configs: Map<ButtonComponent, ButtonConfig>?, val groupsJson: String?)
+
+/** What one drag gesture is moving, captured when it starts so snapping works from the original positions. */
+private class DragSession {
+    var members: List<ButtonComponent> = emptyList()
+    var startRect: Rect? = null
+    var others: List<Rect> = emptyList()
+    var startOffsets: Map<ButtonComponent, Pair<Float, Float>> = emptyMap()
+    var base: Map<ButtonComponent, ButtonConfig> = emptyMap()
+    var total: Offset = Offset.Zero
+
+    fun begin(
+        members: List<ButtonComponent>,
+        bounds: Map<ButtonComponent, Rect>,
+        configs: Map<ButtonComponent, ButtonConfig>
+    ) {
+        this.members = members
+        startRect = unionOf(members.mapNotNull { bounds[it] })
+        others = bounds.filterKeys { it !in members }.values.toList()
+        base = configs
+        startOffsets = members.associateWith {
+            val c = configs[it] ?: ButtonConfig.default(it)
+            c.offsetX to c.offsetY
+        }
+        total = Offset.Zero
+    }
+}
+
+/**
+ * An icon-only bar that floats over the play screen's back, slot and gear cluster while editing:
+ * Cancel, options, an Edit / Preview switch and Done. Drag it anywhere to move it.
+ */
+@Composable
+private fun EditToolbar(
+    previewing: Boolean,
+    showHint: Boolean,
+    onCancel: () -> Unit,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onSelectEdit: () -> Unit,
+    onSelectPreview: () -> Unit,
+    onPresets: () -> Unit,
+    onImport: () -> Unit,
+    onExport: () -> Unit,
+    onReset: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var overflowOpen by remember { mutableStateOf(false) }
+    val outline = MaterialTheme.colorScheme.outlineVariant
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    var dragX by rememberSaveable { mutableStateOf(0f) }
+    var dragY by rememberSaveable { mutableStateOf(0f) }
+    val maxX = with(density) { (configuration.screenWidthDp / 2 - 120).dp.toPx() }
+    val maxY = with(density) { (configuration.screenHeightDp - 90).dp.toPx() }
+    Column(
+        modifier = modifier
+            .offset { IntOffset(dragX.roundToInt(), dragY.roundToInt()) }
+            // Swallow touches on the bar so nothing underneath it reacts
+            .pointerInput(Unit) { detectTapGestures { } }
+            .pointerInput(Unit) {
+                detectDragGestures { change, amount ->
+                    change.consume()
+                    dragX = (dragX + amount.x).coerceIn(-maxX, maxX)
+                    dragY = (dragY + amount.y).coerceIn(0f, maxY)
+                }
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, outline),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ToolbarIcon(R.drawable.ic_close, stringResource(R.string.cancel), onClick = onCancel)
+                Box {
+                    ToolbarIcon(
+                        R.drawable.ic_more_horiz,
+                        stringResource(R.string.customization_more),
+                        onClick = { overflowOpen = true }
+                    )
+                    DropdownMenu(
+                        expanded = overflowOpen,
+                        onDismissRequest = { overflowOpen = false }
+                    ) {
+                        OverflowItem(R.drawable.ic_presets, stringResource(R.string.presets_button)) {
+                            overflowOpen = false; onPresets()
+                        }
+                        OverflowItem(R.drawable.ic_file_upload, stringResource(R.string.customization_import)) {
+                            overflowOpen = false; onImport()
+                        }
+                        OverflowItem(R.drawable.ic_file_download, stringResource(R.string.customization_export)) {
+                            overflowOpen = false; onExport()
+                        }
+                        HorizontalDivider(color = outline)
+                        OverflowItem(
+                            R.drawable.ic_reset,
+                            stringResource(R.string.reset_layout_menu),
+                            destructive = true
+                        ) {
+                            overflowOpen = false; onReset()
+                        }
+                    }
+                }
+                ToolbarIcon(
+                    R.drawable.ic_undo,
+                    stringResource(R.string.customization_undo),
+                    enabled = canUndo,
+                    onClick = onUndo
+                )
+                ToolbarIcon(
+                    R.drawable.ic_redo,
+                    stringResource(R.string.customization_redo),
+                    enabled = canRedo,
+                    onClick = onRedo
+                )
+                ToolbarIcon(
+                    R.drawable.ic_vertical_align_top,
+                    stringResource(R.string.customization_reset_toolbar),
+                    enabled = dragX != 0f || dragY != 0f,
+                    onClick = { dragX = 0f; dragY = 0f }
+                )
+                ToolbarDivider(outline)
+                // Edit and Preview share one rounded container
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, outline),
+                ) {
+                    Row(modifier = Modifier.height(40.dp)) {
+                        ModeSegment(
+                            iconRes = R.drawable.ic_edit,
+                            label = stringResource(R.string.customization_mode_edit),
+                            selected = !previewing,
+                            onClick = onSelectEdit
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(outline)
+                        )
+                        ModeSegment(
+                            iconRes = R.drawable.ic_visibility,
+                            label = stringResource(R.string.customization_preview_short),
+                            selected = previewing,
+                            onClick = onSelectPreview
+                        )
+                    }
+                }
+                ToolbarDivider(outline)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable(onClick = onDone),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_check),
+                        contentDescription = stringResource(R.string.customization_done),
+                        tint = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) Color.White
+                        else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+        if (showHint) {
+            Text(
+                text = stringResource(R.string.customization_tap_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ToolbarDivider(color: Color) {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(24.dp)
+            .background(color)
+    )
+}
+
+@Composable
+private fun ToolbarIcon(iconRes: Int, description: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(MaterialTheme.shapes.small)
+            .alpha(if (enabled) 1f else 0.35f)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = description,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun ModeSegment(iconRes: Int, label: String, selected: Boolean, onClick: () -> Unit) {
+    val tint = if (selected) MaterialTheme.colorScheme.onSurface
+    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    Box(
+        modifier = Modifier
+            .width(44.dp)
+            .fillMaxHeight()
+            .background(if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun OverflowItem(
+    iconRes: Int,
+    label: String,
+    destructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    DropdownMenuItem(
+        modifier = Modifier.heightIn(min = 44.dp),
+        leadingIcon = {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
+        },
+        text = { Text(label, color = color) },
+        onClick = onClick
+    )
 }
 
 private val DialogWidth = 460.dp
@@ -518,7 +864,7 @@ fun PresetsDialog(
     presets: Map<String, Map<ButtonComponent, ButtonConfig>>,
     hasUnsavedChanges: Boolean,
     onSave: (String) -> Unit,
-    onLoad: (Map<ButtonComponent, ButtonConfig>) -> Unit,
+    onLoad: (String, Map<ButtonComponent, ButtonConfig>) -> Unit,
     onDelete: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -554,7 +900,7 @@ fun PresetsDialog(
             confirmButton = {
                 Button(
                     shape = MaterialTheme.shapes.small,
-                    onClick = { presets[target]?.let(onLoad); pendingLoad = null }
+                    onClick = { presets[target]?.let { onLoad(target, it) }; pendingLoad = null }
                 ) { Text(stringResource(R.string.presets_load)) }
             },
             dismissButton = {
@@ -641,7 +987,7 @@ fun PresetsDialog(
                                         if (hasUnsavedChanges) {
                                             pendingLoad = presetName
                                         } else {
-                                            presets[presetName]?.let(onLoad)
+                                            presets[presetName]?.let { onLoad(presetName, it) }
                                         }
                                     }
                                 ) { Text(stringResource(R.string.presets_load)) }
@@ -668,13 +1014,12 @@ fun PresetsDialog(
 @Composable
 fun ExportConfigDialog(
     buttonConfigs: Map<ButtonComponent, ButtonConfig>,
+    groups: List<LayoutGroup>,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-    val jsonString = remember(buttonConfigs) {
-        Json { prettyPrint = true }.encodeToString(buttonConfigs)
-    }
+    val jsonString = remember(buttonConfigs, groups) { exportLayout(buttonConfigs, groups) }
     val exportLabel = stringResource(R.string.customization_export_label)
     var copied by remember { mutableStateOf(false) }
 
@@ -742,7 +1087,7 @@ fun ExportConfigDialog(
 fun ImportConfigDialog(
     importedJsonText: String,
     onJsonTextChange: (String) -> Unit,
-    onImport: (Map<ButtonComponent, ButtonConfig>) -> Unit,
+    onImport: (Map<ButtonComponent, ButtonConfig>, List<LayoutGroup>?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var hasError by rememberSaveable { mutableStateOf(false) }
@@ -760,11 +1105,11 @@ fun ImportConfigDialog(
                 enabled = importedJsonText.isNotBlank(),
                 onClick = {
                     try {
-                        val configs = parseLenientButtonConfigs(importedJsonText)
-                        val sanitizedConfigs = sanitizeButtonConfigs(configs)
+                        val layout = parseLayout(importedJsonText)
+                        val sanitizedConfigs = sanitizeButtonConfigs(layout.buttons)
                         hasError = false
                         Log.i(logTag, "Imported and sanitized button configs: $sanitizedConfigs")
-                        onImport(sanitizedConfigs)
+                        onImport(sanitizedConfigs, layout.groups)
                     } catch (e: Exception) {
                         hasError = true
                         Log.e(logTag, "Error parsing JSON", e)

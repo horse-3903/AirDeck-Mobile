@@ -29,8 +29,8 @@ The goal of the fork is a controller that looks and behaves the same as the serv
 
 - **Full controller** - two analog sticks, a D-pad, four face buttons, bumpers, analog triggers, View, Start and Back, in PlayStation or Xbox style.
 - **Same look as the browser version** - matching layout, shapes, symbols, colours, status badge and edge glow, so switching between the app and the browser page feels the same.
-- **Layout editor** - move, resize or hide any control, change its anchor, pick a trigger mode per trigger, apply presets, and import or export the layout as JSON.
-- **Connection badge** - the top row shows connection state with a chain, a broken chain or an hourglass, and your controller number. Tap it to disconnect, with a confirmation, and tap again to reconnect.
+- **Layout editor** - move, resize or hide any control, including the connection badge and settings button, change its anchor and pick a trigger mode per trigger. Controls come in default groups (shoulders, left and right clusters, top row) that move together, and you can regroup them. Positions and sizes snap lightly to other controls, there is undo and redo, and a draggable icon toolbar with an Edit and Preview switch. Presets and the JSON import and export carry the groups too.
+- **Connection badge** - the top row shows connection state with a chain, a broken chain or a spinner, and your controller number, in a neutral frame. Tap it to disconnect, with a confirmation, and tap again to reconnect.
 - **Automatic reconnect** - when the connection drops, the badge shows the hourglass and the app keeps trying for as long as you set, instead of kicking you out.
 - **Back keeps the connection** - the Back button returns to the main page straight away and leaves the connection open. Return to controller picks up where you were.
 - **Foreground service** - a persistent notification with Wi-Fi and wake locks keeps the link alive with the screen off or another app in front.

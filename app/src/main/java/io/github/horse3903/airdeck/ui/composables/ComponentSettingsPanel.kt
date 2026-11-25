@@ -19,6 +19,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.clickable
 import io.github.horse3903.airdeck.data.TriggerMode
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +141,9 @@ fun ComponentSettingsPanel(
     onConfigChange: (ButtonConfig) -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    groupChoices: List<GroupChoice> = emptyList(),
+    currentGroup: GroupChoice? = null,
+    onGroupChange: (GroupChoice) -> Unit = {},
 ) {
     Column(modifier = modifier.padding(16.dp)) {
         Text(
@@ -174,6 +178,21 @@ fun ComponentSettingsPanel(
                     formattedDisplay = { item -> Text(text = stringResource(item.nameRes)) },
                     onItemSelected = { onConfigChange(config.copy(anchor = it)) }
                 )
+            }
+            if (currentGroup != null) {
+                SettingsRow(stringResource(R.string.panel_group)) {
+                    ListItemPicker(
+                        list = groupChoices,
+                        selectedItem = currentGroup,
+                        label = "",
+                        showLabel = false,
+                        buttonModifier = Modifier
+                            .width(168.dp)
+                            .height(40.dp),
+                        formattedDisplay = { item -> Text(text = item.label) },
+                        onItemSelected = onGroupChange
+                    )
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (component == ButtonComponent.LEFT_TRIGGER || component == ButtonComponent.RIGHT_TRIGGER) {
@@ -238,6 +257,86 @@ fun ComponentSettingsPanel(
                 defaultValue = 0f,
                 onValueChange = { onConfigChange(config.copy(offsetY = it)) }
             )
+        }
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+        Button(
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onDone
+        ) {
+            Text(stringResource(R.string.customization_done))
+        }
+    }
+}
+
+/** One entry of a control's group picker. A null [id] means no group, [NEW_GROUP_ID] starts a new one. */
+data class GroupChoice(val id: String?, val label: String)
+
+const val NEW_GROUP_ID = "__new"
+
+/**
+ * Side panel for a selected group: show or hide it as a whole, jump to one of its controls, or break it up.
+ */
+@Composable
+fun GroupSettingsPanel(
+    title: String,
+    members: List<Pair<ButtonComponent, String>>,
+    allVisible: Boolean,
+    onVisibleChange: (Boolean) -> Unit,
+    onSelectMember: (ButtonComponent) -> Unit,
+    onUngroup: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.padding(16.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.group_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            SettingsRow(stringResource(R.string.button_visible)) {
+                Switch(checked = allVisible, onCheckedChange = onVisibleChange)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                text = stringResource(R.string.group_members),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            members.forEach { (component, label) ->
+                OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
+                    onClick = { onSelectMember(component) }
+                ) { Text(label) }
+            }
+            TextButton(
+                shape = MaterialTheme.shapes.small,
+                onClick = onUngroup
+            ) {
+                Text(
+                    stringResource(R.string.group_ungroup),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant,

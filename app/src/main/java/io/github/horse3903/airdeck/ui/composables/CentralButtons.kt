@@ -234,10 +234,11 @@ fun CentralButtons(
     baseDp: Int,
     gamepadState: GamepadReading,
     buttonConfigs: Map<ButtonComponent, ButtonConfig>,
-    onComponentTap: ((ButtonComponent) -> Unit)? = null,
-    onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
+    editing: Boolean = false,
+    onComponentBounds: ((ButtonComponent, androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     selectedComponent: ButtonComponent? = null,
     onBack: (() -> Unit)? = null,
+    showBack: Boolean = true,
 ) {
     // Helper function to get config for a component
     fun getConfig(component: ButtonComponent) =
@@ -250,13 +251,13 @@ fun CentralButtons(
         content: @Composable (ButtonConfig, Modifier) -> Unit
     ) {
         val config = getConfig(component)
-        if (config.visible || onComponentTap != null) {
+        if (config.visible || editing) {
             Box(
                 modifier = modifier.fillMaxSize(),
                 contentAlignment = config.anchor.toAlignment()
             ) {
                 EditableComponent(
-                    component, config, baseDp, onComponentTap, onComponentDrag,
+                    component, config, baseDp, editing, onComponentBounds,
                     selected = component == selectedComponent
                 ) { mod ->
                     content(config, mod)
@@ -306,7 +307,7 @@ fun CentralButtons(
     }
 
     // Back button (leaves the gamepad, never sent to the PC)
-    RenderButton(ButtonComponent.BACK_BUTTON) { config, mod ->
+    if (showBack) RenderButton(ButtonComponent.BACK_BUTTON) { config, mod ->
         BackButton(
             modifier = mod,
             size = (baseDp / 8 * config.scale).dp,

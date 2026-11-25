@@ -28,7 +28,7 @@ private fun createDarkColorPalette(@Suppress("UNUSED_PARAMETER") baseColor: Base
         onTertiary = Color(0xFF000000),
         tertiaryContainer = Color(0xFF1A1A1A),
         onTertiaryContainer = Color(0xFFE5E5E5),
-        background = Color(0xFF000000),
+        background = Color(0xFF0A0A0C),
         onBackground = Color(0xFFE5E5E5),
         surface = Color(0xFF0A0A0A),
         onSurface = Color(0xFFE5E5E5),

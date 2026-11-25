@@ -65,7 +65,9 @@ enum class ButtonComponent(
     ),
     SELECT_BUTTON(R.string.component_select, "Select (View)", ButtonAnchor.TOP_CENTER),
     START_BUTTON(R.string.component_start, "Start (Menu)", ButtonAnchor.TOP_CENTER),
-    BACK_BUTTON(R.string.component_back, "Back", ButtonAnchor.TOP_CENTER);
+    BACK_BUTTON(R.string.component_back, "Back", ButtonAnchor.TOP_CENTER),
+    CONNECTION_BADGE(R.string.component_connection, "Connection", ButtonAnchor.TOP_CENTER),
+    SETTINGS_BUTTON(R.string.component_settings_button, "Settings", ButtonAnchor.TOP_CENTER);
 
     override fun toString(): String = displayName
 }
@@ -107,6 +109,6 @@ data class ButtonConfig(
     val triggerMode: TriggerMode = TriggerMode.DIGITAL
 ) : Parcelable {
     companion object {
-        fun default(component: ButtonComponent) = ButtonConfig(component)
+        fun default(component: ButtonComponent) = defaultButtonConfigs[component] ?: ButtonConfig(component)
     }
 }

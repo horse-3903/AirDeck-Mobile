@@ -32,8 +32,7 @@ import io.github.horse3903.airdeck.data.defaultButtonConfigs
 import io.github.horse3903.airdeck.data.defaultPollingDelay
 import io.github.horse3903.airdeck.network.ConnectionViewModel
 import io.github.horse3903.airdeck.network.ConnectionService
-import io.github.horse3903.airdeck.ui.composables.ConnectionBadge
-import io.github.horse3903.airdeck.ui.composables.GearButton
+import io.github.horse3903.airdeck.ui.composables.TopControls
 import io.github.horse3903.airdeck.ui.composables.QuickSettingsDialog
 import io.github.horse3903.airdeck.ui.composables.LinkStatus
 import io.github.horse3903.airdeck.ui.composables.DrawGamepad
@@ -104,49 +103,37 @@ fun GamePad(
             onNavigateBack()
         },
         glowSlot = if (connectionState?.connected == true) connectionState?.controllerSlot else null,
-        topCenter = { rowHeight ->
-            ConnectionBadge(
-                status = when {
-                    userDisconnected -> LinkStatus.DISCONNECTED
-                    connectionState?.connected == true -> LinkStatus.CONNECTED
-                    else -> LinkStatus.CONNECTING
-                },
-                slot = connectionState?.controllerSlot,
-                onClick = {
-                    when {
-                        // Tap again to reconnect
-                        userDisconnected -> {
-                            userDisconnected = false
-                            connectionViewModel?.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
-                        }
-                        connectionState?.connected == true ->
-                            if (prefs.confirmDisconnect) {
-                                showDisconnectConfirm = true
-                            } else {
-                                releaseEverything()
-                                userDisconnected = true
-                                connectionViewModel?.disconnect()
-                            }
-                        // Still trying to reconnect: stop
-                        else -> {
+        topControls = TopControls(
+            status = when {
+                userDisconnected -> LinkStatus.DISCONNECTED
+                connectionState?.connected == true -> LinkStatus.CONNECTED
+                else -> LinkStatus.CONNECTING
+            },
+            slot = connectionState?.controllerSlot,
+            onBadgeClick = {
+                when {
+                    // Tap again to reconnect
+                    userDisconnected -> {
+                        userDisconnected = false
+                        connectionViewModel?.connect(connectionViewModel.lastIpAddress, connectionViewModel.lastPort)
+                    }
+                    connectionState?.connected == true ->
+                        if (prefs.confirmDisconnect) {
+                            showDisconnectConfirm = true
+                        } else {
+                            releaseEverything()
                             userDisconnected = true
                             connectionViewModel?.disconnect()
                         }
+                    // Still trying to reconnect: stop
+                    else -> {
+                        userDisconnected = true
+                        connectionViewModel?.disconnect()
                     }
-                },
-                height = rowHeight,
-                modifier = androidx.compose.ui.Modifier
-                    .align(androidx.compose.ui.Alignment.TopCenter)
-                    .offset(y = (screenHeight * -0.0274f).dp)
-            )
-            GearButton(
-                onClick = { showQuickSettings = true },
-                height = rowHeight,
-                modifier = androidx.compose.ui.Modifier
-                    .align(androidx.compose.ui.Alignment.TopCenter)
-                    .offset(x = (screenHeight * 0.14f).dp, y = (screenHeight * -0.0274f).dp)
-            )
-        }
+                }
+            },
+            onGearClick = { showQuickSettings = true },
+        )
     )
     if (showQuickSettings) {
         QuickSettingsDialog(settingsRepository = settingsRepository, onDismiss = { showQuickSettings = false })

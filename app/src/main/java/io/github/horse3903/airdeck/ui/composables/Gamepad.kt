@@ -32,18 +32,27 @@ private fun ButtonAnchor.toAlignment(): Alignment = when (this) {
     ButtonAnchor.BOTTOM_RIGHT -> Alignment.BottomEnd
 }
 
+/** What the connection badge and the settings button show and do on the play screen. */
+class TopControls(
+    val status: LinkStatus,
+    val slot: Int?,
+    val onBadgeClick: () -> Unit,
+    val onGearClick: () -> Unit,
+)
+
 @Composable
 fun DrawGamepad(
     widthDp: Int,
     heightDp: Int,
     gamepadState: GamepadReading,
     buttonConfigs: Map<ButtonComponent, ButtonConfig>,
-    onComponentTap: ((ButtonComponent) -> Unit)? = null,
-    onComponentDrag: ((ButtonComponent, Dp, Dp) -> Unit)? = null,
+    editing: Boolean = false,
+    onComponentBounds: ((ButtonComponent, androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     selectedComponent: ButtonComponent? = null,
     onBack: (() -> Unit)? = null,
+    showBack: Boolean = true,
     glowSlot: Int? = null,
-    topCenter: (@Composable androidx.compose.foundation.layout.BoxScope.(Dp) -> Unit)? = null,
+    topControls: TopControls? = null,
 ) {
     // Assuming Landscape orientation
     val baseDp = heightDp
@@ -61,13 +70,13 @@ fun DrawGamepad(
         content: @Composable (ButtonConfig, Modifier) -> Unit
     ) {
         val config = getConfig(component)
-        if (config.visible || onComponentTap != null) {
+        if (config.visible || editing) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = config.anchor.toAlignment()
             ) {
                 EditableComponent(
-                    component, config, baseDp, onComponentTap, onComponentDrag,
+                    component, config, baseDp, editing, onComponentBounds,
                     selected = component == selectedComponent
                 ) { mod ->
                     content(config, mod)
@@ -87,7 +96,24 @@ fun DrawGamepad(
                 .fillMaxSize()
                 .alpha(LocalAppPrefs.current.opacity / 100f)
         ) {
-            topCenter?.invoke(this, (baseDp * 0.079f).dp)
+            topControls?.let { top ->
+                RenderComponent(ButtonComponent.CONNECTION_BADGE) { config, mod ->
+                    ConnectionBadge(
+                        status = top.status,
+                        slot = top.slot,
+                        onClick = top.onBadgeClick,
+                        height = (baseDp / 8 * config.scale).dp,
+                        modifier = mod,
+                    )
+                }
+                RenderComponent(ButtonComponent.SETTINGS_BUTTON) { config, mod ->
+                    GearButton(
+                        onClick = top.onGearClick,
+                        height = (baseDp / 8 * config.scale).dp,
+                        modifier = mod,
+                    )
+                }
+            }
 
             // Left Analog Stick
             RenderComponent(ButtonComponent.LEFT_ANALOG_STICK) { config, mod ->
@@ -156,10 +182,11 @@ fun DrawGamepad(
                 baseDp = baseDp,
                 gamepadState = gamepadState,
                 buttonConfigs = buttonConfigs,
-                onComponentTap = onComponentTap,
-                onComponentDrag = onComponentDrag,
+                editing = editing,
+                onComponentBounds = onComponentBounds,
                 selectedComponent = selectedComponent,
                 onBack = onBack,
+                showBack = showBack,
             )
         }
     }

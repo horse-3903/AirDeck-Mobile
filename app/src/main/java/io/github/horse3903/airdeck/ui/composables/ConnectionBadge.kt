@@ -1,14 +1,20 @@
 package io.github.horse3903.airdeck.ui.composables
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -67,10 +73,20 @@ private fun DrawScope.shape(color: Color, d: String, alpha: Float, stroked: Bool
     if (stroked) drawPath(path, color, style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
-/** Chain, broken chain and hourglass, drawn on a 24 unit grid so they scale with the badge. */
+/** Chain, broken chain and spinner, drawn on a 24 unit grid so they scale with the badge. */
 @Composable
 fun LinkStatusIcon(status: LinkStatus, modifier: Modifier = Modifier) {
     val color = linkColor(status)
+    val spin = if (status == LinkStatus.CONNECTING) {
+        val transition = rememberInfiniteTransition(label = "linkSpinner")
+        val angle by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+            label = "linkSpinnerAngle"
+        )
+        angle
+    } else 0f
     Canvas(modifier = modifier) {
         scale(size.width / 24f, pivot = Offset.Zero) {
             when (status) {
@@ -88,15 +104,23 @@ fun LinkStatusIcon(status: LinkStatus, modifier: Modifier = Modifier) {
                         linkRect(color, 3.0f, 8.4f, 6.4f, filled = false, stroked = true)
                         drawRoundRect(color, Offset(-5.6f, -1.3f), Size(4.0f, 2.6f), CornerRadius(1.1f, 1.1f))
                         drawRoundRect(color, Offset(1.6f, -1.3f), Size(4.0f, 2.6f), CornerRadius(1.1f, 1.1f))
+                        // Sparks at the break
+                        val spark = Stroke(1.7f, cap = StrokeCap.Round)
+                        for (sx in listOf(-1f, 1f)) {
+                            for (sy in listOf(-1f, 1f)) {
+                                drawLine(color, Offset(sx * 1.6f, sy * 4.6f), Offset(sx * 2.9f, sy * 7.0f), spark.width, StrokeCap.Round)
+                            }
+                        }
                     }
                 }
 
                 LinkStatus.CONNECTING -> {
-                    shape(color, "M7.2 4.2C7.2 8.2 10.6 10.2 10.6 12C10.6 13.8 7.2 15.8 7.2 19.8H16.8C16.8 15.8 13.4 13.8 13.4 12C13.4 10.2 16.8 8.2 16.8 4.2Z", 0.2f, true)
-                    shape(color, "M6.5 2.2H17.5A1 1 0 0 1 17.5 4.2H6.5A1 1 0 0 1 6.5 2.2Z", 0.45f, true)
-                    shape(color, "M6.5 19.8H17.5A1 1 0 0 1 17.5 21.8H6.5A1 1 0 0 1 6.5 19.8Z", 0.45f, true)
-                    shape(color, "M8.7 6.5Q12 7.8 15.3 6.5C14.7 8.8 13 10.1 12.3 11.4H11.7C11 10.1 9.3 8.8 8.7 6.5Z", 0.85f, false)
-                    shape(color, "M8.2 19.1C9.5 18.6 11.1 16.1 12 16.1C12.9 16.1 14.5 18.6 15.8 19.1Z", 0.85f, false)
+                    val track = Stroke(2.6f, cap = StrokeCap.Round)
+                    drawCircle(color.copy(alpha = 0.22f), radius = 8f, center = Offset(12f, 12f), style = track)
+                    drawArc(
+                        color, startAngle = spin, sweepAngle = 95f, useCenter = false,
+                        topLeft = Offset(4f, 4f), size = Size(16f, 16f), style = track
+                    )
                 }
             }
         }
@@ -104,8 +128,8 @@ fun LinkStatusIcon(status: LinkStatus, modifier: Modifier = Modifier) {
 }
 
 /**
- * Compact connection status: neutral surface, a border in the status colour, the status icon and the
- * controller slot in its own colour. Tapping it asks to disconnect.
+ * Compact connection status in a neutral frame: the icon carries the connection state, the text carries
+ * the controller slot in its own colour. Tapping it asks to disconnect.
  */
 @Composable
 fun ConnectionBadge(
@@ -118,22 +142,33 @@ fun ConnectionBadge(
     val shape = RoundedCornerShape(height * 0.2f)
     Row(
         modifier = modifier
-            .width(height * 2f)
+            .width(height * 2.5f)
             .height(height)
             .clip(shape)
             .background(PsStyle.Body)
-            .border(1.5.dp, linkColor(status), shape)
+            .border(1.5.dp, PsStyle.Border, shape)
             .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        LinkStatusIcon(status, Modifier.size(height * 0.5f))
-        Text(
-            text = if (slot != null && status == LinkStatus.CONNECTED) "P$slot" else "\u2014",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (slot != null && status == LinkStatus.CONNECTED) slotColor(slot) else Color.Gray
+        // Two equal halves with a divider between: the icon is centred in one, the player in the other
+        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            LinkStatusIcon(status, Modifier.size(height * 0.5f))
+        }
+        Box(
+            Modifier
+                .width(1.dp)
+                .height(height * 0.5f)
+                .background(PsStyle.Border)
         )
+        val assigned = slot != null && status == LinkStatus.CONNECTED
+        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+            Text(
+                text = if (assigned) "P$slot" else "—",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (assigned) slotColor(slot!!) else Color.Gray
+            )
+        }
     }
 }
 

@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -358,17 +359,20 @@ private fun ScannerRoundButton(
 }
 
 /**
- * The four rounded corner brackets. They rest in a tall frame and glide onto a code once found.
+ * The four rounded corner brackets. They rest in the largest centred square that leaves an edge margin,
+ * and glide onto a code once found.
  */
 @Composable
 private fun ScannerFrame(viewSize: IntSize, target: Rect?) {
     val width = viewSize.width.toFloat()
     val height = viewSize.height.toFloat()
+    val edge = with(LocalDensity.current) { 24.dp.toPx() }
+    val side = (min(width, height) - 2 * edge).coerceAtLeast(0f)
     val resting = Rect(
-        left = width * 0.08f,
-        top = height * 0.18f,
-        right = width * 0.92f,
-        bottom = height * 0.18f + height * 0.52f
+        left = (width - side) / 2f,
+        top = (height - side) / 2f,
+        right = (width + side) / 2f,
+        bottom = (height + side) / 2f
     )
     val frame by animateRectAsState(
         targetValue = target ?: resting,

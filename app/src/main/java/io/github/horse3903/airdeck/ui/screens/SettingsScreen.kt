@@ -6,7 +6,15 @@ import io.github.horse3903.airdeck.data.defaultGamepadStyle
 import io.github.horse3903.airdeck.data.GamepadStyle
 import android.os.Parcelable
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,8 +75,8 @@ import io.github.horse3903.airdeck.data.defaultFullScreenEnabled
 import io.github.horse3903.airdeck.data.defaultHapticFeedbackEnabled
 import io.github.horse3903.airdeck.data.defaultPollingDelay
 import io.github.horse3903.airdeck.data.defaultSaveConnectionCredentials
-import io.github.horse3903.airdeck.ui.composables.ColorSchemePicker
-import io.github.horse3903.airdeck.ui.composables.ListItemPicker
+import io.github.horse3903.airdeck.ui.composables.ColorSchemeChoice
+import io.github.horse3903.airdeck.ui.composables.GamepadStyleChoice
 import io.github.horse3903.airdeck.ui.composables.SpinBox
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -85,7 +93,8 @@ private data class SettingsChanges(
     val fullScreenEnabled: Boolean? = null
 ) : Parcelable
 
-private val CONTROL_WIDTH = 176.dp
+// Every row's control sits in one column of this width, so the controls line up down the screen
+private val CONTROL_COLUMN = 232.dp
 
 @Composable
 private fun SettingRow(
@@ -94,13 +103,16 @@ private fun SettingRow(
     helper: String? = null,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,
+    indent: Dp = 0.dp,
+    enabled: Boolean = true,
     control: @Composable () -> Unit
 ) {
     Column(
         modifier = Modifier
             .widthIn(max = 560.dp)
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
+            .padding(start = 24.dp + indent, end = 24.dp)
+            .alpha(if (enabled) 1f else 0.4f)
     ) {
         Row(
             modifier = Modifier
@@ -127,7 +139,12 @@ private fun SettingRow(
                     )
                 }
             }
-            control()
+            Box(
+                modifier = Modifier
+                    .width(CONTROL_COLUMN)
+                    .padding(vertical = 6.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) { control() }
         }
         if (showDivider) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -140,6 +157,7 @@ private fun SwitchRow(label: String, helper: String? = null, checked: Boolean, o
     SettingRow(label = label, helper = helper) { Switch(checked = checked, onCheckedChange = onChange) }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SliderRow(
     label: String,
@@ -149,15 +167,53 @@ private fun SliderRow(
     range: IntRange,
     onChange: (Int) -> Unit,
     onFinished: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    indent: Dp = 0.dp,
 ) {
-    SettingRow(label = label, helper = listOfNotNull(helper, valueText).joinToString("  ")) {
-        androidx.compose.material3.Slider(
-            value = value.toFloat(),
-            onValueChange = { onChange(it.toInt()) },
-            onValueChangeFinished = { onFinished?.invoke() },
-            valueRange = range.first.toFloat()..range.last.toFloat(),
-            modifier = Modifier.width(CONTROL_WIDTH)
-        )
+    SettingRow(label = label, helper = helper, indent = indent, enabled = enabled) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Slider(
+                value = value.toFloat(),
+                onValueChange = { onChange(it.toInt()) },
+                onValueChangeFinished = { onFinished?.invoke() },
+                valueRange = range.first.toFloat()..range.last.toFloat(),
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+                thumb = {
+                    Box(
+                        Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                },
+                track = { state ->
+                    val span = state.valueRange.endInclusive - state.valueRange.start
+                    val fraction = if (span > 0f) (state.value - state.valueRange.start) / span else 0f
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+            )
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(52.dp)
+            )
+        }
     }
 }
 
@@ -230,40 +286,33 @@ fun SettingsScreen(
 
                 SectionHeader(stringResource(R.string.sec_appearance))
                 SettingRow(label = stringResource(R.string.settings_color_scheme)) {
-                    ColorSchemePicker(
-                        selectedItem = settingsChanges.colorScheme ?: colorScheme,
-                        showLabel = false,
-                        buttonModifier = Modifier
-                            .width(CONTROL_WIDTH)
-                            .height(40.dp)
-                    ) {
-                        settingsChanges = settingsChanges.copy(colorScheme = it)
-                        applyScope.launch { settingsRepository.setColorScheme(it) }
-                    }
+                    ColorSchemeChoice(
+                        modifier = Modifier.fillMaxWidth(),
+                        selected = settingsChanges.colorScheme ?: colorScheme,
+                        onSelect = {
+                            settingsChanges = settingsChanges.copy(colorScheme = it)
+                            applyScope.launch { settingsRepository.setColorScheme(it) }
+                        },
+                        labelFor = { stringResource(it.nameRes) }
+                    )
                 }
                 SettingRow(
                     label = stringResource(R.string.settings_gamepad_style),
                     helper = stringResource(R.string.settings_gamepad_style_desc)
                 ) {
-                    ListItemPicker(
-                        list = GamepadStyle.entries.asIterable(),
-                        selectedItem = gamepadStyle,
-                        label = "",
-                        showLabel = false,
-                        buttonModifier = Modifier
-                            .width(CONTROL_WIDTH)
-                            .height(40.dp),
-                        formattedDisplay = { item -> Text(text = stringResource(item.nameRes)) },
-                        onItemSelected = {
-                            applyScope.launch { settingsRepository.setGamepadStyle(it) }
-                        }
+                    GamepadStyleChoice(
+                        modifier = Modifier.fillMaxWidth(),
+                        selected = gamepadStyle,
+                        onSelect = { applyScope.launch { settingsRepository.setGamepadStyle(it) } },
+                        labelFor = { stringResource(it.nameRes) }
                     )
                 }
                 SliderRow(stringResource(R.string.pref_opacity), null, "${prefs.opacity}%", prefs.opacity, 20..100, { save(prefs.copy(opacity = it)) })
                 SwitchRow(stringResource(R.string.pref_glow), stringResource(R.string.pref_glow_desc), prefs.glowEnabled) { save(prefs.copy(glowEnabled = it)) }
-                if (prefs.glowEnabled) {
-                    SliderRow(stringResource(R.string.pref_glow_strength), null, "${prefs.glowStrength}%", prefs.glowStrength, 10..200, { save(prefs.copy(glowStrength = it)) })
-                }
+                SliderRow(
+                    stringResource(R.string.pref_glow_strength), null, "${prefs.glowStrength}%", prefs.glowStrength, 10..200,
+                    { save(prefs.copy(glowStrength = it)) }, enabled = prefs.glowEnabled, indent = 16.dp
+                )
 
                 SectionHeader(stringResource(R.string.sec_layout))
                 SettingRow(
@@ -343,7 +392,7 @@ fun SettingsScreen(
                         minValue = 20,
                         maxValue = 200,
                         step = 10,
-                        modifier = Modifier.width(CONTROL_WIDTH)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 SwitchRow(stringResource(R.string.settings_save_connection_credentials), stringResource(R.string.settings_remember_desc), settingsChanges.saveConnectionCredentials ?: saveCredentials) {

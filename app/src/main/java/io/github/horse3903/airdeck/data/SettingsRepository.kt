@@ -59,7 +59,7 @@ class SettingsRepository(context: Context) {
             val jsonString = preferences[BUTTON_CONFIGS]
             if (jsonString != null) {
                 try {
-                    Json.decodeFromString<Map<ButtonComponent, ButtonConfig>>(jsonString)
+                    defaultButtonConfigs + Json.decodeFromString<Map<ButtonComponent, ButtonConfig>>(jsonString)
                 } catch (e: Exception) {
                     defaultButtonConfigs
                 }
@@ -67,6 +67,17 @@ class SettingsRepository(context: Context) {
                 defaultButtonConfigs
             }
         }
+
+    val layoutGroups: Flow<List<LayoutGroup>> = dataStore.data.map { preferences ->
+        decodeGroups(preferences[LAYOUT_GROUPS]) ?: defaultLayoutGroups
+    }
+
+    suspend fun setLayoutGroups(groups: List<LayoutGroup>) {
+        dataStore.edit { preferences -> preferences[LAYOUT_GROUPS] = encodeGroups(groups) }
+    }
+
+    val presetGroups: Flow<Map<String, List<LayoutGroup>>> =
+        dataStore.data.map { preferences -> decodePresetGroups(preferences[PRESET_GROUPS]) }
 
     val presets: Flow<Map<String, Map<ButtonComponent, ButtonConfig>>> =
         dataStore.data.map { preferences -> decodePresets(preferences[PRESETS]) }
@@ -205,10 +216,16 @@ class SettingsRepository(context: Context) {
         }
     }
 
-    suspend fun savePreset(name: String, configs: Map<ButtonComponent, ButtonConfig>) {
+    suspend fun savePreset(
+        name: String,
+        configs: Map<ButtonComponent, ButtonConfig>,
+        groups: List<LayoutGroup>
+    ) {
         dataStore.edit { preferences ->
             val updated = decodePresets(preferences[PRESETS]) + (name to configs)
             preferences[PRESETS] = Json.encodeToString(updated)
+            preferences[PRESET_GROUPS] =
+                Json.encodeToString(decodePresetGroups(preferences[PRESET_GROUPS]) + (name to groups))
         }
     }
 
@@ -216,6 +233,8 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences ->
             val updated = decodePresets(preferences[PRESETS]) - name
             preferences[PRESETS] = Json.encodeToString(updated)
+            preferences[PRESET_GROUPS] =
+                Json.encodeToString(decodePresetGroups(preferences[PRESET_GROUPS]) - name)
         }
     }
 
@@ -241,10 +260,23 @@ class SettingsRepository(context: Context) {
     suspend fun resetAllSettings() {
         dataStore.edit { preferences ->
             val presetsJson = preferences[PRESETS]
+            val presetGroupsJson = preferences[PRESET_GROUPS]
             preferences.clear()
             if (presetsJson != null) {
                 preferences[PRESETS] = presetsJson
             }
+            if (presetGroupsJson != null) {
+                preferences[PRESET_GROUPS] = presetGroupsJson
+            }
+        }
+    }
+
+    private fun decodePresetGroups(json: String?): Map<String, List<LayoutGroup>> {
+        if (json == null) return emptyMap()
+        return try {
+            Json.decodeFromString(json)
+        } catch (e: Exception) {
+            emptyMap()
         }
     }
 
@@ -287,7 +319,9 @@ class SettingsRepository(context: Context) {
         private val STICK_SNAP = booleanPreferencesKey("stick_snap")
         private val DPAD_SINGLE = booleanPreferencesKey("dpad_single")
         private val BUTTON_CONFIGS = stringPreferencesKey("button_configs")
+        private val LAYOUT_GROUPS = stringPreferencesKey("layout_groups")
         private val PRESETS = stringPreferencesKey("button_presets")
+        private val PRESET_GROUPS = stringPreferencesKey("button_preset_groups")
         private val LAST_CONNECTION_IP_ADDRESS = stringPreferencesKey("last_connection_ip_address")
         private val LAST_CONNECTION_PORT = stringPreferencesKey("last_connection_port")
         private val SAVE_CONNECTION_CREDENTIALS =

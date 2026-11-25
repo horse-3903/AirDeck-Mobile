@@ -10,14 +10,14 @@
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
     <string name="settings_theme_color">Theme Color</string>
-    <string name="settings_color_scheme">Color Scheme</string>
+    <string name="settings_color_scheme">Colour scheme</string>
     <string name="settings_polling_interval">Update interval (ms)</string>
     <string name="settings_polling_interval_desc">How often controller input is sent to the PC. Lower feels more responsive but uses more battery. Range 20 to 200 ms.</string>
     <string name="settings_polling_interval_info">Information about polling interval</string>
-    <string name="settings_haptic_feedback">Haptic Feedback (Vibrations)</string>
-    <string name="settings_save_connection_credentials">Remember IP Address and Port</string>
-    <string name="settings_full_screen">Full Screen</string>
-    <string name="settings_customize_layout">Customize Gamepad Layout</string>
+    <string name="settings_haptic_feedback">Haptic feedback</string>
+    <string name="settings_save_connection_credentials">Remember IP address and port</string>
+    <string name="settings_full_screen">Full screen</string>
+    <string name="settings_customize_layout">Customise gamepad layout</string>
     <string name="settings_error_save">Error saving settings</string>
 
     <!-- About Screen -->
@@ -38,12 +38,12 @@
     <string name="customization_preview">Preview Gamepad</string>
     <string name="customization_import">Import</string>
     <string name="customization_export_title">Export Configuration</string>
-    <string name="customization_export_desc">Copy this JSON to share or back up your gamepad layout.</string>
+    <string name="customization_export_desc">Copy this JSON to share or back up your gamepad layout, including its groups.</string>
     <string name="customization_export_label">Gamepad Layout JSON</string>
     <string name="customization_copy">Copy</string>
     <string name="customization_done">Done</string>
     <string name="customization_import_title">Import Configuration</string>
-    <string name="customization_import_desc">Paste a layout JSON. Controls that are not included keep their default values. Importing replaces your current layout until you save or cancel.</string>
+    <string name="customization_import_desc">Paste a layout JSON. Controls that are not included get their default values, and groups are replaced only if the JSON has them. Importing replaces your current layout until you save or cancel.</string>
     <string name="customization_import_error">Error: Invalid JSON format</string>
     <string name="customization_import_placeholder">Paste JSON here...</string>
     <string name="customization_error_save">Error saving button configs</string>
@@ -139,9 +139,9 @@
     <string name="component_start">Start (Menu)</string>
 
     <!-- Color Schemes -->
-    <string name="scheme_light">Light Mode</string>
-    <string name="scheme_dark">Dark Mode</string>
-    <string name="scheme_system">System Default</string>
+    <string name="scheme_light">Light</string>
+    <string name="scheme_dark">Dark</string>
+    <string name="scheme_system">System</string>
 
     <!-- Colors -->
     <string name="color_red">Red</string>
@@ -203,10 +203,14 @@
     <string name="presets_load">Apply</string>
     <string name="presets_delete">Delete</string>
     <string name="presets_close">Close</string>
-    <string name="settings_gamepad_style">Gamepad Style</string>
+    <string name="settings_gamepad_style">Gamepad style</string>
     <string name="style_playstation">PlayStation</string>
     <string name="style_xbox">Xbox</string>
-    <string name="customization_tap_hint">Tap a control to customize</string>
+    <string name="customization_tap_hint">Drag to reposition · Tap to customize</string>
+    <string name="customization_mode_edit">Edit</string>
+    <string name="customization_undo">Undo</string>
+    <string name="customization_redo">Redo</string>
+    <string name="customization_reset_toolbar">Move toolbar back to the top</string>
     <string name="panel_anchor">Anchor</string>
     <string name="panel_size">Size</string>
     <string name="panel_horizontal">Horizontal Offset</string>
@@ -228,7 +232,20 @@
     <string name="presets_delete_message">"%1$s" will be removed. This can\'t be undone.</string>
     <string name="presets_load_title">Load preset?</string>
     <string name="presets_load_message">Loading "%1$s" replaces the layout you are editing.</string>
+    <string name="panel_group">Group</string>
+    <string name="group_none">No group</string>
+    <string name="group_new">New group</string>
+    <string name="group_members">Controls in this group</string>
+    <string name="group_ungroup">Ungroup</string>
+    <string name="group_hint">Drag to move the whole group. Tap a control to edit it on its own.</string>
+    <string name="group_left_shoulders">Left shoulders</string>
+    <string name="group_right_shoulders">Right shoulders</string>
+    <string name="group_left_controls">Left controls</string>
+    <string name="group_right_controls">Right controls</string>
+    <string name="group_top_bar">Top bar</string>
     <string name="component_back">Back</string>
+    <string name="component_connection">Connection badge</string>
+    <string name="component_settings_button">Settings button</string>
     <string name="back_button_label">Back</string>
     <string name="leave_gamepad_title">Leave controller?</string>
     <string name="leave_gamepad_message">Return to the home screen while staying connected, or disconnect from your PC.</string>
@@ -282,7 +299,7 @@
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_controller">Controller</string>
     <string name="settings_section_connection">Connection</string>
-    <string name="settings_gamepad_style_desc">Changes the labels and symbols on the controller.</string>
+    <string name="settings_gamepad_style_desc">Button labels and symbols</string>
     <string name="settings_customize_layout_desc">Move, resize or hide controls.</string>
     <string name="settings_haptic_desc">Vibrate when a control is pressed.</string>
     <string name="settings_full_screen_desc">Hide the system bars while the app is open.</string>
@@ -311,7 +328,7 @@
     <string name="sec_connection">Connection</string>
     <string name="pref_opacity">Control opacity</string>
     <string name="pref_glow">Edge glow</string>
-    <string name="pref_glow_desc">A soft glow in your controller colour along the screen edges.</string>
+    <string name="pref_glow_desc">Player-coloured screen edges</string>
     <string name="pref_glow_strength">Glow strength</string>
     <string name="pref_keep_on">Keep screen awake</string>
     <string name="pref_keep_on_desc">Stops the screen from turning off while the controller is open.</string>
@@ -332,9 +349,9 @@
     <string name="pref_confirm">Confirm before disconnecting</string>
     <string name="pref_confirm_desc">Ask first when you tap the connection badge.</string>
     <string name="quick_settings_title">Quick settings</string>
-    <string name="quick_theme">Theme</string>
+    <string name="quick_theme_hint">Light, dark or follow the device</string>
     <string name="quick_style">Button style</string>
-    <string name="quick_layout">Layout</string>
+    <string name="quick_section_config">Configuration</string>
     <string name="quick_layout_copied">Layout copied to the clipboard</string>
     <string name="quick_layout_imported">Layout imported from the clipboard</string>
     <string name="quick_layout_invalid">The clipboard does not hold a valid layout</string>
