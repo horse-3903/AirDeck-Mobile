@@ -22,7 +22,7 @@ data class HapticPrefs(
     val durationMs: Int = 20,
     val press: Boolean = true,
     val release: Boolean = true,
-    val sticks: Boolean = true,
+    val sticks: Boolean = false,
     val triggers: Boolean = true,
 )
 

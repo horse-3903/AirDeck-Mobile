@@ -36,7 +36,7 @@ The goal of the fork is a controller that looks and behaves the same as the serv
 - **Foreground service** - a persistent notification with Wi-Fi and wake locks keeps the link alive with the screen off or another app in front.
 - **Sticks that snap** - touch anywhere in a stick's circle and the cap jumps there. Holding still presses the stick like L3 or R3. Dead zone, sensitivity and vertical inversion are adjustable.
 - **D-pad** - one touch area for the whole pad. Several directions can be held at once, including diagonals and two fingers, or you can limit it to one direction at a time.
-- **Haptics** - custom vibration with adjustable strength and length, or the phone's own touch feedback, with switches for presses, releases, sticks and triggers.
+- **Haptics** - custom vibration with adjustable strength and length, or the phone's own touch feedback, with switches for presses, releases, sticks and triggers. Stick vibration is off by default.
 - **Quick settings** - a gear in the top row opens theme, button style and layout import and export without leaving the controller.
 - **QR connect** - a full-screen scanner reads the server's QR code. You can also type the address, and a diagnostics screen explains failed connections.
 - **Themes** - system, light or dark, plus an edge glow in your slot colour with its own strength.
