@@ -87,6 +87,7 @@ import io.github.horse3903.airdeck.data.SettingsRepository
 import io.github.horse3903.airdeck.data.TriggerMode
 import io.github.horse3903.airdeck.data.defaultButtonConfigs
 import io.github.horse3903.airdeck.data.defaultLayoutGroups
+import io.github.horse3903.airdeck.data.suggestedLayouts
 import io.github.horse3903.airdeck.data.exportLayout
 import io.github.horse3903.airdeck.data.exportPresets
 import io.github.horse3903.airdeck.data.parsePresets
@@ -674,6 +675,35 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                 }
             )
         } } }
+
+        // Ready-made layouts for kinds of games. Using one saves a copy that can be edited freely.
+        Spacer(Modifier.height(8.dp))
+        SectionLabel(stringResource(R.string.layout_suggested))
+        suggestedLayouts.forEach { s ->
+            LayoutRow(
+                name = s.name,
+                subtitle = s.description,
+                configs = s.buttons,
+                isActive = false,
+                onClick = {},
+                trailing = {
+                    OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        contentPadding = PaddingValues(horizontal = 14.dp),
+                        modifier = Modifier.height(40.dp),
+                        onClick = {
+                            scope.launch {
+                                val to = uniqueName(s.name)
+                                repo.savePreset(to, s.buttons, defaultLayoutGroups)
+                                repo.applyPreset(to)
+                            }
+                        }
+                    ) { Text(stringResource(R.string.layout_use), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface) }
+                }
+            )
+        }
+        Spacer(Modifier.height(16.dp))
     }
 }
 

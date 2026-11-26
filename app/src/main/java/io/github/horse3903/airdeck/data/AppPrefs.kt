@@ -6,19 +6,32 @@ data class AppPrefs(
     val opacity: Int = 100,
     val glowEnabled: Boolean = true,
     val glowStrength: Int = 100,
-    // display
+    // show the ring a stick moves inside, and scale every control together
+    val stickRing: Boolean = true,
+    val controlSize: Int = 100,
+    // display: seconds of no touch before the screen dims, 0 is never
     val keepScreenOn: Boolean = true,
+    val dimAfterSeconds: Int = 0,
     // sticks
     val deadZone: Int = 5,
     val sensitivity: Int = 100,
+    // 0 linear, 1 precise (finer near the centre), 2 quick
+    val stickCurve: Int = 0,
     val clickEnabled: Boolean = true,
     val clickHoldMs: Int = 450,
     val invertLeftY: Boolean = false,
     val invertRightY: Boolean = false,
+    // tilt steering: 0 off, 1 left stick, 2 right stick, and how much tilt it takes
+    val tiltTarget: Int = 0,
+    val tiltRange: Int = 30,
+    val tiltDead: Int = 3,
+    val tiltInvert: Boolean = false,
     // d-pad: the share of the radius a direction needs before it counts, so lower makes diagonals easier
     val dpadDiagonal: Int = 38,
     // vibrate when the game rumbles this controller
     val gameRumble: Boolean = true,
+    // a short buzz when the link comes up or drops
+    val connectionHaptics: Boolean = true,
     // connection
     val autoReconnect: Boolean = true,
     val reconnectSeconds: Int = 120,

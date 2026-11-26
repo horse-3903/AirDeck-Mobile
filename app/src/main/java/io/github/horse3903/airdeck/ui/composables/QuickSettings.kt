@@ -257,6 +257,17 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
                     }
                     HorizontalDivider(Modifier.padding(top = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
+                    val appPrefs by settingsRepository.appPrefs.collectAsState(initial = io.github.horse3903.airdeck.data.AppPrefs())
+                    if (appPrefs.tiltTarget != 0) {
+                        SectionTitle(stringResource(R.string.quick_section_tilt))
+                        val calibrated = stringResource(R.string.quick_tilt_calibrated)
+                        ActionButton(R.drawable.ic_lucide_circle, stringResource(R.string.quick_tilt_calibrate), Modifier.fillMaxWidth()) {
+                            io.github.horse3903.airdeck.ui.utils.TiltSteering.calibrate()
+                            Toast.makeText(context, calibrated, Toast.LENGTH_SHORT).show()
+                        }
+                        HorizontalDivider(Modifier.padding(top = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+
                     SectionTitle(stringResource(R.string.quick_section_config))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActionButton(R.drawable.ic_file_download, stringResource(R.string.customization_export), Modifier.weight(1f)) {

@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import io.github.horse3903.airdeck.R
 import io.github.horse3903.airdeck.data.ColorScheme
@@ -205,9 +206,10 @@ private fun SliderRow(
                 thumb = {
                     Box(
                         Modifier
-                            .size(18.dp)
+                            .size(20.dp)
+                            .shadow(3.dp, CircleShape)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(MaterialTheme.colorScheme.onSurface)
                     )
                 },
                 track = { state ->
@@ -218,13 +220,13 @@ private fun SliderRow(
                             .fillMaxWidth()
                             .height(4.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.outlineVariant)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f))
                     ) {
                         Box(
                             Modifier
                                 .fillMaxWidth(fraction.coerceIn(0f, 1f))
                                 .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(MaterialTheme.colorScheme.onSurface)
                         )
                     }
                 }
@@ -414,6 +416,22 @@ fun SettingsScreen(
                 }
                 SliderRow(stringResource(R.string.pref_dead_zone), stringResource(R.string.pref_dead_zone_desc), "${prefs.deadZone}%", prefs.deadZone, 0..40, { save(prefs.copy(deadZone = it)) })
                 SliderRow(stringResource(R.string.pref_sensitivity), stringResource(R.string.pref_sensitivity_desc), "${prefs.sensitivity}%", prefs.sensitivity, 50..150, { save(prefs.copy(sensitivity = it)) })
+                SettingRow(label = stringResource(R.string.pref_curve), helper = stringResource(R.string.pref_curve_desc), controlWidth = 300.dp) {
+                    io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
+                        options = listOf(0, 1, 2),
+                        selected = prefs.stickCurve,
+                        onSelect = { save(prefs.copy(stickCurve = it)) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { option, isSelected ->
+                        Text(
+                            stringResource(when (option) { 0 -> R.string.curve_linear; 1 -> R.string.curve_precise; else -> R.string.curve_quick }),
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
                 SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), prefs.clickEnabled) { save(prefs.copy(clickEnabled = it)) }
                 AnimatedVisibility(visible = prefs.clickEnabled) {
  Column {
@@ -421,6 +439,33 @@ fun SettingsScreen(
                 } }
                 SwitchRow(stringResource(R.string.pref_invert_left), null, prefs.invertLeftY) { save(prefs.copy(invertLeftY = it)) }
                 SwitchRow(stringResource(R.string.pref_invert_right), null, prefs.invertRightY) { save(prefs.copy(invertRightY = it)) }
+                SettingRow(label = stringResource(R.string.pref_tilt), helper = stringResource(R.string.pref_tilt_desc), controlWidth = 300.dp) {
+                    io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
+                        options = listOf(0, 1, 2),
+                        selected = prefs.tiltTarget,
+                        onSelect = { save(prefs.copy(tiltTarget = it)) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { option, isSelected ->
+                        Text(
+                            stringResource(when (option) { 0 -> R.string.pref_off; 1 -> R.string.tilt_left; else -> R.string.tilt_right }),
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+                SliderRow(
+                    stringResource(R.string.pref_tilt_range), stringResource(R.string.pref_tilt_range_desc), "${prefs.tiltRange}\u00B0",
+                    prefs.tiltRange, 15..60, { save(prefs.copy(tiltRange = it)) }, enabled = prefs.tiltTarget != 0, indent = 16.dp
+                )
+                SliderRow(
+                    stringResource(R.string.pref_tilt_dead), stringResource(R.string.pref_tilt_dead_desc), "${prefs.tiltDead}\u00B0",
+                    prefs.tiltDead, 0..15, { save(prefs.copy(tiltDead = it)) }, enabled = prefs.tiltTarget != 0, indent = 16.dp
+                )
+                SettingRow(label = stringResource(R.string.pref_tilt_invert), indent = 16.dp, enabled = prefs.tiltTarget != 0) {
+                    Switch(checked = prefs.tiltInvert, onCheckedChange = { save(prefs.copy(tiltInvert = it)) }, modifier = Modifier.scale(0.85f))
+                }
 
                     }
                     "dpad" -> {
@@ -453,6 +498,7 @@ fun SettingsScreen(
                     SwitchRow(stringResource(R.string.haptics_release), null, hapticPrefs.release) { saveHaptics(hapticPrefs.copy(release = it)) }
                     SwitchRow(stringResource(R.string.haptics_sticks), null, hapticPrefs.sticks) { saveHaptics(hapticPrefs.copy(sticks = it)) }
                     SwitchRow(stringResource(R.string.haptics_triggers), null, hapticPrefs.triggers) { saveHaptics(hapticPrefs.copy(triggers = it)) }
+                    SwitchRow(stringResource(R.string.haptics_connection), stringResource(R.string.haptics_connection_desc), prefs.connectionHaptics) { save(prefs.copy(connectionHaptics = it)) }
                     SettingRow(label = stringResource(R.string.haptics_test)) {
                         OutlinedButton(onClick = { HapticUtils.performButtonPressFeedback(hapticView) }) { Text(stringResource(R.string.haptics_test)) }
                     }
@@ -494,6 +540,11 @@ fun SettingsScreen(
                     applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
                 }
                 SwitchRow(stringResource(R.string.pref_keep_on), stringResource(R.string.pref_keep_on_desc), prefs.keepScreenOn) { save(prefs.copy(keepScreenOn = it)) }
+                SliderRow(
+                    stringResource(R.string.pref_dim), stringResource(R.string.pref_dim_desc),
+                    if (prefs.dimAfterSeconds == 0) stringResource(R.string.pref_off) else "${prefs.dimAfterSeconds} s",
+                    prefs.dimAfterSeconds, 0..300, { save(prefs.copy(dimAfterSeconds = (it / 15) * 15)) }
+                )
                     }
                     else -> {
                 SettingRow(label = stringResource(R.string.settings_color_scheme), controlWidth = 300.dp) {
@@ -525,6 +576,8 @@ fun SettingsScreen(
                     stringResource(R.string.pref_glow_strength), null, "${prefs.glowStrength}%", prefs.glowStrength, 10..200,
                     { save(prefs.copy(glowStrength = it)) }, enabled = prefs.glowEnabled, indent = 16.dp
                 )
+                SwitchRow(stringResource(R.string.pref_ring), stringResource(R.string.pref_ring_desc), prefs.stickRing) { save(prefs.copy(stickRing = it)) }
+                SliderRow(stringResource(R.string.pref_size), stringResource(R.string.pref_size_desc), "${prefs.controlSize}%", prefs.controlSize, 70..130, { save(prefs.copy(controlSize = (it / 5) * 5)) })
 
                     }
                 }

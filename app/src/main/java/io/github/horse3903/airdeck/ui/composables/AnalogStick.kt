@@ -39,6 +39,7 @@ import io.github.kitswas.VGP_Data_Exchange.GamepadReading
 import io.github.horse3903.airdeck.ui.theme.darken
 import io.github.horse3903.airdeck.ui.theme.lighten
 import io.github.horse3903.airdeck.ui.utils.HapticUtils
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -67,8 +68,13 @@ private fun shaped(prefs: AppPrefs, type: AnalogStickType, x: Float, y: Float): 
         nx = 0f
         ny = 0f
     } else if (length > 0f) {
-        val scaled = ((length - dead) / (1f - dead)) * (prefs.sensitivity / 100f)
-        val factor = scaled.coerceAtMost(1f) / length
+        val scaled = (((length - dead) / (1f - dead)) * (prefs.sensitivity / 100f)).coerceAtMost(1f)
+        val curved = when (prefs.stickCurve) {
+            1 -> scaled.pow(1.6f)
+            2 -> scaled.pow(0.7f)
+            else -> scaled
+        }
+        val factor = curved / length
         nx = x * factor
         ny = y * factor
     }
@@ -286,7 +292,7 @@ fun AnalogStick(
                 .border(1.5.dp, if (state.isPressed) pressedColor else ringColor, CircleShape)
         )
         // Movement ring
-        Box(
+        if (prefs.stickRing) Box(
             Modifier
                 .size(diameter * 0.56f)
                 .border(1.dp, ringColor.copy(alpha = 0.7f), CircleShape)

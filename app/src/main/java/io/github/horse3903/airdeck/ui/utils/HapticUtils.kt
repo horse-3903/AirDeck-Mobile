@@ -103,6 +103,14 @@ object HapticUtils {
     private var rumbleStrength = 0
     private var rumbleStartedAt = 0L
 
+    /** A short buzz when the link to the PC comes up (shorter) or drops (longer). */
+    fun connectionPulse(context: Context, connected: Boolean) {
+        if (!isEnabled) return
+        val vibrator = vibrator(context) ?: return
+        if (!vibrator.hasVibrator()) return
+        vibrator.vibrate(VibrationEffect.createOneShot(if (connected) 80L else 160L, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
     fun stopRumble(context: Context) {
         rumbleStrength = 0
         vibrator(context)?.cancel()

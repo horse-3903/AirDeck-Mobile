@@ -208,6 +208,15 @@ class SettingsRepository(context: Context) {
             reconnectSeconds = p[PREF_RECONNECT_S] ?: d.reconnectSeconds,
             confirmDisconnect = p[PREF_CONFIRM] ?: d.confirmDisconnect,
             gameRumble = p[PREF_GAME_RUMBLE] ?: d.gameRumble,
+            stickRing = p[PREF_RING] ?: d.stickRing,
+            tiltTarget = p[PREF_TILT] ?: d.tiltTarget,
+            tiltRange = p[PREF_TILT_RANGE] ?: d.tiltRange,
+            tiltDead = p[PREF_TILT_DEAD] ?: d.tiltDead,
+            tiltInvert = p[PREF_TILT_INVERT] ?: d.tiltInvert,
+            controlSize = p[PREF_SIZE] ?: d.controlSize,
+            dimAfterSeconds = p[PREF_DIM] ?: d.dimAfterSeconds,
+            stickCurve = p[PREF_CURVE] ?: d.stickCurve,
+            connectionHaptics = p[PREF_CONN_HAPTICS] ?: d.connectionHaptics,
         )
     }
 
@@ -228,6 +237,15 @@ class SettingsRepository(context: Context) {
             p[PREF_RECONNECT_S] = prefs.reconnectSeconds
             p[PREF_CONFIRM] = prefs.confirmDisconnect
             p[PREF_GAME_RUMBLE] = prefs.gameRumble
+            p[PREF_RING] = prefs.stickRing
+            p[PREF_TILT] = prefs.tiltTarget
+            p[PREF_TILT_RANGE] = prefs.tiltRange
+            p[PREF_TILT_DEAD] = prefs.tiltDead
+            p[PREF_TILT_INVERT] = prefs.tiltInvert
+            p[PREF_SIZE] = prefs.controlSize
+            p[PREF_DIM] = prefs.dimAfterSeconds
+            p[PREF_CURVE] = prefs.stickCurve
+            p[PREF_CONN_HAPTICS] = prefs.connectionHaptics
         }
     }
 
@@ -368,6 +386,15 @@ class SettingsRepository(context: Context) {
         private val PREF_RECONNECT_S = intPreferencesKey("pref_reconnect_seconds")
         private val PREF_CONFIRM = booleanPreferencesKey("pref_confirm_disconnect")
         private val PREF_GAME_RUMBLE = booleanPreferencesKey("pref_game_rumble")
+        private val PREF_RING = booleanPreferencesKey("pref_stick_ring")
+        private val PREF_TILT = intPreferencesKey("pref_tilt_target")
+        private val PREF_TILT_RANGE = intPreferencesKey("pref_tilt_range")
+        private val PREF_TILT_DEAD = intPreferencesKey("pref_tilt_dead")
+        private val PREF_TILT_INVERT = booleanPreferencesKey("pref_tilt_invert")
+        private val PREF_SIZE = intPreferencesKey("pref_control_size")
+        private val PREF_DIM = intPreferencesKey("pref_dim_seconds")
+        private val PREF_CURVE = intPreferencesKey("pref_stick_curve")
+        private val PREF_CONN_HAPTICS = booleanPreferencesKey("pref_connection_haptics")
         private val HAPTIC_CUSTOM = booleanPreferencesKey("haptic_custom")
         private val HAPTIC_INTENSITY = intPreferencesKey("haptic_intensity")
         private val HAPTIC_DURATION = intPreferencesKey("haptic_duration")

@@ -65,6 +65,7 @@ fun GamePad(
     val screenWidth = configuration.screenWidthDp
 
     val prefs = io.github.horse3903.airdeck.ui.composables.LocalAppPrefs.current
+    val prefsNow by androidx.compose.runtime.rememberUpdatedState(prefs)
     val rootView = androidx.compose.ui.platform.LocalView.current
     androidx.compose.runtime.DisposableEffect(prefs.keepScreenOn) {
         rootView.keepScreenOn = prefs.keepScreenOn
@@ -103,6 +104,84 @@ fun GamePad(
     }
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose { io.github.horse3903.airdeck.ui.utils.HapticUtils.stopRumble(context) }
+    }
+
+    // Tilt steering: the phone turned like a steering wheel adds to a stick
+    androidx.compose.runtime.DisposableEffect(prefs.tiltTarget) {
+        if (prefs.tiltTarget == 0) return@DisposableEffect onDispose {}
+        val manager = context.getSystemService(android.content.Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+        val sensor = manager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        io.github.horse3903.airdeck.ui.utils.TiltSteering.reset()
+        val listener = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(e: android.hardware.SensorEvent) {
+                val tilt = io.github.horse3903.airdeck.ui.utils.TiltSteering
+                tilt.rangeDeg = prefsNow.tiltRange.toFloat()
+                tilt.deadDeg = prefsNow.tiltDead.toFloat()
+                tilt.invert = prefsNow.tiltInvert
+                @Suppress("DEPRECATION")
+                val rotation = (context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+                tilt.onAccelerometer(e.values[0], e.values[1], rotation)
+            }
+
+            override fun onAccuracyChanged(s: android.hardware.Sensor?, a: Int) {}
+        }
+        if (manager != null && sensor != null) manager.registerListener(listener, sensor, android.hardware.SensorManager.SENSOR_DELAY_GAME)
+        onDispose {
+            manager?.unregisterListener(listener)
+            io.github.horse3903.airdeck.ui.utils.TiltSteering.reset()
+        }
+    }
+
+    // A short buzz when the link comes up or drops
+    var wasConnected by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(connectionState?.connected) {
+        val now = connectionState?.connected
+        if (prefs.connectionHaptics && wasConnected != null && now != null && now != wasConnected) {
+            io.github.horse3903.airdeck.ui.utils.HapticUtils.connectionPulse(context, now)
+        }
+        if (now != null) wasConnected = now
+    }
+
+    // Dim the screen after a pause, any touch brings it back
+    val lastTouch = remember { mutableStateOf(android.os.SystemClock.elapsedRealtime()) }
+    val dimmed = remember { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(prefs.dimAfterSeconds) {
+        val window = context.findActivityOrNull()?.window
+        if (window == null || prefs.dimAfterSeconds == 0) return@DisposableEffect onDispose {}
+        val original = window.callback
+        fun setBrightness(level: Float) {
+            val attrs = window.attributes
+            attrs.screenBrightness = level
+            window.attributes = attrs
+        }
+        window.callback = object : android.view.Window.Callback by original {
+            override fun dispatchTouchEvent(event: android.view.MotionEvent?): Boolean {
+                lastTouch.value = android.os.SystemClock.elapsedRealtime()
+                if (dimmed.value) {
+                    dimmed.value = false
+                    setBrightness(android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+                }
+                return original.dispatchTouchEvent(event)
+            }
+        }
+        onDispose {
+            window.callback = original
+            dimmed.value = false
+            setBrightness(android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+        }
+    }
+    LaunchedEffect(prefs.dimAfterSeconds) {
+        val window = context.findActivityOrNull()?.window ?: return@LaunchedEffect
+        if (prefs.dimAfterSeconds == 0) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            if (!dimmed.value && android.os.SystemClock.elapsedRealtime() - lastTouch.value > prefs.dimAfterSeconds * 1000L) {
+                dimmed.value = true
+                val attrs = window.attributes
+                attrs.screenBrightness = 0.02f
+                window.attributes = attrs
+            }
+        }
     }
 
     var showDisconnectConfirm by rememberSaveable { mutableStateOf(false) }
@@ -207,7 +286,8 @@ fun GamePad(
         // Start sending updates
         while (connectionViewModel != null && !isStopping.value) {
             // Queue the update in the ViewModel
-            connectionViewModel.enqueueGamepadState(gamepadState)
+            val tilt = if (prefsNow.tiltTarget != 0) io.github.horse3903.airdeck.ui.utils.TiltSteering.steer else 0f
+            connectionViewModel.enqueueGamepadState(if (tilt == 0f) gamepadState else withTilt(gamepadState, tilt, prefsNow.tiltTarget))
 
             // Reset ButtonsUp after each update
             gamepadState.ButtonsUp = 0
@@ -270,4 +350,27 @@ fun GamePadPreview() {
     PreviewBase {
         GamePad(null) {}
     }
+}
+
+private fun android.content.Context.findActivityOrNull(): android.app.Activity? {
+    var current: android.content.Context = this
+    while (current is android.content.ContextWrapper) {
+        if (current is android.app.Activity) return current
+        current = current.baseContext
+    }
+    return null
+}
+
+/** A copy of the reading with the tilt added to the chosen stick, so the touch sticks keep their own values. */
+private fun withTilt(src: GamepadReading, steer: Float, target: Int): GamepadReading = GamepadReading().also {
+    it.ButtonsDown = src.ButtonsDown
+    it.ButtonsUp = src.ButtonsUp
+    it.LeftTrigger = src.LeftTrigger
+    it.RightTrigger = src.RightTrigger
+    it.LeftThumbstickX = src.LeftThumbstickX
+    it.LeftThumbstickY = src.LeftThumbstickY
+    it.RightThumbstickX = src.RightThumbstickX
+    it.RightThumbstickY = src.RightThumbstickY
+    if (target == 1) it.LeftThumbstickX = (src.LeftThumbstickX + steer).coerceIn(-1f, 1f)
+    else it.RightThumbstickX = (src.RightThumbstickX + steer).coerceIn(-1f, 1f)
 }

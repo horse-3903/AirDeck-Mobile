@@ -60,8 +60,9 @@ fun DrawGamepad(
     val deadZonePadding = baseDp / 18
 
     // Helper function to get config for a component
+    val sizeFactor = LocalAppPrefs.current.controlSize / 100f
     fun getConfig(component: ButtonComponent) =
-        buttonConfigs[component] ?: ButtonConfig.default(component)
+        (buttonConfigs[component] ?: ButtonConfig.default(component)).let { if (sizeFactor == 1f) it else it.copy(scale = it.scale * sizeFactor) }
 
     // Helper function to render a button component
     @Composable
