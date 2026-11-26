@@ -3,6 +3,7 @@ package io.github.horse3903.airdeck.ui.screens
 import io.github.horse3903.airdeck.data.defaultStickSnap
 import io.github.horse3903.airdeck.data.defaultDpadSingle
 import io.github.horse3903.airdeck.data.defaultGamepadStyle
+import io.github.horse3903.airdeck.data.withBehaviour
 import io.github.horse3903.airdeck.data.GamepadStyle
 import android.os.Parcelable
 import androidx.compose.animation.AnimatedContent
@@ -79,6 +80,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.horse3903.airdeck.data.defaultButtonConfigs
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.scale
@@ -177,8 +180,91 @@ private fun SettingRow(
 }
 
 @Composable
-private fun SwitchRow(label: String, helper: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
-    SettingRow(label = label, helper = helper) { Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.scale(0.85f)) }
+private fun ResetChip(overridden: Boolean, onReset: (() -> Unit)?) {
+    if (overridden && onReset != null) {
+        TextButton(onClick = onReset, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(28.dp)) {
+            Text(stringResource(R.string.pref_reset_row), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    label: String,
+    helper: String? = null,
+    checked: Boolean,
+    overridden: Boolean = false,
+    onReset: (() -> Unit)? = null,
+    onChange: (Boolean) -> Unit
+) {
+    SettingRow(label = label, labelExtra = { ResetChip(overridden, onReset) }, helper = helper) {
+        Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.scale(0.85f))
+    }
+}
+
+/** A row with a few short choices side by side. */
+@Composable
+private fun <T> ChoiceRow(
+    label: String,
+    helper: String?,
+    options: List<T>,
+    selected: T,
+    optionLabel: @Composable (T) -> String,
+    overridden: Boolean = false,
+    onReset: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    indent: Dp = 0.dp,
+    onSelect: (T) -> Unit
+) {
+    SettingRow(label = label, labelExtra = { ResetChip(overridden, onReset) }, helper = helper, controlWidth = 300.dp, enabled = enabled, indent = indent) {
+        io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
+            options = options,
+            selected = selected,
+            onSelect = onSelect,
+            modifier = Modifier.fillMaxWidth()
+        ) { option, isSelected ->
+            Text(
+                optionLabel(option),
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+/** Chooses where a change on a settings page is saved: for every layout, or only for the layout in use. */
+@Composable
+private fun ScopeBar(layoutLabel: String, scopeLayout: Boolean, onChange: (Boolean) -> Unit) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = SETTINGS_WIDTH)
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+    ) {
+        io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
+            options = listOf(false, true),
+            selected = scopeLayout,
+            onSelect = onChange,
+            modifier = Modifier.fillMaxWidth()
+        ) { layout, isSelected ->
+            Text(
+                if (layout) layoutLabel else stringResource(R.string.scope_all),
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
+        Text(
+            if (scopeLayout) stringResource(R.string.scope_layout_hint, layoutLabel) else stringResource(R.string.scope_all_hint),
+            fontSize = 12.5.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp)
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -193,8 +279,10 @@ private fun SliderRow(
     onFinished: (() -> Unit)? = null,
     enabled: Boolean = true,
     indent: Dp = 0.dp,
+    overridden: Boolean = false,
+    onReset: (() -> Unit)? = null,
 ) {
-    SettingRow(label = label, helper = helper, indent = indent, enabled = enabled) {
+    SettingRow(label = label, labelExtra = { ResetChip(overridden, onReset) }, helper = helper, indent = indent, enabled = enabled) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.Slider(
                 value = value.toFloat(),
@@ -297,6 +385,7 @@ fun SettingsScreen(
     var settingsChanges by rememberSaveable { mutableStateOf(SettingsChanges()) }
     val applyScope = rememberCoroutineScope()
     var page by rememberSaveable { mutableStateOf("appearance") }
+    var scopeLayout by rememberSaveable { mutableStateOf(false) }
 
     Scaffold { paddingValues ->
         val colorScheme by settingsRepository.colorScheme.collectAsState(initial = defaultColorScheme)
@@ -306,6 +395,12 @@ fun SettingsScreen(
         val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
         val hapticPrefs by settingsRepository.hapticPrefs.collectAsState(initial = HapticPrefs())
         val prefs by settingsRepository.appPrefs.collectAsState(initial = io.github.horse3903.airdeck.data.AppPrefs())
+        val behaviour by settingsRepository.layoutBehaviour.collectAsState(initial = emptyMap())
+        val activeLayout by settingsRepository.activeLayout.collectAsState(initial = null)
+        val layoutConfigs by settingsRepository.buttonConfigs.collectAsState(initial = defaultButtonConfigs)
+        val layoutLabel = activeLayout ?: stringResource(R.string.layout_custom)
+        // With "this layout" chosen the rows show what the layout uses, and a change is saved as its override
+        val shown = if (scopeLayout) prefs.withBehaviour(behaviour) else prefs
         val hapticView = androidx.compose.ui.platform.LocalView.current
         val dpadSingle by settingsRepository.dpadSingle.collectAsState(initial = defaultDpadSingle)
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
@@ -338,6 +433,7 @@ fun SettingsScreen(
                         "layouts" to R.string.layouts_title,
                         "sticks" to R.string.sec_sticks,
                         "dpad" to R.string.sec_dpad,
+                        "triggers" to R.string.sec_triggers,
                         "haptics" to R.string.sec_haptics,
                         "display" to R.string.sec_group_display,
                         "connection" to R.string.sec_connection
@@ -375,6 +471,7 @@ fun SettingsScreen(
                             "layouts" -> R.string.layouts_title
                             "sticks" -> R.string.sec_sticks
                             "dpad" -> R.string.sec_dpad
+                            "triggers" -> R.string.sec_triggers
                             "haptics" -> R.string.sec_haptics
                             "display" -> R.string.sec_group_display
                             "connection" -> R.string.sec_connection
@@ -411,71 +508,134 @@ fun SettingsScreen(
                 when (current) {
                     "layouts" -> LayoutsPage(settingsRepository, onNavigateToGamepadCustomization)
                     "sticks" -> {
-                SwitchRow(stringResource(R.string.settings_stick_snap), stringResource(R.string.settings_stick_snap_desc), stickSnap) {
-                    applyScope.launch { settingsRepository.setStickSnap(it) }
+                fun overridden(key: String) = scopeLayout && key in behaviour
+                fun clearBehaviour(key: String) { applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour - key) } }
+                fun change(key: String, value: Int, global: () -> Unit) {
+                    if (scopeLayout) applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour + (key to value)) } else global()
                 }
-                SliderRow(stringResource(R.string.pref_dead_zone), stringResource(R.string.pref_dead_zone_desc), "${prefs.deadZone}%", prefs.deadZone, 0..40, { save(prefs.copy(deadZone = it)) })
-                SliderRow(stringResource(R.string.pref_sensitivity), stringResource(R.string.pref_sensitivity_desc), "${prefs.sensitivity}%", prefs.sensitivity, 50..150, { save(prefs.copy(sensitivity = it)) })
-                SettingRow(label = stringResource(R.string.pref_curve), helper = stringResource(R.string.pref_curve_desc), controlWidth = 300.dp) {
-                    io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
-                        options = listOf(0, 1, 2),
-                        selected = prefs.stickCurve,
-                        onSelect = { save(prefs.copy(stickCurve = it)) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { option, isSelected ->
-                        Text(
-                            stringResource(when (option) { 0 -> R.string.curve_linear; 1 -> R.string.curve_precise; else -> R.string.curve_quick }),
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                            maxLines = 1,
-                            softWrap = false
-                        )
+                val snapShown = if (scopeLayout) (behaviour["snap"]?.let { it != 0 } ?: stickSnap) else stickSnap
+                ScopeBar(layoutLabel, scopeLayout) { scopeLayout = it }
+                if (scopeLayout) {
+                    ChoiceRow(
+                        stringResource(R.string.pref_left_stick_position), stringResource(R.string.stick_position_desc),
+                        io.github.horse3903.airdeck.data.StickMode.entries.toList(),
+                        layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.LEFT_ANALOG_STICK]?.stickMode ?: io.github.horse3903.airdeck.data.StickMode.FIXED,
+                        { stringResource(it.nameRes) }
+                    ) { m ->
+                        applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.LEFT_ANALOG_STICK) { it.copy(stickMode = m) } }
+                    }
+                    ChoiceRow(
+                        stringResource(R.string.pref_right_stick_position), null,
+                        io.github.horse3903.airdeck.data.StickMode.entries.toList(),
+                        layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_ANALOG_STICK]?.stickMode ?: io.github.horse3903.airdeck.data.StickMode.FIXED,
+                        { stringResource(it.nameRes) }
+                    ) { m ->
+                        applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_ANALOG_STICK) { it.copy(stickMode = m) } }
                     }
                 }
-                SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), prefs.clickEnabled) { save(prefs.copy(clickEnabled = it)) }
-                AnimatedVisibility(visible = prefs.clickEnabled) {
+                SwitchRow(stringResource(R.string.settings_stick_snap), stringResource(R.string.settings_stick_snap_desc), snapShown, overridden("snap"), { clearBehaviour("snap") }) { v ->
+                    change("snap", if (v) 1 else 0) { applyScope.launch { settingsRepository.setStickSnap(v) } }
+                }
+                SliderRow(
+                    stringResource(R.string.pref_dead_zone), stringResource(R.string.pref_dead_zone_desc), "${shown.deadZone}%", shown.deadZone, 0..40,
+                    { change("dead", it) { save(prefs.copy(deadZone = it)) } }, overridden = overridden("dead"), onReset = { clearBehaviour("dead") }
+                )
+                SliderRow(
+                    stringResource(R.string.pref_sensitivity), stringResource(R.string.pref_sensitivity_desc), "${shown.sensitivity}%", shown.sensitivity, 50..150,
+                    { change("sens", it) { save(prefs.copy(sensitivity = it)) } }, overridden = overridden("sens"), onReset = { clearBehaviour("sens") }
+                )
+                ChoiceRow(
+                    stringResource(R.string.pref_curve), stringResource(R.string.pref_curve_desc), listOf(0, 1, 2), shown.stickCurve,
+                    { stringResource(when (it) { 0 -> R.string.curve_linear; 1 -> R.string.curve_precise; else -> R.string.curve_quick }) },
+                    overridden("curve"), { clearBehaviour("curve") }
+                ) { v -> change("curve", v) { save(prefs.copy(stickCurve = v)) } }
+                SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), shown.clickEnabled, overridden("click"), { clearBehaviour("click") }) { v ->
+                    change("click", if (v) 1 else 0) { save(prefs.copy(clickEnabled = v)) }
+                }
+                AnimatedVisibility(visible = shown.clickEnabled) {
  Column {
-                    SliderRow(stringResource(R.string.pref_click_ms), null, "${prefs.clickHoldMs} ms", prefs.clickHoldMs, 200..1500, { save(prefs.copy(clickHoldMs = it)) })
+                    SliderRow(
+                        stringResource(R.string.pref_click_ms), null, "${shown.clickHoldMs} ms", shown.clickHoldMs, 200..1500,
+                        { change("clickMs", it) { save(prefs.copy(clickHoldMs = it)) } }, overridden = overridden("clickMs"), onReset = { clearBehaviour("clickMs") }
+                    )
                 } }
-                SwitchRow(stringResource(R.string.pref_invert_left), null, prefs.invertLeftY) { save(prefs.copy(invertLeftY = it)) }
-                SwitchRow(stringResource(R.string.pref_invert_right), null, prefs.invertRightY) { save(prefs.copy(invertRightY = it)) }
-                SettingRow(label = stringResource(R.string.pref_tilt), helper = stringResource(R.string.pref_tilt_desc), controlWidth = 300.dp) {
-                    io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
-                        options = listOf(0, 1, 2),
-                        selected = prefs.tiltTarget,
-                        onSelect = { save(prefs.copy(tiltTarget = it)) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { option, isSelected ->
-                        Text(
-                            stringResource(when (option) { 0 -> R.string.pref_off; 1 -> R.string.tilt_left; else -> R.string.tilt_right }),
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
+                SwitchRow(stringResource(R.string.pref_invert_left), null, shown.invertLeftY, overridden("invL"), { clearBehaviour("invL") }) { v ->
+                    change("invL", if (v) 1 else 0) { save(prefs.copy(invertLeftY = v)) }
                 }
+                SwitchRow(stringResource(R.string.pref_invert_right), null, shown.invertRightY, overridden("invR"), { clearBehaviour("invR") }) { v ->
+                    change("invR", if (v) 1 else 0) { save(prefs.copy(invertRightY = v)) }
+                }
+                ChoiceRow(
+                    stringResource(R.string.pref_tilt), stringResource(R.string.pref_tilt_desc), listOf(0, 1, 2), shown.tiltTarget,
+                    { stringResource(when (it) { 0 -> R.string.pref_off; 1 -> R.string.tilt_left; else -> R.string.tilt_right }) },
+                    overridden("tilt"), { clearBehaviour("tilt") }
+                ) { v -> change("tilt", v) { save(prefs.copy(tiltTarget = v)) } }
                 SliderRow(
-                    stringResource(R.string.pref_tilt_range), stringResource(R.string.pref_tilt_range_desc), "${prefs.tiltRange}\u00B0",
-                    prefs.tiltRange, 15..60, { save(prefs.copy(tiltRange = it)) }, enabled = prefs.tiltTarget != 0, indent = 16.dp
+                    stringResource(R.string.pref_tilt_range), stringResource(R.string.pref_tilt_range_desc), "${shown.tiltRange}\u00B0",
+                    shown.tiltRange, 15..60, { change("tiltRange", it) { save(prefs.copy(tiltRange = it)) } },
+                    enabled = shown.tiltTarget != 0, indent = 16.dp, overridden = overridden("tiltRange"), onReset = { clearBehaviour("tiltRange") }
                 )
                 SliderRow(
-                    stringResource(R.string.pref_tilt_dead), stringResource(R.string.pref_tilt_dead_desc), "${prefs.tiltDead}\u00B0",
-                    prefs.tiltDead, 0..15, { save(prefs.copy(tiltDead = it)) }, enabled = prefs.tiltTarget != 0, indent = 16.dp
+                    stringResource(R.string.pref_tilt_dead), stringResource(R.string.pref_tilt_dead_desc), "${shown.tiltDead}\u00B0",
+                    shown.tiltDead, 0..15, { change("tiltDead", it) { save(prefs.copy(tiltDead = it)) } },
+                    enabled = shown.tiltTarget != 0, indent = 16.dp, overridden = overridden("tiltDead"), onReset = { clearBehaviour("tiltDead") }
                 )
-                SettingRow(label = stringResource(R.string.pref_tilt_invert), indent = 16.dp, enabled = prefs.tiltTarget != 0) {
-                    Switch(checked = prefs.tiltInvert, onCheckedChange = { save(prefs.copy(tiltInvert = it)) }, modifier = Modifier.scale(0.85f))
+                SettingRow(
+                    label = stringResource(R.string.pref_tilt_invert),
+                    labelExtra = { ResetChip(overridden("tiltInvert")) { clearBehaviour("tiltInvert") } },
+                    indent = 16.dp, enabled = shown.tiltTarget != 0
+                ) {
+                    Switch(
+                        checked = shown.tiltInvert,
+                        onCheckedChange = { v -> change("tiltInvert", if (v) 1 else 0) { save(prefs.copy(tiltInvert = v)) } },
+                        modifier = Modifier.scale(0.85f)
+                    )
                 }
 
                     }
                     "dpad" -> {
-                SwitchRow(stringResource(R.string.settings_dpad_single), stringResource(R.string.settings_dpad_single_desc), dpadSingle) {
-                    applyScope.launch { settingsRepository.setDpadSingle(it) }
+                fun overriddenD(key: String) = scopeLayout && key in behaviour
+                fun clearD(key: String) { applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour - key) } }
+                fun changeD(key: String, value: Int, global: () -> Unit) {
+                    if (scopeLayout) applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour + (key to value)) } else global()
                 }
-                AnimatedVisibility(visible = !dpadSingle) {
+                val singleShown = if (scopeLayout) (behaviour["dpadSingle"]?.let { it != 0 } ?: dpadSingle) else dpadSingle
+                ScopeBar(layoutLabel, scopeLayout) { scopeLayout = it }
+                SwitchRow(stringResource(R.string.settings_dpad_single), stringResource(R.string.settings_dpad_single_desc), singleShown, overriddenD("dpadSingle"), { clearD("dpadSingle") }) { v ->
+                    changeD("dpadSingle", if (v) 1 else 0) { applyScope.launch { settingsRepository.setDpadSingle(v) } }
+                }
+                AnimatedVisibility(visible = !singleShown) {
  Column {
-                    SliderRow(stringResource(R.string.pref_diagonal), stringResource(R.string.pref_diagonal_desc), "${prefs.dpadDiagonal}%", prefs.dpadDiagonal, 20..60, { save(prefs.copy(dpadDiagonal = it)) })
+                    SliderRow(
+                        stringResource(R.string.pref_diagonal), stringResource(R.string.pref_diagonal_desc), "${shown.dpadDiagonal}%", shown.dpadDiagonal, 20..60,
+                        { changeD("diag", it) { save(prefs.copy(dpadDiagonal = it)) } }, overridden = overriddenD("diag"), onReset = { clearD("diag") }
+                    )
                 } }
+
+                    }
+                    "triggers" -> {
+                Text(
+                    stringResource(R.string.triggers_note, layoutLabel),
+                    fontSize = 12.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.widthIn(max = SETTINGS_WIDTH).fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                val leftMode = layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.LEFT_TRIGGER]?.triggerMode
+                    ?.takeIf { it in io.github.horse3903.airdeck.data.TriggerMode.offered } ?: io.github.horse3903.airdeck.data.TriggerMode.DIGITAL
+                val rightMode = layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_TRIGGER]?.triggerMode
+                    ?.takeIf { it in io.github.horse3903.airdeck.data.TriggerMode.offered } ?: io.github.horse3903.airdeck.data.TriggerMode.DIGITAL
+                ChoiceRow(
+                    stringResource(R.string.pref_left_trigger_input), stringResource(leftMode.descRes),
+                    io.github.horse3903.airdeck.data.TriggerMode.offered, leftMode, { stringResource(it.nameRes) }
+                ) { m ->
+                    applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.LEFT_TRIGGER) { it.copy(triggerMode = m) } }
+                }
+                ChoiceRow(
+                    stringResource(R.string.pref_right_trigger_input), stringResource(rightMode.descRes),
+                    io.github.horse3903.airdeck.data.TriggerMode.offered, rightMode, { stringResource(it.nameRes) }
+                ) { m ->
+                    applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_TRIGGER) { it.copy(triggerMode = m) } }
+                }
 
                     }
                     "haptics" -> {

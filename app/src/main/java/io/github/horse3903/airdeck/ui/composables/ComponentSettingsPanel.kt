@@ -197,64 +197,6 @@ fun ComponentSettingsPanel(
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            if (component == ButtonComponent.LEFT_TRIGGER || component == ButtonComponent.RIGHT_TRIGGER) {
-                Text(
-                    text = stringResource(R.string.panel_trigger_mode),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                TriggerMode.offered.forEach { m ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onConfigChange(config.copy(triggerMode = m)) }
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = config.triggerMode == m,
-                            onClick = { onConfigChange(config.copy(triggerMode = m)) }
-                        )
-                        Column {
-                            Text(stringResource(m.nameRes), style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                stringResource(m.descRes),
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-            if (component == ButtonComponent.LEFT_ANALOG_STICK || component == ButtonComponent.RIGHT_ANALOG_STICK) {
-                Text(
-                    text = stringResource(R.string.panel_stick_mode),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                StickMode.entries.forEach { m ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onConfigChange(config.copy(stickMode = m)) }
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = config.stickMode == m,
-                            onClick = { onConfigChange(config.copy(stickMode = m)) }
-                        )
-                        Column {
-                            Text(stringResource(m.nameRes), style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                stringResource(m.descRes),
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
             LabeledSlider(
                 title = stringResource(R.string.panel_size),
                 valueText = "${(config.scale * 100).toInt()}%",

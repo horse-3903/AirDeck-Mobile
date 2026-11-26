@@ -168,6 +168,7 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
     val configs by settingsRepository.buttonConfigs.collectAsState(initial = defaultButtonConfigs)
     val groups by settingsRepository.layoutGroups.collectAsState(initial = defaultLayoutGroups)
     val presets by settingsRepository.presets.collectAsState(initial = emptyMap())
+    val behaviour by settingsRepository.layoutBehaviour.collectAsState(initial = emptyMap())
     val active by settingsRepository.activeLayout.collectAsState(initial = null)
     LaunchedEffect(Unit) { settingsRepository.ensureFactoryLayout() }
     val copied = stringResource(R.string.quick_layout_copied)
@@ -271,7 +272,7 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
                     SectionTitle(stringResource(R.string.quick_section_config))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         ActionButton(R.drawable.ic_file_download, stringResource(R.string.customization_export), Modifier.weight(1f)) {
-                            val json = exportLayout(configs, groups)
+                            val json = exportLayout(configs, groups, behaviour)
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("gamepad layout", json))
                             Toast.makeText(context, copied, Toast.LENGTH_SHORT).show()
@@ -286,6 +287,7 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
                                 scope.launch {
                                     settingsRepository.setAllButtonConfigs(parsed.buttons)
                                     parsed.groups?.let { settingsRepository.setLayoutGroups(it) }
+                                    parsed.behaviour?.let { settingsRepository.setLayoutBehaviour(it) }
                                 }
                                 Toast.makeText(context, imported, Toast.LENGTH_SHORT).show()
                             }

@@ -428,6 +428,17 @@
     <string name="pref_dim">Dim when idle</string>
     <string name="pref_dim_desc">Lower the brightness after a pause to save battery. Touch to wake.</string>
     <string name="pref_off">Off</string>
+    <string name="sec_triggers">Triggers</string>
+    <string name="scope_all">All layouts</string>
+    <string name="scope_all_hint">The default for every layout. A layout can override it.</string>
+    <string name="scope_layout_hint">Only for %1$s. Other layouts keep their own. Reset puts a row back to the default.</string>
+    <string name="pref_reset_row">Reset</string>
+    <string name="triggers_note">These belong to the layout in use: %1$s.</string>
+    <string name="pref_left_trigger_input">Left trigger input</string>
+    <string name="pref_right_trigger_input">Right trigger input</string>
+    <string name="pref_left_stick_position">Left stick position</string>
+    <string name="pref_right_stick_position">Right stick position</string>
+    <string name="stick_position_desc">Fixed stays where the layout puts it. Floating appears under your thumb inside its area.</string>
     <string name="pref_tilt">Tilt steering</string>
     <string name="pref_tilt_desc">Tilt the phone like a steering wheel to move a stick sideways. It calibrates when the controller opens.</string>
     <string name="tilt_left">Left stick</string>

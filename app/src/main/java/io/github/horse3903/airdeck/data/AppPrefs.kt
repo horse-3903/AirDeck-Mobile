@@ -37,3 +37,23 @@ data class AppPrefs(
     val reconnectSeconds: Int = 120,
     val confirmDisconnect: Boolean = true,
 )
+
+/**
+ * The settings a layout can override while it is in use. The values are whole numbers: on is 1, off is 0,
+ * and a choice is its position in its list (curve: linear, precise, quick. tilt: off, left, right).
+ * Keys: snap, dead, sens, curve, click, clickMs, invL, invR, tilt, tiltRange, tiltDead, tiltInvert, dpadSingle, diag.
+ */
+fun AppPrefs.withBehaviour(b: Map<String, Int>): AppPrefs = if (b.isEmpty()) this else copy(
+    deadZone = b["dead"] ?: deadZone,
+    sensitivity = b["sens"] ?: sensitivity,
+    stickCurve = b["curve"] ?: stickCurve,
+    clickEnabled = b["click"]?.let { it != 0 } ?: clickEnabled,
+    clickHoldMs = b["clickMs"] ?: clickHoldMs,
+    invertLeftY = b["invL"]?.let { it != 0 } ?: invertLeftY,
+    invertRightY = b["invR"]?.let { it != 0 } ?: invertRightY,
+    tiltTarget = b["tilt"] ?: tiltTarget,
+    tiltRange = b["tiltRange"] ?: tiltRange,
+    tiltDead = b["tiltDead"] ?: tiltDead,
+    tiltInvert = b["tiltInvert"]?.let { it != 0 } ?: tiltInvert,
+    dpadDiagonal = b["diag"] ?: dpadDiagonal,
+)

@@ -6,6 +6,7 @@ import io.github.horse3903.airdeck.ui.composables.LocalDpadSingle
 import io.github.horse3903.airdeck.data.defaultDpadSingle
 import io.github.horse3903.airdeck.data.defaultStickSnap
 import io.github.horse3903.airdeck.data.defaultGamepadStyle
+import io.github.horse3903.airdeck.data.withBehaviour
 import androidx.compose.runtime.CompositionLocalProvider
 import android.Manifest
 import android.content.pm.PackageManager
@@ -132,11 +133,13 @@ class MainActivity : ComponentActivity() {
             val stickSnap by settingsRepository.stickSnap.collectAsState(initial = defaultStickSnap)
             val dpadSingle by settingsRepository.dpadSingle.collectAsState(initial = defaultDpadSingle)
             val appPrefs by settingsRepository.appPrefs.collectAsState(initial = io.github.horse3903.airdeck.data.AppPrefs())
+            // What the layout in use overrides wins over the settings
+            val behaviour by settingsRepository.layoutBehaviour.collectAsState(initial = emptyMap())
             CompositionLocalProvider(
                 LocalGamepadStyle provides gamepadStyle,
-                LocalStickSnap provides stickSnap,
-                LocalDpadSingle provides dpadSingle,
-                io.github.horse3903.airdeck.ui.composables.LocalAppPrefs provides appPrefs
+                LocalStickSnap provides (behaviour["snap"]?.let { it != 0 } ?: stickSnap),
+                LocalDpadSingle provides (behaviour["dpadSingle"]?.let { it != 0 } ?: dpadSingle),
+                io.github.horse3903.airdeck.ui.composables.LocalAppPrefs provides appPrefs.withBehaviour(behaviour)
             ) {
                 NavTree(
                     connectionViewModel = connectionViewModel,

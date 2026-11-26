@@ -296,6 +296,8 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
     val active by repo.activeLayout.collectAsState(initial = null)
     val currentButtons by repo.buttonConfigs.collectAsState(initial = defaultButtonConfigs)
     val currentGroups by repo.layoutGroups.collectAsState(initial = defaultLayoutGroups)
+    val currentBehaviour by repo.layoutBehaviour.collectAsState(initial = emptyMap())
+    val presetBehaviour by repo.presetBehaviour.collectAsState(initial = emptyMap())
     val defaultName = FACTORY_LAYOUT
     val importedName = stringResource(R.string.layout_imported_name)
     val copySuffix = stringResource(R.string.layout_copy_suffix)
@@ -343,7 +345,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
             onConfirm = { name ->
                 showNew = false
                 scope.launch {
-                    repo.savePreset(name, defaultButtonConfigs, defaultLayoutGroups)
+                    repo.savePreset(name, defaultButtonConfigs, defaultLayoutGroups, emptyMap())
                     repo.applyPreset(name)
                     onEdit()
                 }
@@ -361,7 +363,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
             onConfirm = { name ->
                 saveCurrent = false
                 scope.launch {
-                    repo.savePreset(name, currentButtons, currentGroups)
+                    repo.savePreset(name, currentButtons, currentGroups, currentBehaviour)
                     repo.setActiveLayout(name)
                 }
             },
@@ -422,7 +424,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
         if (buttons != null) {
             ExportDialog(
                 title = stringResource(R.string.layout_export_one_title, target),
-                json = exportLayout(buttons, presetGroups[target] ?: defaultLayoutGroups),
+                json = exportLayout(buttons, presetGroups[target] ?: defaultLayoutGroups, presetBehaviour[target] ?: emptyMap()),
                 onDismiss = { exporting = null }
             )
         }
@@ -430,7 +432,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
     if (exportAll) {
         ExportDialog(
             title = stringResource(R.string.layout_export_all_title),
-            json = exportPresets(presets, presetGroups),
+            json = exportPresets(presets, presetGroups, presetBehaviour),
             onDismiss = { exportAll = false }
         )
     }
@@ -471,7 +473,8 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                                     repo.savePreset(
                                         target,
                                         ButtonComponent.entries.associateWith { bundle.buttons[it] ?: ButtonConfig.default(it) },
-                                        bundle.groups ?: defaultLayoutGroups
+                                        bundle.groups ?: defaultLayoutGroups,
+                                        bundle.behaviour ?: emptyMap()
                                     )
                                 }
                             }
@@ -661,7 +664,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                             CompactMenuItem(stringResource(R.string.layout_duplicate), R.drawable.ic_lucide_copy) {
                                 menuOpen = false
                                 scope.launch {
-                                    repo.savePreset(uniqueName(name + copySuffix), configs, presetGroups[name] ?: defaultLayoutGroups)
+                                    repo.savePreset(uniqueName(name + copySuffix), configs, presetGroups[name] ?: defaultLayoutGroups, presetBehaviour[name] ?: emptyMap())
                                 }
                             }
                             CompactMenuItem(stringResource(R.string.layout_export), R.drawable.ic_lucide_download) {
@@ -695,7 +698,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                         onClick = {
                             scope.launch {
                                 val to = uniqueName(s.name)
-                                repo.savePreset(to, s.buttons, defaultLayoutGroups)
+                                repo.savePreset(to, s.buttons, defaultLayoutGroups, s.behaviour)
                                 repo.applyPreset(to)
                             }
                         }

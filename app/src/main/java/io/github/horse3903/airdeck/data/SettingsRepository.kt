@@ -80,6 +80,41 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences -> preferences[LAYOUT_GROUPS] = encodeGroups(groups) }
     }
 
+    /** What the layout in use overrides in Settings. Empty when it overrides nothing. */
+    val layoutBehaviour: Flow<Map<String, Int>> = dataStore.data.map { decodeBehaviour(it[LAYOUT_BEHAVIOUR]) }
+
+    val presetBehaviour: Flow<Map<String, Map<String, Int>>> = dataStore.data.map { decodePresetBehaviour(it[PRESET_BEHAVIOUR]) }
+
+    /** Saves the overrides for the layout in use, into its saved layout too. Overriding on the built-in layout makes an unsaved layout. */
+    suspend fun setLayoutBehaviour(map: Map<String, Int>) {
+        dataStore.edit { p ->
+            p[LAYOUT_BEHAVIOUR] = Json.encodeToString(map)
+            val active = p[ACTIVE_LAYOUT]
+            if (active != null && active != FACTORY_LAYOUT && active in decodePresets(p[PRESETS])) {
+                p[PRESET_BEHAVIOUR] = Json.encodeToString(decodePresetBehaviour(p[PRESET_BEHAVIOUR]) + (active to map))
+            } else if (active == FACTORY_LAYOUT && map.isNotEmpty()) {
+                p.remove(ACTIVE_LAYOUT)
+            }
+        }
+    }
+
+    /** Changes one control of the layout in use, and the saved layout it belongs to. */
+    suspend fun updateLayoutConfig(component: ButtonComponent, transform: (ButtonConfig) -> ButtonConfig) {
+        dataStore.edit { p ->
+            val current = p[BUTTON_CONFIGS]?.let { runCatching { Json.decodeFromString<Map<ButtonComponent, ButtonConfig>>(it) }.getOrNull() }.orEmpty()
+            val full = defaultButtonConfigs + current
+            val updated = full + (component to transform(full.getValue(component)))
+            p[BUTTON_CONFIGS] = Json.encodeToString(updated)
+            val active = p[ACTIVE_LAYOUT]
+            if (active != null && active != FACTORY_LAYOUT) {
+                val all = decodePresets(p[PRESETS])
+                if (active in all) p[PRESETS] = Json.encodeToString(all + (active to updated))
+            } else if (active == FACTORY_LAYOUT) {
+                p.remove(ACTIVE_LAYOUT)
+            }
+        }
+    }
+
     val presetGroups: Flow<Map<String, List<LayoutGroup>>> =
         dataStore.data.map { preferences -> decodePresetGroups(preferences[PRESET_GROUPS]) }
 
@@ -98,6 +133,8 @@ class SettingsRepository(context: Context) {
             val configs = decodePresets(preferences[PRESETS])[name] ?: return@edit
             preferences[BUTTON_CONFIGS] = Json.encodeToString(configs)
             decodePresetGroups(preferences[PRESET_GROUPS])[name]?.let { preferences[LAYOUT_GROUPS] = encodeGroups(it) }
+            val behaviour = decodePresetBehaviour(preferences[PRESET_BEHAVIOUR])[name]
+            if (behaviour.isNullOrEmpty()) preferences.remove(LAYOUT_BEHAVIOUR) else preferences[LAYOUT_BEHAVIOUR] = Json.encodeToString(behaviour)
             preferences[ACTIVE_LAYOUT] = name
         }
     }
@@ -130,6 +167,8 @@ class SettingsRepository(context: Context) {
             preferences[PRESETS] = Json.encodeToString(configs.mapKeys { (k, _) -> if (k == old) new else k })
             val groups = decodePresetGroups(preferences[PRESET_GROUPS])
             preferences[PRESET_GROUPS] = Json.encodeToString(groups.mapKeys { (k, _) -> if (k == old) new else k })
+            val behaviour = decodePresetBehaviour(preferences[PRESET_BEHAVIOUR])
+            preferences[PRESET_BEHAVIOUR] = Json.encodeToString(behaviour.mapKeys { (k, _) -> if (k == old) new else k })
             if (preferences[ACTIVE_LAYOUT] == old) preferences[ACTIVE_LAYOUT] = new
         }
     }
@@ -291,16 +330,22 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    /** [behaviour] null leaves what the saved layout already overrides as it is. */
     suspend fun savePreset(
         name: String,
         configs: Map<ButtonComponent, ButtonConfig>,
-        groups: List<LayoutGroup>
+        groups: List<LayoutGroup>,
+        behaviour: Map<String, Int>? = null
     ) {
         dataStore.edit { preferences ->
             val updated = decodePresets(preferences[PRESETS]) + (name to configs)
             preferences[PRESETS] = Json.encodeToString(updated)
             preferences[PRESET_GROUPS] =
                 Json.encodeToString(decodePresetGroups(preferences[PRESET_GROUPS]) + (name to groups))
+            if (behaviour != null) {
+                val all = decodePresetBehaviour(preferences[PRESET_BEHAVIOUR])
+                preferences[PRESET_BEHAVIOUR] = Json.encodeToString(if (behaviour.isEmpty()) all - name else all + (name to behaviour))
+            }
         }
     }
 
@@ -310,6 +355,7 @@ class SettingsRepository(context: Context) {
             preferences[PRESETS] = Json.encodeToString(updated)
             preferences[PRESET_GROUPS] =
                 Json.encodeToString(decodePresetGroups(preferences[PRESET_GROUPS]) - name)
+            preferences[PRESET_BEHAVIOUR] = Json.encodeToString(decodePresetBehaviour(preferences[PRESET_BEHAVIOUR]) - name)
             if (preferences[ACTIVE_LAYOUT] == name) preferences.remove(ACTIVE_LAYOUT)
         }
     }
@@ -337,7 +383,11 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences ->
             val presetsJson = preferences[PRESETS]
             val presetGroupsJson = preferences[PRESET_GROUPS]
+            val presetBehaviourJson = preferences[PRESET_BEHAVIOUR]
             preferences.clear()
+            if (presetBehaviourJson != null) {
+                preferences[PRESET_BEHAVIOUR] = presetBehaviourJson
+            }
             if (presetsJson != null) {
                 preferences[PRESETS] = presetsJson
             }
@@ -387,6 +437,8 @@ class SettingsRepository(context: Context) {
         private val PREF_CONFIRM = booleanPreferencesKey("pref_confirm_disconnect")
         private val PREF_GAME_RUMBLE = booleanPreferencesKey("pref_game_rumble")
         private val PREF_RING = booleanPreferencesKey("pref_stick_ring")
+        private val LAYOUT_BEHAVIOUR = stringPreferencesKey("layout_behaviour")
+        private val PRESET_BEHAVIOUR = stringPreferencesKey("preset_behaviour")
         private val PREF_TILT = intPreferencesKey("pref_tilt_target")
         private val PREF_TILT_RANGE = intPreferencesKey("pref_tilt_range")
         private val PREF_TILT_DEAD = intPreferencesKey("pref_tilt_dead")
@@ -416,3 +468,9 @@ class SettingsRepository(context: Context) {
         private val FULL_SCREEN_ENABLED = booleanPreferencesKey("full_screen_enabled")
     }
 }
+
+private fun decodeBehaviour(text: String?): Map<String, Int> =
+    text?.let { runCatching { Json.decodeFromString<Map<String, Int>>(it) }.getOrNull() }.orEmpty()
+
+private fun decodePresetBehaviour(text: String?): Map<String, Map<String, Int>> =
+    text?.let { runCatching { Json.decodeFromString<Map<String, Map<String, Int>>>(it) }.getOrNull() }.orEmpty()

@@ -21,7 +21,40 @@ class LayoutBundle(
     val buttons: Map<ButtonComponent, ButtonConfig>,
     /** Null when the text had no groups, so the current ones should stay. */
     val groups: List<LayoutGroup>?,
+    /** The settings this layout overrides, see [withBehaviour]. Null when the text had none. */
+    val behaviour: Map<String, Int>? = null,
 )
+
+private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick"), "tilt" to listOf("off", "left", "right"))
+private val flagKeys = setOf("snap", "click", "invL", "invR", "tiltInvert", "dpadSingle")
+private val rangedKeys = mapOf("dead" to 0..40, "sens" to 50..150, "clickMs" to 200..1500, "tiltRange" to 15..60, "tiltDead" to 0..15, "diag" to 20..60)
+
+/** Overrides as shared text: flags as true or false, choices by name, the rest as numbers. */
+fun behaviourToJson(b: Map<String, Int>): JsonObject = buildJsonObject {
+    for ((k, v) in b) {
+        val choices = choiceKeys[k]
+        when {
+            choices != null -> put(k, choices.getOrElse(v) { choices[0] })
+            k in flagKeys -> put(k, v != 0)
+            else -> put(k, v)
+        }
+    }
+}
+
+private fun parseBehaviour(o: JsonObject): Map<String, Int> {
+    val out = linkedMapOf<String, Int>()
+    for ((k, e) in o) {
+        val p = e as? JsonPrimitive ?: continue
+        val choices = choiceKeys[k]
+        val range = rangedKeys[k]
+        when {
+            k in flagKeys -> p.booleanOrNull?.let { out[k] = if (it) 1 else 0 }
+            choices != null -> choices.indexOf(p.contentOrNull).takeIf { it >= 0 }?.let { out[k] = it }
+            range != null -> p.floatOrNull?.let { out[k] = it.toInt().coerceIn(range) }
+        }
+    }
+    return out
+}
 
 private val exportJson = Json {
     prettyPrint = true
@@ -29,11 +62,12 @@ private val exportJson = Json {
 }
 
 /** Version 2 layout text: `{ "version": 2, "buttons": { ... }, "groups": [ ... ] }`. */
-fun exportLayout(buttons: Map<ButtonComponent, ButtonConfig>, groups: List<LayoutGroup>): String {
+fun exportLayout(buttons: Map<ButtonComponent, ButtonConfig>, groups: List<LayoutGroup>, behaviour: Map<String, Int> = emptyMap()): String {
     val root = buildJsonObject {
         put("version", LAYOUT_FORMAT_VERSION)
         put("buttons", exportJson.encodeToJsonElement(buttons))
         put("groups", exportJson.encodeToJsonElement(groups))
+        if (behaviour.isNotEmpty()) put("behaviour", behaviourToJson(behaviour))
     }
     return exportJson.encodeToString(JsonObject.serializer(), root)
 }
@@ -51,7 +85,8 @@ fun parseLayout(text: String): LayoutBundle {
     val legacy = wrapped == null
     return LayoutBundle(
         buttons = parseControls(wrapped ?: root, legacy),
-        groups = (root["groups"] as? JsonArray)?.let(::parseGroups)
+        groups = (root["groups"] as? JsonArray)?.let(::parseGroups),
+        behaviour = (root["behaviour"] as? JsonObject)?.let(::parseBehaviour)
     )
 }
 
@@ -105,7 +140,8 @@ private fun parseGroups(array: JsonArray): List<LayoutGroup> {
 /** Every saved layout as one text: `{ "version": 2, "presets": { "name": { buttons, groups }, ... } }`. */
 fun exportPresets(
     presets: Map<String, Map<ButtonComponent, ButtonConfig>>,
-    presetGroups: Map<String, List<LayoutGroup>>
+    presetGroups: Map<String, List<LayoutGroup>>,
+    presetBehaviour: Map<String, Map<String, Int>> = emptyMap()
 ): String {
     val root = buildJsonObject {
         put("version", LAYOUT_FORMAT_VERSION)
@@ -114,6 +150,7 @@ fun exportPresets(
                 put(name, buildJsonObject {
                     put("buttons", exportJson.encodeToJsonElement(buttons))
                     put("groups", exportJson.encodeToJsonElement(presetGroups[name] ?: defaultLayoutGroups))
+                    presetBehaviour[name]?.takeIf { it.isNotEmpty() }?.let { put("behaviour", behaviourToJson(it)) }
                 })
             }
         })

@@ -3,23 +3,33 @@ package io.github.horse3903.airdeck.data
 import io.github.horse3903.airdeck.data.ButtonAnchor.*
 import io.github.horse3903.airdeck.data.ButtonComponent.*
 
-/** A ready-made layout for a kind of game. Using one saves a copy under its name, so it can be edited freely. */
-class SuggestedLayout(val name: String, val description: String, val buttons: Map<ButtonComponent, ButtonConfig>)
+/** A ready-made layout for a kind of game, with the behaviour that suits it. Using one saves a copy under its name. */
+class SuggestedLayout(
+    val name: String,
+    val description: String,
+    val buttons: Map<ButtonComponent, ButtonConfig>,
+    val behaviour: Map<String, Int>,
+)
 
-private fun cfg(component: ButtonComponent, visible: Boolean, scale: Float, offsetX: Float, offsetY: Float, anchor: ButtonAnchor) =
-    ButtonConfig(component = component, visible = visible, scale = scale, offsetX = offsetX, offsetY = offsetY, anchor = anchor)
+private fun cfg(
+    component: ButtonComponent, visible: Boolean, scale: Float, offsetX: Float, offsetY: Float, anchor: ButtonAnchor,
+    triggerMode: TriggerMode = TriggerMode.DIGITAL, stickMode: StickMode = StickMode.FIXED,
+) = ButtonConfig(
+    component = component, visible = visible, scale = scale, offsetX = offsetX, offsetY = offsetY, anchor = anchor,
+    triggerMode = triggerMode, stickMode = stickMode
+)
 
 val suggestedLayouts = listOf(
     SuggestedLayout(
         "Racing",
-        "Big gas and brake on the right, left stick to steer. Good for Forza and Mario Kart style games.",
+        "Big gas and brake on the right, tilt the phone to steer. Good for Forza and Mario Kart style games.",
         mapOf(
             LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.1f, 0.1768f, 0.1353f, CENTER_LEFT),
             RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, false, 0.96f, 0.5f, 0f, BOTTOM_CENTER),
             DPAD to cfg(DPAD, false, 0.752f, -0.5f, 0f, BOTTOM_CENTER),
             FACE_BUTTONS to cfg(FACE_BUTTONS, true, 0.7f, 0.4384f, 0.0801f, TOP_CENTER),
-            LEFT_TRIGGER to cfg(LEFT_TRIGGER, true, 1.4f, -0.4165f, 0.1804f, CENTER_RIGHT),
-            RIGHT_TRIGGER to cfg(RIGHT_TRIGGER, true, 1.6f, -0.0278f, 0.1353f, CENTER_RIGHT),
+            LEFT_TRIGGER to cfg(LEFT_TRIGGER, true, 1.4f, -0.4391f, 0.1578f, CENTER_RIGHT, triggerMode = TriggerMode.ZONES),
+            RIGHT_TRIGGER to cfg(RIGHT_TRIGGER, true, 1.6f, -0.0278f, 0.1353f, CENTER_RIGHT, triggerMode = TriggerMode.ZONES),
             LEFT_SHOULDER to cfg(LEFT_SHOULDER, true, 0.92f, 0.119f, 0.135f, TOP_LEFT),
             RIGHT_SHOULDER to cfg(RIGHT_SHOULDER, true, 0.92f, -0.144f, 0.135f, TOP_RIGHT),
             SELECT_BUTTON to cfg(SELECT_BUTTON, true, 0.9f, -0.1704f, -0.1127f, CENTER),
@@ -27,7 +37,8 @@ val suggestedLayouts = listOf(
             BACK_BUTTON to cfg(BACK_BUTTON, true, 0.632f, -0.155f, -0.0274f, TOP_CENTER),
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
-        )
+        ),
+        mapOf("tilt" to 1, "curve" to 1)
     ),
     SuggestedLayout(
         "Platformer",
@@ -46,13 +57,14 @@ val suggestedLayouts = listOf(
             BACK_BUTTON to cfg(BACK_BUTTON, true, 0.632f, -0.155f, -0.0274f, TOP_CENTER),
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
-        )
+        ),
+        mapOf("dpadSingle" to 1, "click" to 0)
     ),
     SuggestedLayout(
         "Shooter",
-        "Two sticks with big triggers for aim and fire, buttons kept small.",
+        "Floating left stick, a fine right stick for aiming and big triggers for fire.",
         mapOf(
-            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.0f, 0.1939f, -0.1263f, BOTTOM_LEFT),
+            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.0f, 0.1939f, -0.1263f, BOTTOM_LEFT, stickMode = StickMode.FLOATING),
             RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, true, 1.0f, 0.4384f, 0.2255f, CENTER),
             DPAD to cfg(DPAD, true, 0.5f, -0.3056f, 0.2378f, TOP_CENTER),
             FACE_BUTTONS to cfg(FACE_BUTTONS, true, 0.65f, -0.0938f, 0.0451f, CENTER_RIGHT),
@@ -65,7 +77,8 @@ val suggestedLayouts = listOf(
             BACK_BUTTON to cfg(BACK_BUTTON, true, 0.632f, -0.155f, -0.0274f, TOP_CENTER),
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
-        )
+        ),
+        mapOf("curve" to 1, "sens" to 110)
     ),
     SuggestedLayout(
         "Fighting",
@@ -84,7 +97,8 @@ val suggestedLayouts = listOf(
             BACK_BUTTON to cfg(BACK_BUTTON, true, 0.632f, -0.155f, -0.0274f, TOP_CENTER),
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
-        )
+        ),
+        mapOf("dpadSingle" to 0, "diag" to 30)
     ),
     SuggestedLayout(
         "Party games",
@@ -103,6 +117,7 @@ val suggestedLayouts = listOf(
             BACK_BUTTON to cfg(BACK_BUTTON, true, 0.632f, -0.155f, -0.0274f, TOP_CENTER),
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
-        )
+        ),
+        mapOf("click" to 0)
     )
 )
