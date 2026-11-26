@@ -2,14 +2,14 @@
 
 # AirDeck-Mobile
 
-Android app that turns a phone into a game controller for a Windows PC, with a layout you can edit and settings for almost everything.
+Android app that turns your phone into a wireless Xbox-style game controller for a Windows PC, with fully editable layouts and game rumble.
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-KTS-02303A?style=flat-square&logo=gradle&logoColor=white)
 ![License](https://img.shields.io/github/license/horse-3903/AirDeck-Mobile?style=flat-square)
-![Last Commit](https://img.shields.io/github/last-commit/horse-3903/AirDeck-Mobile/modern-ui?style=flat-square)
+![Last Commit](https://img.shields.io/github/last-commit/horse-3903/AirDeck-Mobile?style=flat-square)
 
 [Releases](https://github.com/horse-3903/AirDeck-Mobile/releases) | [PC server](https://github.com/horse-3903/AirDeck-PC) | [Portfolio page](https://horse-3903.github.io/showcase/airdeck/) | [Upstream project](https://kitswas.github.io/VirtualGamePad/)
 
@@ -19,9 +19,9 @@ Android app that turns a phone into a game controller for a Windows PC, with a l
 
 ## Overview
 
-**AirDeck-Mobile** is the Android client for AirDeck. It draws a full controller on the screen, sends your input to the [PC server](https://github.com/horse-3903/AirDeck-PC) over Wi-Fi, and keeps the connection alive in a foreground service while you switch apps. AirDeck started as a fork of [kitswas/VirtualGamePad-Mobile](https://github.com/kitswas/VirtualGamePad-Mobile) 0.4.2 and was renamed once the changes became large. The work lives on the `modern-ui` branch.
+**AirDeck-Mobile** is the Android client for AirDeck. It draws a full controller on the screen, sends your input to the [PC server](https://github.com/horse-3903/AirDeck-PC) over Wi-Fi, and keeps the connection alive in a foreground service while you switch apps. AirDeck started as a fork of [kitswas/VirtualGamePad-Mobile](https://github.com/kitswas/VirtualGamePad-Mobile) 0.4.2 and was renamed once the changes became large.
 
-The goal of the fork is a controller that looks and behaves the same as the server's browser page, with more room to tune it. Every control position, size and trigger mode can be changed, and the settings screen covers sticks, D-pad, haptics, display and reconnect behaviour.
+The goal of the fork is a controller that looks and behaves the same as the server's browser page, with more room to tune it. Every control position, size and trigger mode can be changed, and the settings screen covers sticks, D-pad, haptics, display and reconnect behaviour. It is a free virtual gamepad for PC games, built with Kotlin and Jetpack Compose.
 
 ---
 
@@ -29,6 +29,8 @@ The goal of the fork is a controller that looks and behaves the same as the serv
 
 - **Full controller** - two analog sticks, a D-pad, four face buttons, bumpers, analog triggers, View, Start and Back, in PlayStation or Xbox style.
 - **Same look as the browser version** - matching layout, shapes, symbols, colours, status badge and edge glow, so switching between the app and the browser page feels the same.
+- **Layout library** - save any number of named layouts, switch between them with a preview, duplicate, rename, reorder by dragging, import and export them. A locked Default layout always sits at the bottom, and the quick settings panel on the controller can switch layouts too.
+- **Game rumble** - when the game vibrates a controller on the PC, the phone vibrates too. A setting turns it off.
 - **Layout editor** - move, resize or hide any control, including the connection badge and settings button, change its anchor and pick a trigger mode per trigger. Controls come in default groups (shoulders, left and right clusters, top row) that move together, and you can regroup them. Positions and sizes snap lightly to other controls, there is undo and redo, and a draggable icon toolbar with an Edit and Preview switch. Presets and the JSON import and export carry the groups too.
 - **Connection badge** - the top row shows connection state with a chain, a broken chain or a spinner, and your controller number, in a neutral frame. Tap it to disconnect, with a confirmation, and tap again to reconnect.
 - **Automatic reconnect** - when the connection drops, the badge shows the hourglass and the app keeps trying for as long as you set, instead of kicking you out.
@@ -67,7 +69,7 @@ The app also uses DataStore for settings, CameraX with ZXing for QR scanning, an
 ### Installation
 
 ```bash
-git clone --recurse-submodules -b modern-ui https://github.com/horse-3903/AirDeck-Mobile.git
+git clone --recurse-submodules https://github.com/horse-3903/AirDeck-Mobile.git
 cd AirDeck-Mobile
 ./gradlew assembleDebug
 ```
