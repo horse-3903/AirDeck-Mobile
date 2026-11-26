@@ -61,8 +61,13 @@ fun DrawGamepad(
 
     // Helper function to get config for a component
     val sizeFactor = LocalAppPrefs.current.controlSize / 100f
+    val tiltTarget = LocalAppPrefs.current.tiltTarget
     fun getConfig(component: ButtonComponent) =
-        (buttonConfigs[component] ?: ButtonConfig.default(component)).let { if (sizeFactor == 1f) it else it.copy(scale = it.scale * sizeFactor) }
+        (buttonConfigs[component] ?: ButtonConfig.default(component)).let { if (sizeFactor == 1f) it else it.copy(scale = it.scale * sizeFactor) }.let {
+            // The stick that tilt steering takes over is hidden while playing
+            val tilted = !editing && ((tiltTarget == 1 && component == ButtonComponent.LEFT_ANALOG_STICK) || (tiltTarget == 2 && component == ButtonComponent.RIGHT_ANALOG_STICK))
+            if (tilted) it.copy(visible = false) else it
+        }
 
     // Helper function to render a button component
     @Composable
@@ -125,6 +130,7 @@ fun DrawGamepad(
                     gamepadState = gamepadState,
                     type = AnalogStickType.LEFT,
                     floating = LocalAppPrefs.current.stickLeftFloat,
+                    areaW = config.areaW, areaH = config.areaH, areaRound = config.areaRound, showArea = editing,
                 )
             }
 
@@ -137,6 +143,7 @@ fun DrawGamepad(
                     gamepadState = gamepadState,
                     type = AnalogStickType.RIGHT,
                     floating = LocalAppPrefs.current.stickRightFloat,
+                    areaW = config.areaW, areaH = config.areaH, areaRound = config.areaRound, showArea = editing,
                 )
             }
 

@@ -286,7 +286,8 @@ fun GamePad(
         // Start sending updates
         while (connectionViewModel != null && !isStopping.value) {
             // Queue the update in the ViewModel
-            val tilt = if (prefsNow.tiltTarget != 0) io.github.horse3903.airdeck.ui.utils.TiltSteering.steer else 0f
+            val rawTilt = if (prefsNow.tiltTarget != 0) io.github.horse3903.airdeck.ui.utils.TiltSteering.steer else 0f
+            val tilt = Math.signum(rawTilt) * io.github.horse3903.airdeck.data.applyCurve(prefsNow.tiltCurve, prefsNow.tiltCurvePoints, Math.abs(rawTilt))
             connectionViewModel.enqueueGamepadState(if (tilt == 0f) gamepadState else withTilt(gamepadState, tilt, prefsNow.tiltTarget))
 
             // Reset ButtonsUp after each update

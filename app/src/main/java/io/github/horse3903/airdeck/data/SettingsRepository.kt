@@ -255,6 +255,9 @@ class SettingsRepository(context: Context) {
             controlSize = p[PREF_SIZE] ?: d.controlSize,
             dimAfterSeconds = p[PREF_DIM] ?: d.dimAfterSeconds,
             stickCurve = p[PREF_CURVE] ?: d.stickCurve,
+            curvePoints = p[PREF_CURVE_P] ?: d.curvePoints,
+            tiltCurve = p[PREF_TCURVE] ?: d.tiltCurve,
+            tiltCurvePoints = p[PREF_TCURVE_P] ?: d.tiltCurvePoints,
             connectionHaptics = p[PREF_CONN_HAPTICS] ?: d.connectionHaptics,
             triggerLeft = p[PREF_TRIG_L] ?: d.triggerLeft,
             triggerRight = p[PREF_TRIG_R] ?: d.triggerRight,
@@ -288,6 +291,9 @@ class SettingsRepository(context: Context) {
             p[PREF_SIZE] = prefs.controlSize
             p[PREF_DIM] = prefs.dimAfterSeconds
             p[PREF_CURVE] = prefs.stickCurve
+            p[PREF_CURVE_P] = prefs.curvePoints
+            p[PREF_TCURVE] = prefs.tiltCurve
+            p[PREF_TCURVE_P] = prefs.tiltCurvePoints
             p[PREF_CONN_HAPTICS] = prefs.connectionHaptics
             p[PREF_TRIG_L] = prefs.triggerLeft
             p[PREF_TRIG_R] = prefs.triggerRight
@@ -463,6 +469,9 @@ class SettingsRepository(context: Context) {
         private val PREF_TILT_INVERT = booleanPreferencesKey("pref_tilt_invert")
         private val PREF_SIZE = intPreferencesKey("pref_control_size")
         private val PREF_DIM = intPreferencesKey("pref_dim_seconds")
+        private val PREF_CURVE_P = intPreferencesKey("pref_curve_points")
+        private val PREF_TCURVE = intPreferencesKey("pref_tilt_curve")
+        private val PREF_TCURVE_P = intPreferencesKey("pref_tilt_curve_points")
         private val PREF_CURVE = intPreferencesKey("pref_stick_curve")
         private val PREF_TRIG_L = intPreferencesKey("pref_trigger_left")
         private val PREF_TRIG_R = intPreferencesKey("pref_trigger_right")

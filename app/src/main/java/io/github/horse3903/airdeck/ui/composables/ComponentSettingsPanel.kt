@@ -196,6 +196,46 @@ fun ComponentSettingsPanel(
                     )
                 }
             }
+            if (component == ButtonComponent.LEFT_ANALOG_STICK || component == ButtonComponent.RIGHT_ANALOG_STICK) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text(
+                    text = stringResource(R.string.panel_touch_area),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = stringResource(R.string.panel_touch_area_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val floating = false
+                LabeledSlider(
+                    title = stringResource(R.string.panel_width),
+                    valueText = if (config.areaW == 0f) stringResource(R.string.panel_auto) else String.format(Locale.US, "%.1fx", config.areaW),
+                    value = if (config.areaW == 0f) 1f else config.areaW,
+                    range = 1f..6f,
+                    startLabel = "1x", centerLabel = null, endLabel = "6x",
+                    defaultValue = 0f,
+                    onValueChange = { onConfigChange(config.copy(areaW = if (it < 1.05f) 0f else it)) }
+                )
+                LabeledSlider(
+                    title = stringResource(R.string.panel_height),
+                    valueText = if (config.areaH == 0f) stringResource(R.string.panel_auto) else String.format(Locale.US, "%.1fx", config.areaH),
+                    value = if (config.areaH == 0f) 1f else config.areaH,
+                    range = 1f..6f,
+                    startLabel = "1x", centerLabel = null, endLabel = "6x",
+                    defaultValue = 0f,
+                    onValueChange = { onConfigChange(config.copy(areaH = if (it < 1.05f) 0f else it)) }
+                )
+                LabeledSlider(
+                    title = stringResource(R.string.panel_corner),
+                    valueText = "${(config.areaRound * 100).toInt()}%",
+                    value = config.areaRound,
+                    range = 0f..1f,
+                    startLabel = stringResource(R.string.panel_square), centerLabel = null, endLabel = stringResource(R.string.panel_round),
+                    defaultValue = 1f,
+                    onValueChange = { onConfigChange(config.copy(areaRound = it)) }
+                )
+            }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             LabeledSlider(
                 title = stringResource(R.string.panel_size),

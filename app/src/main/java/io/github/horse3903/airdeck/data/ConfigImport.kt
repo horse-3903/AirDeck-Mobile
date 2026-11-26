@@ -25,7 +25,7 @@ class LayoutBundle(
     val behaviour: Map<String, Int>? = null,
 )
 
-private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick"), "tilt" to listOf("off", "left", "right"),
+private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick", "custom"), "tcurve" to listOf("linear", "precise", "quick", "custom"), "tilt" to listOf("off", "left", "right"),
     "trigL" to listOf("button", "drag", "gradient"), "trigR" to listOf("button", "drag", "gradient"))
 private val flagKeys = setOf("snap", "click", "invL", "invR", "tiltInvert", "dpadSingle", "stickL", "stickR", "rumble", "hap", "hapCustom", "hapPress", "hapRel", "hapStick", "hapTrig", "hapConn")
 private val rangedKeys = mapOf("dead" to 0..40, "sens" to 50..150, "clickMs" to 200..1500, "tiltRange" to 15..60, "tiltDead" to 0..15, "diag" to 20..60, "hapInt" to 5..100, "hapMs" to 5..80)
@@ -35,6 +35,7 @@ fun behaviourToJson(b: Map<String, Int>): JsonObject = buildJsonObject {
     for ((k, v) in b) {
         val choices = choiceKeys[k]
         when {
+            k == "curveP" || k == "tcurveP" -> put(k, JsonArray(unpackCurve(v).map { JsonPrimitive(it) }))
             choices != null -> put(k, choices.getOrElse(v) { choices[0] })
             k in flagKeys -> put(k, v != 0)
             else -> put(k, v)
@@ -45,6 +46,11 @@ fun behaviourToJson(b: Map<String, Int>): JsonObject = buildJsonObject {
 private fun parseBehaviour(o: JsonObject): Map<String, Int> {
     val out = linkedMapOf<String, Int>()
     for ((k, e) in o) {
+        if (k == "curveP" || k == "tcurveP") {
+            val pts = (e as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.floatOrNull?.toInt() }
+            if (pts != null && pts.size == 3) out[k] = packCurve(pts[0], pts[1], pts[2])
+            continue
+        }
         val p = e as? JsonPrimitive ?: continue
         val choices = choiceKeys[k]
         val range = rangedKeys[k]
@@ -124,6 +130,9 @@ private fun parseControls(root: JsonObject, legacy: Boolean): Map<ButtonComponen
             triggerMode = primitive("triggerMode")?.contentOrNull
                 ?.let { name -> TriggerMode.entries.firstOrNull { it.name == name } }
                 ?: base.triggerMode,
+            areaW = (primitive("areaW")?.floatOrNull ?: base.areaW).coerceIn(0f, 6f),
+            areaH = (primitive("areaH")?.floatOrNull ?: base.areaH).coerceIn(0f, 6f),
+            areaRound = (primitive("areaRound")?.floatOrNull ?: base.areaRound).coerceIn(0f, 1f),
             stickMode = primitive("stickMode")?.contentOrNull
                 ?.let { name -> StickMode.entries.firstOrNull { it.name == name } }
                 ?: base.stickMode

@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -69,11 +70,7 @@ private fun shaped(prefs: AppPrefs, type: AnalogStickType, x: Float, y: Float): 
         ny = 0f
     } else if (length > 0f) {
         val scaled = (((length - dead) / (1f - dead)) * (prefs.sensitivity / 100f)).coerceAtMost(1f)
-        val curved = when (prefs.stickCurve) {
-            1 -> scaled.pow(1.6f)
-            2 -> scaled.pow(0.7f)
-            else -> scaled
-        }
+        val curved = io.github.horse3903.airdeck.data.applyCurve(prefs.stickCurve, prefs.curvePoints, scaled)
         val factor = curved / length
         nx = x * factor
         ny = y * factor
@@ -99,6 +96,16 @@ private fun updateThumbstickValues(
             gamepadState.RightThumbstickY = y
         }
     }
+}
+
+/** Whether a point (measured from the middle) is inside a rounded rectangle with half sizes [hw] and [hh]. */
+private fun insideArea(x: Float, y: Float, hw: Float, hh: Float, radius: Float): Boolean {
+    val dx = kotlin.math.abs(x)
+    val dy = kotlin.math.abs(y)
+    if (dx > hw || dy > hh) return false
+    val r = radius.coerceAtMost(minOf(hw, hh))
+    if (dx <= hw - r || dy <= hh - r) return true
+    return hypot(dx - (hw - r), dy - (hh - r)) <= r
 }
 
 private fun thumbstickButtonMask(type: AnalogStickType): Int = when (type) {
@@ -187,6 +194,10 @@ fun AnalogStick(
     gamepadState: GamepadReading,
     type: AnalogStickType,
     floating: Boolean = false,
+    areaW: Float = 0f,
+    areaH: Float = 0f,
+    areaRound: Float = 1f,
+    showArea: Boolean = false,
 ) {
     val density = LocalDensity.current
     val view = LocalView.current
@@ -198,8 +209,12 @@ fun AnalogStick(
     val diameter = (innerCircleRadius + outerCircleWidth + ringWidth) * 2
     val diameterPx = with(density) { diameter.toPx() }
     // A floating stick listens in a wider circle than it draws, and its centre moves to where the thumb lands
-    val region = if (floating) diameter * 1.9f else diameter
-    val regionPx = with(density) { region.toPx() }
+    val auto = if (floating) 1.9f else 1f
+    val regionW = diameter * (if (areaW > 0f) areaW else auto).coerceAtLeast(1f)
+    val regionH = diameter * (if (areaH > 0f) areaH else auto).coerceAtLeast(1f)
+    val regionWPx = with(density) { regionW.toPx() }
+    val regionHPx = with(density) { regionH.toPx() }
+    val areaShape = RoundedCornerShape(minOf(regionW, regionH) / 2f * areaRound)
     val maxOffset = diameterPx * 0.28f
     val knobSize = diameter * 0.44f
     val pressedColor = PsStyle.Glyph
@@ -207,13 +222,13 @@ fun AnalogStick(
     Box(
         modifier = modifier
             .testTag("AnalogStick_${type.name}")
-            .size(region)
+            .size(regionW, regionH)
             .then(
                 if (!snap && !floating) Modifier else Modifier.pointerInput(type, floating) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val middle = Offset(size.width / 2f, size.height / 2f)
-                        if (hypot(down.position.x - middle.x, down.position.y - middle.y) > (if (floating) regionPx else diameterPx) / 2f) return@awaitEachGesture
+                        if (!insideArea(down.position.x - middle.x, down.position.y - middle.y, regionWPx / 2f, regionHPx / 2f, minOf(regionWPx, regionHPx) / 2f * areaRound)) return@awaitEachGesture
                         // Fixed sticks measure from the middle, floating ones from the first touch
                         val centre = if (floating) down.position else middle
                         down.consume()
@@ -269,12 +284,12 @@ fun AnalogStick(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (floating) {
+        if (floating || showArea) {
             // The touch area, faint, so the player can see where the stick will appear
             Box(
                 Modifier
-                    .size(region)
-                    .border(1.dp, ringColor.copy(alpha = 0.25f), CircleShape)
+                    .size(regionW, regionH)
+                    .border(1.dp, ringColor.copy(alpha = if (showArea) 0.5f else 0.25f), areaShape)
             )
         }
         Box(

@@ -28,8 +28,16 @@ import io.github.horse3903.airdeck.data.ButtonComponent
 import io.github.horse3903.airdeck.data.ButtonConfig
 
 /** Stretches a control's width and height independently. Its layout size and touch area follow. */
-private fun Modifier.stretch(sx: Float, sy: Float): Modifier =
-    if (sx == 1f && sy == 1f) this else layout { measurable, constraints ->
+private fun Modifier.stretch(sx: Float, sy: Float, reflow: Boolean): Modifier =
+    if (sx == 1f && sy == 1f) this
+    else if (reflow) layout { measurable, constraints ->
+        // The control is laid out at the stretched size, so its text keeps its size
+        val w = (measurable.maxIntrinsicWidth(constraints.maxHeight) * sx).roundToInt()
+        val h = (measurable.maxIntrinsicHeight(constraints.maxWidth) * sy).roundToInt()
+        val placeable = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, h))
+        layout(w, h) { placeable.place(0, 0) }
+    }
+    else layout { measurable, constraints ->
         val placeable = measurable.measure(constraints)
         layout((placeable.width * sx).roundToInt(), (placeable.height * sy).roundToInt()) {
             placeable.placeWithLayer(0, 0) {
@@ -39,6 +47,11 @@ private fun Modifier.stretch(sx: Float, sy: Float): Modifier =
             }
         }
     }
+
+private val reflowed = setOf(
+    ButtonComponent.LEFT_TRIGGER, ButtonComponent.RIGHT_TRIGGER, ButtonComponent.LEFT_SHOULDER,
+    ButtonComponent.RIGHT_SHOULDER, ButtonComponent.SELECT_BUTTON, ButtonComponent.START_BUTTON
+)
 
 /**
  * Places a gamepad component at its configured offset.
@@ -60,7 +73,7 @@ fun EditableComponent(
         x = (config.offsetX * baseDp).dp,
         y = (config.offsetY * baseDp).dp
     )
-    val stretch = Modifier.stretch(config.widthScale, config.heightScale)
+    val stretch = Modifier.stretch(config.widthScale, config.heightScale, component in reflowed)
     if (!editing) {
         content(offsetModifier.then(stretch))
         return
@@ -68,7 +81,7 @@ fun EditableComponent(
     val currentOnBounds by rememberUpdatedState(onBounds)
     Box(
         modifier = offsetModifier
-            .alpha(if (config.visible) 1f else 0.3f)
+            .alpha(if (config.visible) 1f else 0.12f)
             .onGloballyPositioned { currentOnBounds?.invoke(component, it.boundsInRoot()) }
             .then(
                 if (selected) Modifier.border(

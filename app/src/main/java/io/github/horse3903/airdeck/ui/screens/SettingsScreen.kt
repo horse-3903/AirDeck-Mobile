@@ -70,6 +70,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -390,6 +392,51 @@ private fun NavRow(label: String, helper: String? = null, onClick: () -> Unit) {
     }
 }
 
+/** A small graph to shape a response curve: drag the three dots up or down. The faint line is no shaping at all. */
+@Composable
+private fun CurveEditor(points: Int, overridden: Boolean, onReset: () -> Unit, onChange: (Int) -> Unit) {
+    val pts = io.github.horse3903.airdeck.data.unpackCurve(points)
+    val line = MaterialTheme.colorScheme.primary
+    val faint = MaterialTheme.colorScheme.outlineVariant
+    val dot = MaterialTheme.colorScheme.onSurface
+    SettingRow(label = stringResource(R.string.pref_curve_custom), labelExtra = { ResetChip(overridden, onReset) }, helper = stringResource(R.string.pref_curve_custom_desc), indent = 16.dp) {
+        var current by remember(points) { mutableStateOf(pts) }
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .size(150.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                .pointerInput(Unit) {
+                    var which = -1
+                    detectDragGestures(
+                        onDragStart = { o ->
+                            val idx = (o.x / size.width * 4f).let { Math.round(it) }.coerceIn(1, 3)
+                            which = idx - 1
+                        },
+                        onDragEnd = { onChange(io.github.horse3903.airdeck.data.packCurve(current[0], current[1], current[2])) },
+                        onDragCancel = { onChange(io.github.horse3903.airdeck.data.packCurve(current[0], current[1], current[2])) }
+                    ) { change, _ ->
+                        change.consume()
+                        if (which >= 0) {
+                            val v = ((1f - change.position.y / size.height) * 100f).toInt().coerceIn(0, 100)
+                            current = current.copyOf().also { it[which] = v }
+                        }
+                    }
+                }
+        ) {
+            val w = size.width
+            val h = size.height
+            drawLine(faint, androidx.compose.ui.geometry.Offset(0f, h), androidx.compose.ui.geometry.Offset(w, 0f), strokeWidth = 2f)
+            val xs = floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f)
+            val ys = floatArrayOf(0f, current[0] / 100f, current[1] / 100f, current[2] / 100f, 1f)
+            for (i in 0 until 4) {
+                drawLine(line, androidx.compose.ui.geometry.Offset(xs[i] * w, h - ys[i] * h), androidx.compose.ui.geometry.Offset(xs[i + 1] * w, h - ys[i + 1] * h), strokeWidth = 5f)
+            }
+            for (i in 1..3) drawCircle(dot, 11f, androidx.compose.ui.geometry.Offset(xs[i] * w, h - ys[i] * h))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -557,8 +604,49 @@ fun SettingsScreen(
                     if (scopeLayout) applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour + (key to value)) } else global()
                 }
                 val snapShown = if (scopeLayout) (behaviour["snap"]?.let { it != 0 } ?: stickSnap) else stickSnap
+                val curveNames = listOf(R.string.curve_linear, R.string.curve_precise, R.string.curve_quick, R.string.curve_custom)
                 ScopeBar(layoutLabel, scopeLayout) { scopeLayout = it }
+                // Tilt steering comes first: it takes a stick over, so the rows below leave that stick out
                 ChoiceRow(
+                    stringResource(R.string.pref_tilt), stringResource(R.string.pref_tilt_desc), listOf(0, 1, 2), shown.tiltTarget,
+                    { stringResource(when (it) { 0 -> R.string.pref_off; 1 -> R.string.tilt_left; else -> R.string.tilt_right }) },
+                    overridden("tilt"), { clearBehaviour("tilt") }
+                ) { v -> change("tilt", v) { save(prefs.copy(tiltTarget = v)) } }
+                AnimatedVisibility(visible = shown.tiltTarget != 0) {
+ Column {
+                    SliderRow(
+                        stringResource(R.string.pref_tilt_range), stringResource(R.string.pref_tilt_range_desc), "${shown.tiltRange}\u00B0",
+                        shown.tiltRange, 15..60, { change("tiltRange", it) { save(prefs.copy(tiltRange = it)) } },
+                        indent = 16.dp, overridden = overridden("tiltRange"), onReset = { clearBehaviour("tiltRange") }
+                    )
+                    SliderRow(
+                        stringResource(R.string.pref_tilt_dead), stringResource(R.string.pref_tilt_dead_desc), "${shown.tiltDead}\u00B0",
+                        shown.tiltDead, 0..15, { change("tiltDead", it) { save(prefs.copy(tiltDead = it)) } },
+                        indent = 16.dp, overridden = overridden("tiltDead"), onReset = { clearBehaviour("tiltDead") }
+                    )
+                    SettingRow(
+                        label = stringResource(R.string.pref_tilt_invert),
+                        labelExtra = { ResetChip(overridden("tiltInvert")) { clearBehaviour("tiltInvert") } },
+                        indent = 16.dp
+                    ) {
+                        Switch(
+                            checked = shown.tiltInvert,
+                            onCheckedChange = { v -> change("tiltInvert", if (v) 1 else 0) { save(prefs.copy(tiltInvert = v)) } },
+                            modifier = Modifier.scale(0.85f)
+                        )
+                    }
+                    ChoiceRow(
+                        stringResource(R.string.pref_tilt_curve), stringResource(R.string.pref_tilt_curve_desc), listOf(0, 1, 2, 3), shown.tiltCurve,
+                        { stringResource(curveNames[it]) }, overridden("tcurve"), { clearBehaviour("tcurve") }, indent = 16.dp
+                    ) { v -> change("tcurve", v) { save(prefs.copy(tiltCurve = v)) } }
+                    AnimatedVisibility(visible = shown.tiltCurve == 3) {
+                        CurveEditor(
+                            shown.tiltCurvePoints, overridden("tcurveP"), { clearBehaviour("tcurveP") },
+                            { v -> change("tcurveP", v) { save(prefs.copy(tiltCurvePoints = v)) } }
+                        )
+                    }
+                } }
+                if (shown.tiltTarget != 1) ChoiceRow(
                     stringResource(R.string.pref_left_stick_position), stringResource(R.string.stick_position_desc),
                     io.github.horse3903.airdeck.data.StickMode.entries.toList(),
                     if (shown.stickLeftFloat) io.github.horse3903.airdeck.data.StickMode.FLOATING else io.github.horse3903.airdeck.data.StickMode.FIXED,
@@ -567,7 +655,7 @@ fun SettingsScreen(
                     val f = m == io.github.horse3903.airdeck.data.StickMode.FLOATING
                     chg("stickL", if (f) 1 else 0) { save(prefs.copy(stickLeftFloat = f)) }
                 }
-                ChoiceRow(
+                if (shown.tiltTarget != 2) ChoiceRow(
                     stringResource(R.string.pref_right_stick_position), null,
                     io.github.horse3903.airdeck.data.StickMode.entries.toList(),
                     if (shown.stickRightFloat) io.github.horse3903.airdeck.data.StickMode.FLOATING else io.github.horse3903.airdeck.data.StickMode.FIXED,
@@ -588,10 +676,15 @@ fun SettingsScreen(
                     { change("sens", it) { save(prefs.copy(sensitivity = it)) } }, overridden = overridden("sens"), onReset = { clearBehaviour("sens") }
                 )
                 ChoiceRow(
-                    stringResource(R.string.pref_curve), stringResource(R.string.pref_curve_desc), listOf(0, 1, 2), shown.stickCurve,
-                    { stringResource(when (it) { 0 -> R.string.curve_linear; 1 -> R.string.curve_precise; else -> R.string.curve_quick }) },
-                    overridden("curve"), { clearBehaviour("curve") }
+                    stringResource(R.string.pref_curve), stringResource(R.string.pref_curve_desc), listOf(0, 1, 2, 3), shown.stickCurve,
+                    { stringResource(curveNames[it]) }, overridden("curve"), { clearBehaviour("curve") }
                 ) { v -> change("curve", v) { save(prefs.copy(stickCurve = v)) } }
+                AnimatedVisibility(visible = shown.stickCurve == 3) {
+                    CurveEditor(
+                        shown.curvePoints, overridden("curveP"), { clearBehaviour("curveP") },
+                        { v -> change("curveP", v) { save(prefs.copy(curvePoints = v)) } }
+                    )
+                }
                 SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), shown.clickEnabled, overridden("click"), { clearBehaviour("click") }) { v ->
                     change("click", if (v) 1 else 0) { save(prefs.copy(clickEnabled = v)) }
                 }
@@ -602,37 +695,11 @@ fun SettingsScreen(
                         { change("clickMs", it) { save(prefs.copy(clickHoldMs = it)) } }, overridden = overridden("clickMs"), onReset = { clearBehaviour("clickMs") }
                     )
                 } }
-                SwitchRow(stringResource(R.string.pref_invert_left), null, shown.invertLeftY, overridden("invL"), { clearBehaviour("invL") }) { v ->
+                if (shown.tiltTarget != 1) SwitchRow(stringResource(R.string.pref_invert_left), null, shown.invertLeftY, overridden("invL"), { clearBehaviour("invL") }) { v ->
                     change("invL", if (v) 1 else 0) { save(prefs.copy(invertLeftY = v)) }
                 }
-                SwitchRow(stringResource(R.string.pref_invert_right), null, shown.invertRightY, overridden("invR"), { clearBehaviour("invR") }) { v ->
+                if (shown.tiltTarget != 2) SwitchRow(stringResource(R.string.pref_invert_right), null, shown.invertRightY, overridden("invR"), { clearBehaviour("invR") }) { v ->
                     change("invR", if (v) 1 else 0) { save(prefs.copy(invertRightY = v)) }
-                }
-                ChoiceRow(
-                    stringResource(R.string.pref_tilt), stringResource(R.string.pref_tilt_desc), listOf(0, 1, 2), shown.tiltTarget,
-                    { stringResource(when (it) { 0 -> R.string.pref_off; 1 -> R.string.tilt_left; else -> R.string.tilt_right }) },
-                    overridden("tilt"), { clearBehaviour("tilt") }
-                ) { v -> change("tilt", v) { save(prefs.copy(tiltTarget = v)) } }
-                SliderRow(
-                    stringResource(R.string.pref_tilt_range), stringResource(R.string.pref_tilt_range_desc), "${shown.tiltRange}\u00B0",
-                    shown.tiltRange, 15..60, { change("tiltRange", it) { save(prefs.copy(tiltRange = it)) } },
-                    enabled = shown.tiltTarget != 0, indent = 16.dp, overridden = overridden("tiltRange"), onReset = { clearBehaviour("tiltRange") }
-                )
-                SliderRow(
-                    stringResource(R.string.pref_tilt_dead), stringResource(R.string.pref_tilt_dead_desc), "${shown.tiltDead}\u00B0",
-                    shown.tiltDead, 0..15, { change("tiltDead", it) { save(prefs.copy(tiltDead = it)) } },
-                    enabled = shown.tiltTarget != 0, indent = 16.dp, overridden = overridden("tiltDead"), onReset = { clearBehaviour("tiltDead") }
-                )
-                SettingRow(
-                    label = stringResource(R.string.pref_tilt_invert),
-                    labelExtra = { ResetChip(overridden("tiltInvert")) { clearBehaviour("tiltInvert") } },
-                    indent = 16.dp, enabled = shown.tiltTarget != 0
-                ) {
-                    Switch(
-                        checked = shown.tiltInvert,
-                        onCheckedChange = { v -> change("tiltInvert", if (v) 1 else 0) { save(prefs.copy(tiltInvert = v)) } },
-                        modifier = Modifier.scale(0.85f)
-                    )
                 }
 
                     }

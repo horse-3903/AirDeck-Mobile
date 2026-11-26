@@ -342,6 +342,12 @@
     <string name="sec_haptics">Haptics</string>
     <string name="panel_width">Width</string>
     <string name="panel_height">Height</string>
+    <string name="panel_touch_area">Touch area</string>
+    <string name="panel_touch_area_desc">Where this stick listens for touches when snap or floating is on. The outline shows in the editor.</string>
+    <string name="panel_auto">Auto</string>
+    <string name="panel_corner">Corners</string>
+    <string name="panel_square">Square</string>
+    <string name="panel_round">Round</string>
     <string name="layouts_title">Layouts</string>
     <string name="layouts_nav_desc">Create and customise layouts</string>
     <string name="layout_header">Saved layouts</string>
@@ -425,6 +431,11 @@
     <string name="curve_linear">Linear</string>
     <string name="curve_precise">Precise</string>
     <string name="curve_quick">Quick</string>
+    <string name="curve_custom">Custom</string>
+    <string name="pref_curve_custom">Your curve</string>
+    <string name="pref_curve_custom_desc">Drag the dots. Across is how far the stick moves, up is what the game receives.</string>
+    <string name="pref_tilt_curve">Tilt response curve</string>
+    <string name="pref_tilt_curve_desc">How the turn of the phone maps to steering.</string>
     <string name="pref_ring">Stick ring</string>
     <string name="pref_ring_desc">Show the ring a stick moves inside.</string>
     <string name="pref_size">Control size</string>

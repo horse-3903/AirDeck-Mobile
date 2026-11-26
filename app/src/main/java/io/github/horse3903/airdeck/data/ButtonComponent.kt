@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 // Centralized value ranges for button configuration
 val SCALE_VALUE_RANGE = 0.5f..2f
 val STRETCH_VALUE_RANGE = 0.5f..2f
-val OFFSET_VALUE_RANGE = -0.5f..0.5f
+val OFFSET_VALUE_RANGE = -1.5f..1.5f
 
 /**
  * Anchor point for button positioning
@@ -123,7 +123,12 @@ data class ButtonConfig(
     val offsetY: Float = 0f,
     val anchor: ButtonAnchor = component.defaultAnchor,
     val triggerMode: TriggerMode = TriggerMode.DIGITAL,
-    val stickMode: StickMode = StickMode.FIXED
+    val stickMode: StickMode = StickMode.FIXED,
+    /** Where a stick listens for touches, in stick widths. 0 picks the usual size (1 for snap, 1.9 for floating). */
+    val areaW: Float = 0f,
+    val areaH: Float = 0f,
+    /** How round the corners of that area are: 0 square, 1 a full ellipse. */
+    val areaRound: Float = 1f
 ) : Parcelable {
     companion object {
         fun default(component: ButtonComponent) = defaultButtonConfigs[component] ?: ButtonConfig(component)
