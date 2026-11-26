@@ -8,6 +8,7 @@ Planned work for AirDeck-Mobile, roughly in the order it will be built. Nothing 
 - Game rumble on the phone
 - Reconnect handling and the foreground service
 - Joy-Con button style
+- Layouts can be exported from the app and imported in the browser controller, and the other way round
 
 ## Next
 
@@ -26,4 +27,3 @@ Planned work for AirDeck-Mobile, roughly in the order it will be built. Nothing 
 ## Known limits
 
 - The server has no login yet, so pairing is open to anyone on the network.
-- The browser controller on the PC server does not have the layout editor.

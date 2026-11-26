@@ -79,6 +79,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import io.github.horse3903.airdeck.R
 import io.github.horse3903.airdeck.data.ColorScheme
@@ -110,7 +113,10 @@ private data class SettingsChanges(
 ) : Parcelable
 
 // Every row's control sits in one column of this width, so the controls line up down the screen
-private val CONTROL_COLUMN = 232.dp
+private val CONTROL_COLUMN = 248.dp
+
+// The content column is wide enough for the controls without being stretched edge to edge
+private val SETTINGS_WIDTH = 720.dp
 
 @Composable
 private fun SettingRow(
@@ -121,11 +127,12 @@ private fun SettingRow(
     showDivider: Boolean = true,
     indent: Dp = 0.dp,
     enabled: Boolean = true,
+    controlWidth: Dp = CONTROL_COLUMN,
     control: @Composable () -> Unit
 ) {
     Column(
         modifier = Modifier
-            .widthIn(max = 560.dp)
+            .widthIn(max = SETTINGS_WIDTH)
             .fillMaxWidth()
             .padding(start = 24.dp + indent, end = 24.dp)
             .alpha(if (enabled) 1f else 0.4f)
@@ -144,33 +151,33 @@ private fun SettingRow(
                     .padding(vertical = 8.dp, horizontal = 0.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = label, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = label, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium))
                     labelExtra()
                 }
                 if (helper != null) {
                     Text(
                         text = helper,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.Normal),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             Box(
                 modifier = Modifier
-                    .width(CONTROL_COLUMN)
+                    .width(controlWidth)
                     .padding(vertical = 6.dp),
                 contentAlignment = Alignment.CenterEnd
             ) { control() }
         }
         if (showDivider) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
         }
     }
 }
 
 @Composable
 private fun SwitchRow(label: String, helper: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
-    SettingRow(label = label, helper = helper) { Switch(checked = checked, onCheckedChange = onChange) }
+    SettingRow(label = label, helper = helper) { Switch(checked = checked, onCheckedChange = onChange, modifier = Modifier.scale(0.85f)) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -236,14 +243,34 @@ private fun SliderRow(
 @Composable
 private fun SectionHeader(text: String) {
     Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, letterSpacing = 0.8.sp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
-            .widthIn(max = 560.dp)
+            .widthIn(max = SETTINGS_WIDTH)
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 2.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 4.dp)
     )
+}
+
+@Composable
+private fun CategoryItem(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 15.sp,
+            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        )
+    }
 }
 
 @Composable
@@ -262,12 +289,12 @@ private fun NavRow(label: String, helper: String? = null, onClick: () -> Unit) {
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToGamepadCustomization: () -> Unit,
-    settingsRepository: SettingsRepository
+    settingsRepository: SettingsRepository,
+    onNavigateToAbout: () -> Unit = {}
 ) {
     var settingsChanges by rememberSaveable { mutableStateOf(SettingsChanges()) }
     val applyScope = rememberCoroutineScope()
-    var page by rememberSaveable { mutableStateOf("main") }
-    BackHandler(enabled = page != "main") { page = "main" }
+    var page by rememberSaveable { mutableStateOf("appearance") }
 
     Scaffold { paddingValues ->
         val colorScheme by settingsRepository.colorScheme.collectAsState(initial = defaultColorScheme)
@@ -282,52 +309,91 @@ fun SettingsScreen(
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
         val fullScreenEnabled by settingsRepository.fullScreenEnabled.collectAsState(initial = defaultFullScreenEnabled)
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            verticalArrangement = Arrangement.SpaceAround,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Fixed title at the top, with the back arrow on the left
-            Box(modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 11.dp), contentAlignment = Alignment.Center) {
-                IconButton(
-                    onClick = { if (page == "main") onNavigateBack() else page = "main" },
-                    modifier = Modifier.align(Alignment.CenterStart)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_arrow_back),
-                        contentDescription = stringResource(R.string.back),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Crossfade(targetState = page, animationSpec = tween(200), label = "title") { p ->
-                Text(
-                    when (p) {
-                        "appearance" -> stringResource(R.string.sec_appearance)
-                        "sticks" -> stringResource(R.string.sec_sticks)
-                        "dpad" -> stringResource(R.string.sec_dpad)
-                        "haptics" -> stringResource(R.string.sec_haptics)
-                        "connection" -> stringResource(R.string.sec_connection)
-                        "layouts" -> stringResource(R.string.layouts_title)
-                        else -> stringResource(R.string.settings_title)
-                    },
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-                }
-            }
-
-            // Scrollable settings content
-            val scrollState = rememberScrollState()
+        Row(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            // Left pane: back arrow, title and the categories
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 8.dp),
-                verticalArrangement = Arrangement.Top,
+                    .width(232.dp)
+                    .fillMaxHeight()
+                    .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_back),
+                            contentDescription = stringResource(R.string.back),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.settings_title),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    listOf(
+                        "appearance" to R.string.sec_appearance,
+                        "layouts" to R.string.layouts_title,
+                        "sticks" to R.string.sec_sticks,
+                        "dpad" to R.string.sec_dpad,
+                        "haptics" to R.string.sec_haptics,
+                        "display" to R.string.sec_group_display,
+                        "connection" to R.string.sec_connection
+                    ).forEach { (id, label) ->
+                        CategoryItem(stringResource(label), selected = page == id) { page = id }
+                    }
+                    CategoryItem(stringResource(R.string.menu_about), selected = false, onClick = onNavigateToAbout)
+                }
+                TextButton(
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        settingsChanges = SettingsChanges()
+                        runBlocking { settingsRepository.resetAllSettings() }
+                        Log.i(logTag, "Settings reset to defaults")
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_reset_all), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+            )
+            // Right pane: the chosen category
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Text(
+                    text = stringResource(
+                        when (page) {
+                            "layouts" -> R.string.layouts_title
+                            "sticks" -> R.string.sec_sticks
+                            "dpad" -> R.string.sec_dpad
+                            "haptics" -> R.string.sec_haptics
+                            "display" -> R.string.sec_group_display
+                            "connection" -> R.string.sec_connection
+                            else -> R.string.sec_appearance
+                        }
+                    ),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 22.sp, fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier
+                        .widthIn(max = SETTINGS_WIDTH)
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 6.dp)
+                )
+                val scrollState = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 8.dp),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
 
                 fun save(p: io.github.horse3903.airdeck.data.AppPrefs) { applyScope.launch { settingsRepository.setAppPrefs(p) } }
                 fun saveHaptics(p: HapticPrefs) { applyScope.launch { settingsRepository.setHapticPrefs(p) } }
@@ -335,25 +401,13 @@ fun SettingsScreen(
                 AnimatedContent(
                     targetState = page,
                     transitionSpec = {
-                        val forward = targetState != "main"
-                        (slideInHorizontally(tween(260)) { if (forward) it / 8 else -it / 8 } + fadeIn(tween(220))) togetherWith
-                            (slideOutHorizontally(tween(180)) { if (forward) -it / 8 else it / 8 } + fadeOut(tween(140))) using
-                            SizeTransform(clip = false)
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(120)) using SizeTransform(clip = false)
                     },
                     label = "page"
                 ) { current ->
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 when (current) {
                     "layouts" -> LayoutsPage(settingsRepository, onNavigateToGamepadCustomization)
-                    "appearance" -> {
-                SliderRow(stringResource(R.string.pref_opacity), null, "${prefs.opacity}%", prefs.opacity, 20..100, { save(prefs.copy(opacity = it)) })
-                SwitchRow(stringResource(R.string.pref_glow), stringResource(R.string.pref_glow_desc), prefs.glowEnabled) { save(prefs.copy(glowEnabled = it)) }
-                SliderRow(
-                    stringResource(R.string.pref_glow_strength), null, "${prefs.glowStrength}%", prefs.glowStrength, 10..200,
-                    { save(prefs.copy(glowStrength = it)) }, enabled = prefs.glowEnabled, indent = 16.dp
-                )
-
-                    }
                     "sticks" -> {
                 SwitchRow(stringResource(R.string.settings_stick_snap), stringResource(R.string.settings_stick_snap_desc), stickSnap) {
                     applyScope.launch { settingsRepository.setStickSnap(it) }
@@ -434,8 +488,15 @@ fun SettingsScreen(
                 } }
                 SwitchRow(stringResource(R.string.pref_confirm), stringResource(R.string.pref_confirm_desc), prefs.confirmDisconnect) { save(prefs.copy(confirmDisconnect = it)) }
                     }
+                    "display" -> {
+                SwitchRow(stringResource(R.string.settings_full_screen), stringResource(R.string.settings_full_screen_desc), settingsChanges.fullScreenEnabled ?: fullScreenEnabled) {
+                    settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
+                    applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
+                }
+                SwitchRow(stringResource(R.string.pref_keep_on), stringResource(R.string.pref_keep_on_desc), prefs.keepScreenOn) { save(prefs.copy(keepScreenOn = it)) }
+                    }
                     else -> {
-                SettingRow(label = stringResource(R.string.settings_color_scheme)) {
+                SettingRow(label = stringResource(R.string.settings_color_scheme), controlWidth = 300.dp) {
                     ColorSchemeChoice(
                         modifier = Modifier.fillMaxWidth(),
                         selected = settingsChanges.colorScheme ?: colorScheme,
@@ -448,7 +509,8 @@ fun SettingsScreen(
                 }
                 SettingRow(
                     label = stringResource(R.string.settings_gamepad_style),
-                    helper = stringResource(R.string.settings_gamepad_style_desc)
+                    helper = stringResource(R.string.settings_gamepad_style_desc),
+                    controlWidth = 300.dp
                 ) {
                     GamepadStyleChoice(
                         modifier = Modifier.fillMaxWidth(),
@@ -457,39 +519,19 @@ fun SettingsScreen(
                         labelFor = { stringResource(it.nameRes) }
                     )
                 }
-                NavRow(stringResource(R.string.layouts_title), stringResource(R.string.layouts_nav_desc)) { page = "layouts" }
-                SwitchRow(stringResource(R.string.settings_full_screen), stringResource(R.string.settings_full_screen_desc), settingsChanges.fullScreenEnabled ?: fullScreenEnabled) {
-                    settingsChanges = settingsChanges.copy(fullScreenEnabled = it)
-                    applyScope.launch { settingsRepository.setFullScreenEnabled(it) }
-                }
-                SwitchRow(stringResource(R.string.pref_keep_on), stringResource(R.string.pref_keep_on_desc), prefs.keepScreenOn) { save(prefs.copy(keepScreenOn = it)) }
+                SliderRow(stringResource(R.string.pref_opacity), null, "${prefs.opacity}%", prefs.opacity, 20..100, { save(prefs.copy(opacity = it)) })
+                SwitchRow(stringResource(R.string.pref_glow), stringResource(R.string.pref_glow_desc), prefs.glowEnabled) { save(prefs.copy(glowEnabled = it)) }
+                SliderRow(
+                    stringResource(R.string.pref_glow_strength), null, "${prefs.glowStrength}%", prefs.glowStrength, 10..200,
+                    { save(prefs.copy(glowStrength = it)) }, enabled = prefs.glowEnabled, indent = 16.dp
+                )
 
-                SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), settingsChanges.hapticFeedbackEnabled ?: hapticEnabled) {
-                    settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
-                    applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
-                }
-                SectionHeader(stringResource(R.string.sec_more))
-                NavRow(stringResource(R.string.sec_appearance), stringResource(R.string.nav_appearance_desc)) { page = "appearance" }
-                NavRow(stringResource(R.string.sec_sticks), stringResource(R.string.nav_sticks_desc)) { page = "sticks" }
-                NavRow(stringResource(R.string.sec_dpad), stringResource(R.string.nav_dpad_desc)) { page = "dpad" }
-                NavRow(stringResource(R.string.sec_haptics), stringResource(R.string.nav_haptics_desc)) { page = "haptics" }
-                NavRow(stringResource(R.string.sec_connection), stringResource(R.string.nav_connection_desc)) { page = "connection" }
-                TextButton(
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    onClick = {
-                        settingsChanges = SettingsChanges()
-                        runBlocking { settingsRepository.resetAllSettings() }
-                        Log.i(logTag, "Settings reset to defaults")
-                    }
-                ) {
-                    Text(stringResource(R.string.settings_reset_all), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
                     }
                 }
                 }
                 }
 
+            }
             }
         }
     }

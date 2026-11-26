@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,7 +52,7 @@ fun <T> SegmentedChoice(
     segment: @Composable (T, Boolean) -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = Color.Transparent,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
@@ -69,10 +70,11 @@ fun <T> SegmentedChoice(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(9.dp))
+                        .clip(RoundedCornerShape(7.dp))
                         .background(fill)
                         .clickable { onSelect(option) }
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     segment(option, isSelected)
@@ -90,8 +92,10 @@ private fun SegmentLabel(text: String, selected: Boolean) {
     )
     Text(
         text = text,
-        fontSize = 11.sp,
-        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        fontSize = 12.sp,
+        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+        maxLines = 1,
+        softWrap = false,
         color = color
     )
 }
@@ -110,7 +114,7 @@ fun ColorSchemeChoice(
         onSelect = onSelect,
         modifier = modifier
     ) { scheme, isSelected ->
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
             Icon(
                 painter = painterResource(
                     when (scheme) {
@@ -146,7 +150,7 @@ fun GamepadStyleChoice(
         onSelect = onSelect,
         modifier = modifier
     ) { style, isSelected ->
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
             when (style) {
                 GamepadStyle.XBOX -> XboxSymbols()
                 GamepadStyle.PLAYSTATION -> PlayStationSymbols()
@@ -159,7 +163,7 @@ fun GamepadStyleChoice(
 
 @Composable
 internal fun XboxSymbols() {
-    Box(Modifier.size(width = 40.dp, height = 28.dp)) {
+    Box(Modifier.size(width = 40.dp, height = 24.dp)) {
         @Composable
         fun letter(text: String, color: Color, align: Alignment) {
             Text(
@@ -180,7 +184,7 @@ internal fun XboxSymbols() {
 @Composable
 internal fun NintendoSymbols() {
     val ink = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-    Box(Modifier.size(width = 40.dp, height = 28.dp)) {
+    Box(Modifier.size(width = 40.dp, height = 24.dp)) {
         @Composable
         fun letter(text: String, align: Alignment) {
             Text(text = text, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ink, modifier = Modifier.align(align))
@@ -194,7 +198,7 @@ internal fun NintendoSymbols() {
 
 @Composable
 internal fun PlayStationSymbols() {
-    Canvas(Modifier.size(width = 40.dp, height = 28.dp)) {
+    Canvas(Modifier.size(width = 40.dp, height = 24.dp)) {
         val stroke = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         val r = 3.6.dp.toPx()
         val cx = size.width / 2f

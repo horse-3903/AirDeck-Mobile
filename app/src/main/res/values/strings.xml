@@ -209,7 +209,7 @@
     <string name="presets_load">Apply</string>
     <string name="presets_delete">Delete</string>
     <string name="presets_close">Close</string>
-    <string name="settings_gamepad_style">Gamepad style</string>
+    <string name="settings_gamepad_style">Button style</string>
     <string name="style_playstation">PlayStation</string>
     <string name="style_xbox">Xbox</string>
     <string name="style_nintendo">Joy-Con</string>
@@ -307,9 +307,11 @@
     <string name="settings_section_controller">Controller</string>
     <string name="settings_section_connection">Connection</string>
     <string name="settings_gamepad_style_desc">Button labels and symbols</string>
+    <string name="sec_group_controller">Controller</string>
+    <string name="sec_group_display">Display</string>
     <string name="settings_customize_layout_desc">Move, resize or hide controls.</string>
     <string name="settings_haptic_desc">Vibrate when a control is pressed.</string>
-    <string name="settings_full_screen_desc">Hide the system bars while the app is open.</string>
+    <string name="settings_full_screen_desc">Hide system bars</string>
     <string name="settings_remember_desc">Prefill the last IP address and port.</string>
     <string name="settings_reset_all">Restore defaults</string>
     <string name="settings_dpad_single">One direction at a time</string>
@@ -335,7 +337,7 @@
     <string name="panel_width">Width</string>
     <string name="panel_height">Height</string>
     <string name="layouts_title">Gamepad layouts</string>
-    <string name="layouts_nav_desc">Choose, edit or create layouts. Move, resize or hide controls.</string>
+    <string name="layouts_nav_desc">Create and customise layouts</string>
     <string name="layout_header">Saved layouts</string>
     <string name="layout_new">New layout</string>
     <string name="layout_new_title">New layout</string>
@@ -395,7 +397,7 @@
     <string name="pref_glow_desc">Player-coloured screen edges</string>
     <string name="pref_glow_strength">Glow strength</string>
     <string name="pref_keep_on">Keep screen awake</string>
-    <string name="pref_keep_on_desc">Stops the screen from turning off while the controller is open.</string>
+    <string name="pref_keep_on_desc">Prevent automatic screen lock</string>
     <string name="pref_dead_zone">Dead zone</string>
     <string name="pref_dead_zone_desc">Ignore small movements near the centre of a stick.</string>
     <string name="pref_sensitivity">Sensitivity</string>

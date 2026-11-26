@@ -231,7 +231,8 @@ class MainActivity : ComponentActivity() {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToGamepadCustomization = { navController.navigate("gamepad_customization") },
-                    settingsRepository = settingsRepository
+                    settingsRepository = settingsRepository,
+                    onNavigateToAbout = { navController.navigate("about_screen") }
                 )
             }
             composable(
