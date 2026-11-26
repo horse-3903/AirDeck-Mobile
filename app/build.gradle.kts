@@ -8,26 +8,20 @@ plugins {
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.jlleitschuh.ktlint)
-}
-
-ktlint {
-    version.set("1.3.1")
-    android.set(true)
 }
 
 android {
-    namespace = "io.github.kitswas.virtualgamepadmobile"
-    compileSdk = 37
+    namespace = "io.github.horse3903.airdeck"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.kitswas.virtualgamepadmobile"
+        applicationId = "io.github.horse3903.airdeck"
         // Defines the minimum API level required to run the app.
         minSdk = 26
         // Specifies the API level used to test the app.
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.4.2"
+        versionCode = 14
+        versionName = "0.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -66,6 +60,10 @@ android {
         resValues = true
     }
 
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.8"
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -98,10 +96,8 @@ val propFile: File = rootProject.file("signing.properties")
 if (propFile.canRead()) {
     props.load(FileInputStream(propFile))
 
-    if (props.containsKey("STORE_FILE") &&
-        props.containsKey("STORE_PASSWORD") &&
-        props.containsKey("KEY_ALIAS") &&
-        props.containsKey("KEY_PASSWORD")
+    if (props.containsKey("STORE_FILE") && props.containsKey("STORE_PASSWORD") &&
+        props.containsKey("KEY_ALIAS") && props.containsKey("KEY_PASSWORD")
     ) {
         android.signingConfigs.getByName("release").apply {
             storeFile = File(props["STORE_FILE"].toString())
@@ -125,15 +121,20 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.window)
     implementation(libs.compose.ui)
-    implementation(libs.compose.material.icons.core)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.material3)
+    implementation(libs.material3.window.size)
     implementation(libs.navigation.compose)
-    implementation(libs.zxing.android.embedded)
+    implementation(libs.navigation.fragment.ktx)
+    implementation(libs.navigation.ui.ktx)
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
     implementation(libs.zxing.core)
     implementation(platform(libs.compose.bom))
     coreLibraryDesugaring(libs.desugar.jdk.libs)
@@ -144,10 +145,6 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
 
     // AndroidTest dependencies
-    androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.androidx.test.rules)
-    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.navigation.testing)
     androidTestImplementation(platform(libs.compose.bom))

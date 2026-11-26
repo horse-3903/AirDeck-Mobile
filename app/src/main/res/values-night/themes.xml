@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
 
-    <style name="Theme.VirtualGamePadMobile" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/pure_black</item>
+    <style name="Theme.AirDeck" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@color/pure_black</item>
-        <!-- API 31+ only. Gives the splash icon a light chip so the logo stays visible. -->
-        <item name="android:windowSplashScreenIconBackgroundColor" tools:targetApi="31">@color/pristine_white</item>
     </style>
 </resources>
