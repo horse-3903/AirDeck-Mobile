@@ -17,6 +17,8 @@ data class AppPrefs(
     val invertRightY: Boolean = false,
     // d-pad: the share of the radius a direction needs before it counts, so lower makes diagonals easier
     val dpadDiagonal: Int = 38,
+    // vibrate when the game rumbles this controller
+    val gameRumble: Boolean = true,
     // connection
     val autoReconnect: Boolean = true,
     val reconnectSeconds: Int = 120,

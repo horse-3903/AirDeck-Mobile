@@ -19,6 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.LaunchedEffect
+import io.github.horse3903.airdeck.ui.screens.LayoutThumbnail
+import io.github.horse3903.airdeck.data.ButtonComponent
+import io.github.horse3903.airdeck.data.ButtonConfig
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -65,6 +70,40 @@ private fun SectionTitle(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 18.dp, bottom = 6.dp)
     )
+}
+
+/** One saved layout as a card with its miniature. */
+@Composable
+private fun LayoutCard(
+    name: String,
+    configs: Map<ButtonComponent, ButtonConfig>,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(170.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (active) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceContainer)
+            .border(
+                1.dp,
+                if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = MaterialTheme.colorScheme.background,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            LayoutThumbnail(configs, Modifier.width(148.dp).padding(3.dp))
+        }
+        Text(name, fontSize = 13.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, maxLines = 1)
+    }
 }
 
 /** The two button styles as side by side cards, the chosen one outlined, like the browser controller. */
@@ -127,6 +166,9 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
     val style by settingsRepository.gamepadStyle.collectAsState(initial = defaultGamepadStyle)
     val configs by settingsRepository.buttonConfigs.collectAsState(initial = defaultButtonConfigs)
     val groups by settingsRepository.layoutGroups.collectAsState(initial = defaultLayoutGroups)
+    val presets by settingsRepository.presets.collectAsState(initial = emptyMap())
+    val active by settingsRepository.activeLayout.collectAsState(initial = null)
+    LaunchedEffect(Unit) { settingsRepository.ensureFactoryLayout() }
     val copied = stringResource(R.string.quick_layout_copied)
     val imported = stringResource(R.string.quick_layout_imported)
     val invalid = stringResource(R.string.quick_layout_invalid)
@@ -194,6 +236,23 @@ fun QuickSettingsDialog(settingsRepository: SettingsRepository, onDismiss: () ->
                             labelFor = { stringResource(it.nameRes) },
                             modifier = Modifier.width(232.dp)
                         )
+                    }
+                    HorizontalDivider(Modifier.padding(top = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+                    SectionTitle(stringResource(R.string.quick_section_layout))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // A layout that was never saved under a name comes first
+                        if (active == null || active !in presets) {
+                            LayoutCard(stringResource(R.string.layout_custom), configs, active = true, onClick = {})
+                        }
+                        presets.forEach { (name, layout) ->
+                            LayoutCard(name, layout, active = name == active) {
+                                scope.launch { settingsRepository.applyPreset(name) }
+                            }
+                        }
                     }
                     HorizontalDivider(Modifier.padding(top = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
 

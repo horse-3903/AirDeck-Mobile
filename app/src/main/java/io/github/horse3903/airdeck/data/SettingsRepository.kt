@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.horse3903.airdeck.ui.utils.HapticPrefs
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
@@ -101,6 +102,26 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    /** The built-in layout is always kept as a saved layout, so it can be picked again. */
+    suspend fun ensureFactoryLayout() {
+        if (presets.first().isNotEmpty()) return
+        savePreset(FACTORY_LAYOUT, defaultButtonConfigs, defaultLayoutGroups)
+        if (buttonConfigs.first() == defaultButtonConfigs && layoutGroups.first() == defaultLayoutGroups) {
+            setActiveLayout(FACTORY_LAYOUT)
+        }
+    }
+
+    /** Saves the layouts in this order. Layouts not named here keep their place after the others. */
+    suspend fun reorderPresets(order: List<String>) {
+        dataStore.edit { preferences ->
+            val configs = decodePresets(preferences[PRESETS])
+            val groups = decodePresetGroups(preferences[PRESET_GROUPS])
+            val names = order.filter { it in configs } + configs.keys.filter { it !in order }
+            preferences[PRESETS] = Json.encodeToString(names.associateWith { configs.getValue(it) })
+            preferences[PRESET_GROUPS] = Json.encodeToString(names.filter { it in groups }.associateWith { groups.getValue(it) })
+        }
+    }
+
     suspend fun renamePreset(old: String, new: String) {
         if (old == new) return
         dataStore.edit { preferences ->
@@ -186,6 +207,7 @@ class SettingsRepository(context: Context) {
             autoReconnect = p[PREF_RECONNECT] ?: d.autoReconnect,
             reconnectSeconds = p[PREF_RECONNECT_S] ?: d.reconnectSeconds,
             confirmDisconnect = p[PREF_CONFIRM] ?: d.confirmDisconnect,
+            gameRumble = p[PREF_GAME_RUMBLE] ?: d.gameRumble,
         )
     }
 
@@ -205,6 +227,7 @@ class SettingsRepository(context: Context) {
             p[PREF_RECONNECT] = prefs.autoReconnect
             p[PREF_RECONNECT_S] = prefs.reconnectSeconds
             p[PREF_CONFIRM] = prefs.confirmDisconnect
+            p[PREF_GAME_RUMBLE] = prefs.gameRumble
         }
     }
 
@@ -344,6 +367,7 @@ class SettingsRepository(context: Context) {
         private val PREF_RECONNECT = booleanPreferencesKey("pref_reconnect")
         private val PREF_RECONNECT_S = intPreferencesKey("pref_reconnect_seconds")
         private val PREF_CONFIRM = booleanPreferencesKey("pref_confirm_disconnect")
+        private val PREF_GAME_RUMBLE = booleanPreferencesKey("pref_game_rumble")
         private val HAPTIC_CUSTOM = booleanPreferencesKey("haptic_custom")
         private val HAPTIC_INTENSITY = intPreferencesKey("haptic_intensity")
         private val HAPTIC_DURATION = intPreferencesKey("haptic_duration")

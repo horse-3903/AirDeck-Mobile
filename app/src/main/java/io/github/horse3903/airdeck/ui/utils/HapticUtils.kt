@@ -68,6 +68,34 @@ object HapticUtils {
         vibrator.vibrate(effect)
     }
 
+    /**
+     * Follows the game's rumble. A phone has one motor, so the two strengths become the stronger of them.
+     * Each update replaces the last, and a long safety length stops it if the game never sends zero.
+     */
+    @Suppress("DEPRECATION")
+    fun gameRumble(context: Context, large: Int, weak: Int) {
+        val vibrator = vibrator(context) ?: return
+        if (!vibrator.hasVibrator()) return
+        val strength = maxOf(large, weak).coerceIn(0, 255)
+        if (strength == 0) {
+            vibrator.cancel()
+            return
+        }
+        val effect = if (vibrator.hasAmplitudeControl()) {
+            VibrationEffect.createOneShot(3000L, strength.coerceAtLeast(1))
+        } else {
+            VibrationEffect.createOneShot(3000L, VibrationEffect.DEFAULT_AMPLITUDE)
+        }
+        vibrator.vibrate(
+            effect,
+            android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_GAME).build()
+        )
+    }
+
+    fun stopRumble(context: Context) {
+        vibrator(context)?.cancel()
+    }
+
     private fun system(view: View, effect: Int, fallback: Int = effect) {
         view.performHapticFeedback(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) effect else fallback, OVERRIDE_FLAGS)
     }

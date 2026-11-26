@@ -91,6 +91,20 @@ fun GamePad(
         connectionViewModel?.enqueueGamepadState(gamepadState)
     }
 
+    // The game rumbling this controller shakes the phone
+    LaunchedEffect(connectionViewModel, prefs.gameRumble) {
+        if (!prefs.gameRumble) {
+            io.github.horse3903.airdeck.ui.utils.HapticUtils.stopRumble(context)
+            return@LaunchedEffect
+        }
+        connectionViewModel?.rumble?.collect { motors ->
+            io.github.horse3903.airdeck.ui.utils.HapticUtils.gameRumble(context, motors[0], motors[1])
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { io.github.horse3903.airdeck.ui.utils.HapticUtils.stopRumble(context) }
+    }
+
     var showDisconnectConfirm by rememberSaveable { mutableStateOf(false) }
     var userDisconnected by rememberSaveable { mutableStateOf(false) }
     var showQuickSettings by rememberSaveable { mutableStateOf(false) }

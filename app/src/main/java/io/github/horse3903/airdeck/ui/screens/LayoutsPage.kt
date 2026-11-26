@@ -17,6 +17,14 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.round
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +33,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.DpOffset
@@ -87,7 +96,7 @@ import kotlinx.coroutines.launch
 private val PageWidth = 560.dp
 
 /** When a row lands in a new spot, it glides there from the old one instead of jumping. */
-private fun Modifier.animatePlacement(): Modifier = composed {
+private fun Modifier.animatePlacement(enabled: Boolean = true): Modifier = composed {
     val scope = rememberCoroutineScope()
     var target by remember { mutableStateOf(IntOffset.Zero) }
     var animatable by remember { mutableStateOf<Animatable<IntOffset, AnimationVector2D>?>(null) }
@@ -96,18 +105,21 @@ private fun Modifier.animatePlacement(): Modifier = composed {
         .offset {
             val anim = animatable ?: Animatable(target, IntOffset.VectorConverter).also { animatable = it }
             if (anim.targetValue != target) {
-                scope.launch { anim.animateTo(target, tween(320)) }
+                if (enabled) scope.launch { anim.animateTo(target, tween(320)) } else scope.launch { anim.snapTo(target) }
             }
-            // Drawn at the old spot, then it catches up to zero
-            anim.value - target
+            // Drawn at the old spot, then it catches up to zero. A row held by the finger just follows it.
+            if (enabled) anim.value - target else IntOffset.Zero
         }
 }
 
 /** A miniature of a layout, drawn from where its controls actually sit. */
 @Composable
-private fun LayoutThumbnail(configs: Map<ButtonComponent, ButtonConfig>, modifier: Modifier = Modifier) {
+internal fun LayoutThumbnail(configs: Map<ButtonComponent, ButtonConfig>, modifier: Modifier = Modifier) {
     val ink = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-    Canvas(modifier) {
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    // Same proportions as the real screen, so every control lands where it does on the controller
+    val aspect = maxOf(config.screenWidthDp, config.screenHeightDp).toFloat() / minOf(config.screenWidthDp, config.screenHeightDp)
+    Canvas(modifier.aspectRatio(aspect)) {
         val unit = size.height
         val worldW = size.width / unit
         val pad = 1f / 18f
@@ -524,14 +536,72 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
             ) { Text("+  " + stringResource(R.string.layout_new), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface) }
         }
 
-        // The layout in use comes first
-        val ordered = presets.entries.sortedByDescending { it.key == active }
-        ordered.forEach { (name, configs) -> key(name) {
+        // Your layouts in your order, then the built-in one, which always stays at the bottom
+        val stored = presets.keys.filter { it != FACTORY_LAYOUT }
+        var order by remember(stored) { mutableStateOf(stored) }
+        var dragging by remember { mutableStateOf<String?>(null) }
+        var dragY by remember { mutableFloatStateOf(0f) }
+        var rowStep by remember { mutableFloatStateOf(0f) }
+        val gap = with(LocalDensity.current) { 8.dp.toPx() }
+        val shown = order + listOfNotNull(FACTORY_LAYOUT.takeIf { it in presets })
+
+        fun swap(list: List<String>, a: Int, b: Int): List<String> =
+            list.toMutableList().also { val x = it[a]; it[a] = it[b]; it[b] = x }
+
+        shown.forEach { name -> presets[name]?.let { configs -> key(name) {
             val isActive = name == active
             val factory = name == FACTORY_LAYOUT
+            val index = order.indexOf(name)
+            val held = dragging == name
             var menuOpen by rememberSaveable(name) { mutableStateOf(false) }
             LayoutRow(
-                modifier = Modifier.animatePlacement(),
+                modifier = Modifier
+                    .animatePlacement(enabled = !held)
+                    .onGloballyPositioned { if (!factory && rowStep == 0f) rowStep = it.size.height + gap }
+                    .zIndex(if (held) 1f else 0f)
+                    .graphicsLayer { translationY = if (held) dragY else 0f }
+                    .then(if (held) Modifier.shadow(8.dp, RoundedCornerShape(8.dp)) else Modifier),
+                leading = {
+                    // Three lines to grab: drag them to move the layout. The built-in layout stays put.
+                    Box(
+                        modifier = Modifier
+                            .size(width = 36.dp, height = 44.dp)
+                            .then(
+                                if (factory) Modifier else Modifier
+                                    .clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { }
+                                    .pointerInput(name) {
+                                        detectDragGestures(
+                                            onDragStart = { dragging = name; dragY = 0f },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                dragY += amount.y
+                                                val at = order.indexOf(name)
+                                                if (rowStep > 0f && dragY > rowStep / 2f && at < order.lastIndex) {
+                                                    order = swap(order, at, at + 1); dragY -= rowStep
+                                                } else if (rowStep > 0f && dragY < -rowStep / 2f && at > 0) {
+                                                    order = swap(order, at, at - 1); dragY += rowStep
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                dragging = null; dragY = 0f
+                                                scope.launch { repo.reorderPresets(order) }
+                                            },
+                                            onDragCancel = { dragging = null; dragY = 0f; order = stored }
+                                        )
+                                    }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!factory) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_menu),
+                                contentDescription = stringResource(R.string.layout_drag_handle),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                },
                 name = name,
                 subtitle = when {
                     isActive -> stringResource(R.string.layout_active)
@@ -562,7 +632,7 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                             }
                         }
                     }
-                    RowIcon(R.drawable.ic_lucide_pencil, stringResource(R.string.layout_edit)) {
+                    RowIcon(R.drawable.ic_lucide_pencil, stringResource(R.string.layout_edit), enabled = !factory) {
                         scope.launch { repo.applyPreset(name); onEdit() }
                     }
                     Box {
@@ -574,6 +644,16 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.width(176.dp)
                         ) {
+                            CompactMenuItem(stringResource(R.string.layout_move_up), R.drawable.ic_lucide_arrow_up, enabled = !factory && index > 0) {
+                                menuOpen = false
+                                val next = swap(order, index, index - 1)
+                                scope.launch { repo.reorderPresets(next) }
+                            }
+                            CompactMenuItem(stringResource(R.string.layout_move_down), R.drawable.ic_lucide_arrow_down, enabled = !factory && index in 0 until order.lastIndex) {
+                                menuOpen = false
+                                val next = swap(order, index, index + 1)
+                                scope.launch { repo.reorderPresets(next) }
+                            }
                             CompactMenuItem(stringResource(R.string.layout_rename), R.drawable.ic_lucide_type, enabled = !factory) {
                                 menuOpen = false; renaming = name
                             }
@@ -593,17 +673,18 @@ fun LayoutsPage(repo: SettingsRepository, onEdit: () -> Unit) {
                     }
                 }
             )
-        } }
+        } } }
     }
 }
 
 @Composable
-private fun RowIcon(iconRes: Int, description: String, destructive: Boolean = false, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
+private fun RowIcon(iconRes: Int, description: String, destructive: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(44.dp)) {
         Icon(
             painter = painterResource(iconRes),
             contentDescription = description,
-            tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            tint = (if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                .copy(alpha = if (enabled) 1f else 0.35f),
             modifier = Modifier.size(20.dp)
         )
     }
@@ -652,6 +733,7 @@ private fun LayoutRow(
     configs: Map<ButtonComponent, ButtonConfig>,
     isActive: Boolean,
     onClick: () -> Unit,
+    leading: @Composable () -> Unit = {},
     trailing: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(8.dp)
@@ -670,15 +752,16 @@ private fun LayoutRow(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.heightIn(min = 64.dp).padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.heightIn(min = 64.dp).padding(start = 2.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            leading()
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.background,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                LayoutThumbnail(configs, Modifier.width(88.dp).height(48.dp).padding(3.dp))
+                LayoutThumbnail(configs, Modifier.width(96.dp).padding(3.dp))
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(name, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium))

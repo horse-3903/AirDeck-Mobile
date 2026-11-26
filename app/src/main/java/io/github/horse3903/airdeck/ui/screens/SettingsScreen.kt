@@ -380,6 +380,7 @@ fun SettingsScreen(
 
                     }
                     "haptics" -> {
+                SwitchRow(stringResource(R.string.haptics_game), stringResource(R.string.haptics_game_desc), prefs.gameRumble) { save(prefs.copy(gameRumble = it)) }
                 SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), settingsChanges.hapticFeedbackEnabled ?: hapticEnabled) {
                     settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
                     applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }

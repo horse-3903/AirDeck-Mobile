@@ -353,6 +353,9 @@
     <string name="layout_apply">Apply</string>
     <string name="layout_edit">Edit</string>
     <string name="layout_more">More</string>
+    <string name="layout_move_up">Move up</string>
+    <string name="layout_drag_handle">Drag to reorder</string>
+    <string name="layout_move_down">Move down</string>
     <string name="layout_factory">Factory default</string>
     <string name="layout_edit_current">Edit current layout</string>
     <string name="layout_rename">Rename</string>
@@ -368,6 +371,9 @@
     <string name="layout_export_all_title">Export all layouts</string>
     <string name="layout_import_title">Import layouts</string>
     <string name="layout_import_desc">Paste exported layouts. A layout with the same name is replaced. A single exported layout is added as a new one.</string>
+    <string name="haptics_game">Game vibration</string>
+    <string name="haptics_game_desc">Vibrate when the game rumbles this controller.</string>
+    <string name="quick_section_layout">Layout</string>
     <string name="sec_saved_layouts">Saved layouts</string>
     <string name="presets_export_title">Export saved layouts</string>
     <string name="presets_export_desc">Copy this text to back up every saved layout or move them to another device.</string>

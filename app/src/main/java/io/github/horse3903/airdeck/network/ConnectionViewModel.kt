@@ -9,7 +9,10 @@ import io.github.horse3903.airdeck.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -38,6 +41,10 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
 
     // Job for the command processor
     private var commandProcessorJob: Job? = null
+
+    /** What the game asked the controller to do: the large and small motor strengths, 0 to 255 each. */
+    private val _rumble = MutableSharedFlow<IntArray>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val rumble: SharedFlow<IntArray> = _rumble
 
     // Expose screen UI state
     private val _uiState = MutableStateFlow(ConnectionState())
@@ -270,7 +277,12 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
                 val reader = socket.getInputStream().bufferedReader()
                 while (true) {
                     val line = reader.readLine() ?: break
-                    if (line.startsWith("VGPSLOT:")) {
+                    if (line.startsWith("VGPRUMBLE:")) {
+                        val parts = line.removePrefix("VGPRUMBLE:").trim().split(",")
+                        val large = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                        val weak = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                        _rumble.tryEmit(intArrayOf(large.coerceIn(0, 255), weak.coerceIn(0, 255)))
+                    } else if (line.startsWith("VGPSLOT:")) {
                         line.removePrefix("VGPSLOT:").trim().toIntOrNull()?.let { slot ->
                             _uiState.update { it.copy(controllerSlot = slot) }
                         }
@@ -279,6 +291,7 @@ class ConnectionViewModel(private val onConnectionSuccess: suspend (String, Int)
             } catch (e: IOException) {
                 Log.d(tag, "Reader stopped: ${e.message}")
             }
+            _rumble.tryEmit(intArrayOf(0, 0))
             if (clientSocket === socket) {
                 clientSocket = null
                 commandQueue.clear()
