@@ -70,7 +70,7 @@ object HapticUtils {
 
     /**
      * Follows the game's rumble. A phone has one motor, so the two strengths become the stronger of them.
-     * Each update replaces the last, and a long safety length stops it if the game never sends zero.
+     * Each update replaces the last and the buzz repeats until the game sends zero or the phone disconnects.
      */
     @Suppress("DEPRECATION")
     fun gameRumble(context: Context, large: Int, weak: Int) {
@@ -78,13 +78,21 @@ object HapticUtils {
         if (!vibrator.hasVibrator()) return
         val strength = maxOf(large, weak).coerceIn(0, 255)
         if (strength == 0) {
+            rumbleStrength = 0
             vibrator.cancel()
             return
         }
+        // A game that repeats the same command every frame should not restart the motor each time, but a touch
+        // buzz can replace the repeating one, so it is started again after a second
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (strength == rumbleStrength && now - rumbleStartedAt < 800L) return
+        rumbleStrength = strength
+        rumbleStartedAt = now
+        // A game rumbles until it says stop, so this repeats until stopRumble or a zero arrives
         val effect = if (vibrator.hasAmplitudeControl()) {
-            VibrationEffect.createOneShot(3000L, strength.coerceAtLeast(1))
+            VibrationEffect.createWaveform(longArrayOf(1000L), intArrayOf(strength.coerceAtLeast(1)), 0)
         } else {
-            VibrationEffect.createOneShot(3000L, VibrationEffect.DEFAULT_AMPLITUDE)
+            VibrationEffect.createWaveform(longArrayOf(1000L), 0)
         }
         vibrator.vibrate(
             effect,
@@ -92,7 +100,11 @@ object HapticUtils {
         )
     }
 
+    private var rumbleStrength = 0
+    private var rumbleStartedAt = 0L
+
     fun stopRumble(context: Context) {
+        rumbleStrength = 0
         vibrator(context)?.cancel()
     }
 

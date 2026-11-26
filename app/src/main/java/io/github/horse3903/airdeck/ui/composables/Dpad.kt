@@ -54,6 +54,7 @@ private class DpadColors(light: Boolean) {
     val armEdge = if (light) Color(0xFF8A8A96) else Color(0xFF34343D)
     val key = if (light) Color(0xFFB9B9C6) else Color(0xFF2A2A32)
     val keyEdge = if (light) Color(0xFF7D7D8A) else Color(0xFF4A4A55)
+    val ink = if (light) Color(0xFF30303A) else Color(0xFFC4C4CE)
     val keyOn = if (light) Color(0xFF8E8E9C) else Color(0xFF6A6A78)
 }
 
@@ -126,6 +127,27 @@ private fun DrawScope.drawPlayStationDpad(colors: DpadColors, pressed: Set<DpadB
                 }
             }
         }
+    }
+}
+
+/** Four separate round keys with an arrow on each, like the Joy-Con. */
+private fun DrawScope.drawNintendoDpad(colors: DpadColors, pressed: Set<DpadButtonType>) {
+    val s = size.minDimension
+    val r = s * 0.2f
+    val c = Offset(s / 2f, s / 2f)
+    val reach = s * 0.31f
+    for ((type, dx, dy, rot) in listOf(
+        Quad(DpadButtonType.UP, 0f, -reach, 0f), Quad(DpadButtonType.RIGHT, reach, 0f, 90f),
+        Quad(DpadButtonType.DOWN, 0f, reach, 180f), Quad(DpadButtonType.LEFT, -reach, 0f, -90f)
+    )) {
+        val centre = Offset(c.x + dx, c.y + dy)
+        drawCircle(if (type in pressed) colors.keyOn else colors.key, r, centre)
+        drawCircle(colors.keyEdge, r, centre, style = Stroke(s * 0.012f))
+        val a = r * 0.42f
+        val arrow = Path().apply {
+            moveTo(0f, -a); lineTo(a * 0.9f, a * 0.6f); lineTo(-a * 0.9f, a * 0.6f); close()
+        }
+        translate(centre.x, centre.y) { rotate(rot, pivot = Offset.Zero) { drawPath(arrow, colors.ink) } }
     }
 }
 
@@ -216,7 +238,11 @@ fun Dpad(
             }
     ) {
         Canvas(Modifier.size(size)) {
-            if (style == GamepadStyle.XBOX) drawXboxDpad(colors, active) else drawPlayStationDpad(colors, active)
+            when (style) {
+                GamepadStyle.XBOX -> drawXboxDpad(colors, active)
+                GamepadStyle.NINTENDO -> drawNintendoDpad(colors, active)
+                GamepadStyle.PLAYSTATION -> drawPlayStationDpad(colors, active)
+            }
         }
     }
 }

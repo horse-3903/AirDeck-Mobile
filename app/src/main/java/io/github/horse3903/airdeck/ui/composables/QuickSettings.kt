@@ -110,7 +110,7 @@ private fun LayoutCard(
 @Composable
 private fun StyleCards(selected: GamepadStyle, onSelect: (GamepadStyle) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        for (style in listOf(GamepadStyle.XBOX, GamepadStyle.PLAYSTATION)) {
+        for (style in listOf(GamepadStyle.XBOX, GamepadStyle.PLAYSTATION, GamepadStyle.NINTENDO)) {
             val picked = style == selected
             Column(
                 modifier = Modifier
@@ -133,6 +133,7 @@ private fun StyleCards(selected: GamepadStyle, onSelect: (GamepadStyle) -> Unit)
                 when (style) {
                     GamepadStyle.XBOX -> XboxSymbols()
                     GamepadStyle.PLAYSTATION -> PlayStationSymbols()
+                    GamepadStyle.NINTENDO -> NintendoSymbols()
                 }
                 Text(stringResource(style.nameRes), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }

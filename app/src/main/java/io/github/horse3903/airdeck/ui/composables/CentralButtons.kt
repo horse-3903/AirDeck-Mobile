@@ -1,6 +1,9 @@
 package io.github.horse3903.airdeck.ui.composables
 
 import io.github.horse3903.airdeck.data.GamepadStyle
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -123,6 +126,7 @@ fun ShoulderButton(
             text = when (LocalGamepadStyle.current) {
                 GamepadStyle.XBOX -> if (type == ShoulderButtonType.LEFT) "LB" else "RB"
                 GamepadStyle.PLAYSTATION -> if (type == ShoulderButtonType.LEFT) "L1" else "R1"
+                GamepadStyle.NINTENDO -> if (type == ShoulderButtonType.LEFT) "L" else "R"
             },
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
         )
@@ -207,7 +211,16 @@ fun MenuButton(
         onClick = { },
         interactionSource = interactionSource,
     ) {
-        if (iconPainter != null) {
+        if (LocalGamepadStyle.current == GamepadStyle.NINTENDO) {
+            val glyph = PsStyle.Glyph
+            Canvas(Modifier.size(size * 0.42f)) {
+                val w = this.size.minDimension * 0.16f
+                drawLine(glyph, Offset(0f, this.size.height / 2f), Offset(this.size.width, this.size.height / 2f), w, StrokeCap.Round)
+                if (type == MenuButtonType.MENU) {
+                    drawLine(glyph, Offset(this.size.width / 2f, 0f), Offset(this.size.width / 2f, this.size.height), w, StrokeCap.Round)
+                }
+            }
+        } else if (iconPainter != null) {
             Icon(
                 painter = iconPainter,
                 contentDescription = stringResource(R.string.content_desc_button, gameButton.name),

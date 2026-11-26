@@ -104,8 +104,10 @@ fun FaceButton(
             }
         }
     }
-    val isXbox = LocalGamepadStyle.current == GamepadStyle.XBOX
-    val glyphColor = when (type) {
+    val style = LocalGamepadStyle.current
+    val isXbox = style == GamepadStyle.XBOX
+    val isNintendo = style == GamepadStyle.NINTENDO
+    val glyphColor = if (isNintendo) PsStyle.Glyph else when (type) {
         FaceButtonType.A -> if (isXbox) PsStyle.XboxA else PsStyle.Cross
         FaceButtonType.B -> if (isXbox) PsStyle.XboxB else PsStyle.Circle
         FaceButtonType.X -> if (isXbox) PsStyle.XboxX else PsStyle.Square
@@ -125,8 +127,16 @@ fun FaceButton(
         interactionSource = interactionSource,
         border = BorderStroke(1.5.dp, if (isPressed) glyphColor else PsStyle.Border),
     ) {
-        FaceGlyph(type = type, xbox = isXbox, color = glyphColor, modifier = Modifier.size(size * 0.49f))
+        FaceGlyph(type = if (isNintendo) nintendoLetter(type) else type, xbox = isXbox || isNintendo, color = glyphColor, modifier = Modifier.size(size * 0.49f))
     }
+}
+
+/** Joy-Con letters follow the position, not the XInput name: the bottom button reads B, the right one A. */
+private fun nintendoLetter(type: FaceButtonType) = when (type) {
+    FaceButtonType.A -> FaceButtonType.B
+    FaceButtonType.B -> FaceButtonType.A
+    FaceButtonType.X -> FaceButtonType.Y
+    FaceButtonType.Y -> FaceButtonType.X
 }
 
 /** The same stroke symbols and letters the browser controller draws, on a 24 unit grid. */

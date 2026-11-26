@@ -136,6 +136,7 @@ private fun DigitalTrigger(
                 text = when (LocalGamepadStyle.current) {
                     GamepadStyle.XBOX -> if (type == TriggerType.LEFT) "LT" else "RT"
                     GamepadStyle.PLAYSTATION -> if (type == TriggerType.LEFT) "L2" else "R2"
+                    GamepadStyle.NINTENDO -> if (type == TriggerType.LEFT) "ZL" else "ZR"
                 },
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
             )
@@ -215,6 +216,7 @@ private fun AnalogTrigger(
     val label = when (LocalGamepadStyle.current) {
         GamepadStyle.XBOX -> if (type == TriggerType.LEFT) "LT" else "RT"
         GamepadStyle.PLAYSTATION -> if (type == TriggerType.LEFT) "L2" else "R2"
+        GamepadStyle.NINTENDO -> if (type == TriggerType.LEFT) "ZL" else "ZR"
     }
 
     val body = if (mode == TriggerMode.ZONES) {

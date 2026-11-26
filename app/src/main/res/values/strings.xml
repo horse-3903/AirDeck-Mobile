@@ -212,6 +212,7 @@
     <string name="settings_gamepad_style">Gamepad style</string>
     <string name="style_playstation">PlayStation</string>
     <string name="style_xbox">Xbox</string>
+    <string name="style_nintendo">Joy-Con</string>
     <string name="customization_tap_hint">Drag to reposition · Tap to customize</string>
     <string name="customization_mode_edit">Edit</string>
     <string name="customization_undo">Undo</string>
@@ -421,6 +422,11 @@
     <string name="settings_stick_snap">Snap stick to touch</string>
     <string name="settings_stick_snap_desc">Touching anywhere inside a stick\'s circle moves it there. Turn off to drag from the stick cap only.</string>
     <string name="panel_trigger_mode">Trigger input</string>
+    <string name="panel_stick_mode">Stick position</string>
+    <string name="stick_mode_fixed">Fixed</string>
+    <string name="stick_mode_fixed_desc">The stick stays where it is in the layout</string>
+    <string name="stick_mode_floating">Floating</string>
+    <string name="stick_mode_floating_desc">The stick appears under your thumb inside its area</string>
     <string name="trigger_mode_digital">Button</string>
     <string name="trigger_mode_digital_desc">Plain tap: fully on or off</string>
     <string name="trigger_mode_slide">Slide track</string>

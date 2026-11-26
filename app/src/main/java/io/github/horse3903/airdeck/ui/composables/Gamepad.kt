@@ -123,6 +123,7 @@ fun DrawGamepad(
                     innerCircleRadius = (baseDp / 14 * config.scale).dp,
                     gamepadState = gamepadState,
                     type = AnalogStickType.LEFT,
+                    floating = config.stickMode == io.github.horse3903.airdeck.data.StickMode.FLOATING,
                 )
             }
 
@@ -134,6 +135,7 @@ fun DrawGamepad(
                     innerCircleRadius = (baseDp / 14 * config.scale).dp,
                     gamepadState = gamepadState,
                     type = AnalogStickType.RIGHT,
+                    floating = config.stickMode == io.github.horse3903.airdeck.data.StickMode.FLOATING,
                 )
             }
 

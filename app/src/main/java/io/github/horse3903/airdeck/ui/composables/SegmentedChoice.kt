@@ -141,7 +141,7 @@ fun GamepadStyleChoice(
     modifier: Modifier = Modifier,
 ) {
     SegmentedChoice(
-        options = listOf(GamepadStyle.XBOX, GamepadStyle.PLAYSTATION),
+        options = listOf(GamepadStyle.XBOX, GamepadStyle.PLAYSTATION, GamepadStyle.NINTENDO),
         selected = selected,
         onSelect = onSelect,
         modifier = modifier
@@ -150,6 +150,7 @@ fun GamepadStyleChoice(
             when (style) {
                 GamepadStyle.XBOX -> XboxSymbols()
                 GamepadStyle.PLAYSTATION -> PlayStationSymbols()
+                GamepadStyle.NINTENDO -> NintendoSymbols()
             }
             SegmentLabel(labelFor(style), isSelected)
         }
@@ -173,6 +174,21 @@ internal fun XboxSymbols() {
         letter("X", Color(0xFF3E8EF7), Alignment.CenterStart)
         letter("B", Color(0xFFE5484D), Alignment.CenterEnd)
         letter("A", Color(0xFF30A46C), Alignment.BottomCenter)
+    }
+}
+
+@Composable
+internal fun NintendoSymbols() {
+    val ink = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+    Box(Modifier.size(width = 40.dp, height = 28.dp)) {
+        @Composable
+        fun letter(text: String, align: Alignment) {
+            Text(text = text, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ink, modifier = Modifier.align(align))
+        }
+        letter("X", Alignment.TopCenter)
+        letter("Y", Alignment.CenterStart)
+        letter("A", Alignment.CenterEnd)
+        letter("B", Alignment.BottomCenter)
     }
 }
 

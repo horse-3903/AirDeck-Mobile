@@ -76,7 +76,10 @@ private fun parseControls(root: JsonObject, legacy: Boolean): Map<ButtonComponen
                 ?: base.anchor,
             triggerMode = primitive("triggerMode")?.contentOrNull
                 ?.let { name -> TriggerMode.entries.firstOrNull { it.name == name } }
-                ?: base.triggerMode
+                ?: base.triggerMode,
+            stickMode = primitive("stickMode")?.contentOrNull
+                ?.let { name -> StickMode.entries.firstOrNull { it.name == name } }
+                ?: base.stickMode
         )
     }
     return result

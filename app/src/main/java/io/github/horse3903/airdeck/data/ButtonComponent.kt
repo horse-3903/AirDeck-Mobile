@@ -95,6 +95,18 @@ enum class TriggerMode(@StringRes val nameRes: Int, @StringRes val descRes: Int)
 }
 
 /**
+ * Where an analog stick puts its centre: fixed at its place in the layout, or wherever the thumb lands
+ * inside the stick's touch area.
+ */
+@Immutable
+@Serializable
+@Parcelize
+enum class StickMode(@StringRes val nameRes: Int, @StringRes val descRes: Int) : Parcelable {
+    FIXED(R.string.stick_mode_fixed, R.string.stick_mode_fixed_desc),
+    FLOATING(R.string.stick_mode_floating, R.string.stick_mode_floating_desc)
+}
+
+/**
  * Configuration for a single button component
  */
 @Stable
@@ -110,7 +122,8 @@ data class ButtonConfig(
     val offsetX: Float = 0f,
     val offsetY: Float = 0f,
     val anchor: ButtonAnchor = component.defaultAnchor,
-    val triggerMode: TriggerMode = TriggerMode.DIGITAL
+    val triggerMode: TriggerMode = TriggerMode.DIGITAL,
+    val stickMode: StickMode = StickMode.FIXED
 ) : Parcelable {
     companion object {
         fun default(component: ButtonComponent) = defaultButtonConfigs[component] ?: ButtonConfig(component)

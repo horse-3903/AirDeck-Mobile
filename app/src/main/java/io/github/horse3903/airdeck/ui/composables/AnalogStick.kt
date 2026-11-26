@@ -52,6 +52,9 @@ private class AnalogStickUiState {
     var visualX by mutableFloatStateOf(0f)
     var visualY by mutableFloatStateOf(0f)
     var isPressed by mutableStateOf(false)
+    // How far a floating stick's centre sits from the middle of its touch area
+    var shiftX by mutableFloatStateOf(0f)
+    var shiftY by mutableFloatStateOf(0f)
 }
 
 /** Dead zone, sensitivity and inversion applied to a stick position whose length is 0 to 1. */
@@ -106,6 +109,8 @@ private fun resetAnalogStick(
     state.offsetY = 0f
     state.visualX = 0f
     state.visualY = 0f
+    state.shiftX = 0f
+    state.shiftY = 0f
     updateThumbstickValues(type, gamepadState, 0f, 0f)
 }
 
@@ -175,6 +180,7 @@ fun AnalogStick(
     innerCircleRadius: Dp = 32.dp,
     gamepadState: GamepadReading,
     type: AnalogStickType,
+    floating: Boolean = false,
 ) {
     val density = LocalDensity.current
     val view = LocalView.current
@@ -185,6 +191,9 @@ fun AnalogStick(
     val snap = LocalStickSnap.current
     val diameter = (innerCircleRadius + outerCircleWidth + ringWidth) * 2
     val diameterPx = with(density) { diameter.toPx() }
+    // A floating stick listens in a wider circle than it draws, and its centre moves to where the thumb lands
+    val region = if (floating) diameter * 1.9f else diameter
+    val regionPx = with(density) { region.toPx() }
     val maxOffset = diameterPx * 0.28f
     val knobSize = diameter * 0.44f
     val pressedColor = PsStyle.Glyph
@@ -192,14 +201,20 @@ fun AnalogStick(
     Box(
         modifier = modifier
             .testTag("AnalogStick_${type.name}")
-            .size(diameter)
+            .size(region)
             .then(
-                if (!snap) Modifier else Modifier.pointerInput(type) {
+                if (!snap && !floating) Modifier else Modifier.pointerInput(type, floating) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        val centre = Offset(size.width / 2f, size.height / 2f)
-                        if (hypot(down.position.x - centre.x, down.position.y - centre.y) > diameterPx / 2f) return@awaitEachGesture
+                        val middle = Offset(size.width / 2f, size.height / 2f)
+                        if (hypot(down.position.x - middle.x, down.position.y - middle.y) > (if (floating) regionPx else diameterPx) / 2f) return@awaitEachGesture
+                        // Fixed sticks measure from the middle, floating ones from the first touch
+                        val centre = if (floating) down.position else middle
                         down.consume()
+                        if (floating) {
+                            state.shiftX = centre.x - middle.x
+                            state.shiftY = centre.y - middle.y
+                        }
                         HapticUtils.performGestureStartFeedback(view)
 
                         fun place(position: Offset) {
@@ -220,31 +235,48 @@ fun AnalogStick(
                             if (normalized > 0.3f) HapticUtils.performAnalogMovementFeedback(view, normalized)
                         }
 
-                        place(down.position)
-                        var moved = false
-                        var longPressed = false
-                        val started = down.uptimeMillis
-                        while (true) {
-                            val wait = if (moved || longPressed) null else (prefs.clickHoldMs.toLong() - (android.os.SystemClock.uptimeMillis() - started)).coerceAtLeast(1L)
-                            val event = if (wait == null) awaitPointerEvent() else withTimeoutOrNull(wait) { awaitPointerEvent() }
-                            if (event == null) {
-                                longPressed = true
-                                if (prefs.clickEnabled) toggleThumbstickButton(state, type, gamepadState, view)
-                                continue
+                        try {
+                            place(down.position)
+                            var moved = false
+                            var longPressed = false
+                            val started = down.uptimeMillis
+                            while (true) {
+                                val wait = if (moved || longPressed) null else (prefs.clickHoldMs.toLong() - (android.os.SystemClock.uptimeMillis() - started)).coerceAtLeast(1L)
+                                val event = if (wait == null) awaitPointerEvent() else withTimeoutOrNull(wait) { awaitPointerEvent() }
+                                if (event == null) {
+                                    longPressed = true
+                                    if (prefs.clickEnabled) toggleThumbstickButton(state, type, gamepadState, view)
+                                    continue
+                                }
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                change.consume()
+                                if (!change.pressed) break
+                                if (hypot(change.position.x - down.position.x, change.position.y - down.position.y) > touchSlop) moved = true
+                                place(change.position)
                             }
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            change.consume()
-                            if (!change.pressed) break
-                            if (hypot(change.position.x - down.position.x, change.position.y - down.position.y) > touchSlop) moved = true
-                            place(change.position)
+                        } finally {
+                            resetAnalogStick(state, type, gamepadState)
                         }
-                        resetAnalogStick(state, type, gamepadState)
                         HapticUtils.performGestureEndFeedback(view)
                     }
                 }
             ),
         contentAlignment = Alignment.Center
     ) {
+        if (floating) {
+            // The touch area, faint, so the player can see where the stick will appear
+            Box(
+                Modifier
+                    .size(region)
+                    .border(1.dp, ringColor.copy(alpha = 0.25f), CircleShape)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(diameter)
+                .offset { IntOffset(state.shiftX.roundToInt(), state.shiftY.roundToInt()) },
+            contentAlignment = Alignment.Center
+        ) {
         // Base
         Box(
             Modifier
@@ -264,8 +296,8 @@ fun AnalogStick(
             modifier = Modifier
                 .testTag("AnalogStick_${type.name}_Handle")
                 .size(knobSize)
-                .pointerInput(snap) {
-                    if (snap) return@pointerInput
+                .pointerInput(snap, floating) {
+                    if (snap || floating) return@pointerInput
                     detectDragGestures(
                         onDragStart = { _ ->
                             HapticUtils.performGestureStartFeedback(view)
@@ -289,8 +321,8 @@ fun AnalogStick(
                         }
                     )
                 }
-                .pointerInput(snap) {
-                    if (snap) return@pointerInput
+                .pointerInput(snap, floating) {
+                    if (snap || floating) return@pointerInput
                     detectTapGestures(
                         onLongPress = { _ ->
                             if (prefs.clickEnabled) toggleThumbstickButton(state, type, gamepadState, view)
@@ -314,6 +346,7 @@ fun AnalogStick(
                     .clip(CircleShape)
                     .background(ringColor)
             )
+        }
         }
     }
 }

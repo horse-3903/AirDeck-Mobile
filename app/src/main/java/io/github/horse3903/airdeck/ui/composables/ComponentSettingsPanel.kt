@@ -18,6 +18,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.clickable
 import io.github.horse3903.airdeck.data.TriggerMode
+import io.github.horse3903.airdeck.data.StickMode
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -212,6 +213,35 @@ fun ComponentSettingsPanel(
                         RadioButton(
                             selected = config.triggerMode == m,
                             onClick = { onConfigChange(config.copy(triggerMode = m)) }
+                        )
+                        Column {
+                            Text(stringResource(m.nameRes), style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                stringResource(m.descRes),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+            if (component == ButtonComponent.LEFT_ANALOG_STICK || component == ButtonComponent.RIGHT_ANALOG_STICK) {
+                Text(
+                    text = stringResource(R.string.panel_stick_mode),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                StickMode.entries.forEach { m ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onConfigChange(config.copy(stickMode = m)) }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = config.stickMode == m,
+                            onClick = { onConfigChange(config.copy(stickMode = m)) }
                         )
                         Column {
                             Text(stringResource(m.nameRes), style = MaterialTheme.typography.bodyMedium)
