@@ -28,8 +28,8 @@ val suggestedLayouts = listOf(
             RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, false, 0.96f, 0.5f, 0f, BOTTOM_CENTER),
             DPAD to cfg(DPAD, false, 0.752f, -0.5f, 0f, BOTTOM_CENTER),
             FACE_BUTTONS to cfg(FACE_BUTTONS, true, 0.7f, 0.4384f, 0.0801f, TOP_CENTER),
-            LEFT_TRIGGER to cfg(LEFT_TRIGGER, true, 1.4f, -0.4391f, 0.1578f, CENTER_RIGHT, triggerMode = TriggerMode.ZONES),
-            RIGHT_TRIGGER to cfg(RIGHT_TRIGGER, true, 1.6f, -0.0278f, 0.1353f, CENTER_RIGHT, triggerMode = TriggerMode.ZONES),
+            LEFT_TRIGGER to cfg(LEFT_TRIGGER, true, 1.4f, -0.4391f, 0.1578f, CENTER_RIGHT),
+            RIGHT_TRIGGER to cfg(RIGHT_TRIGGER, true, 1.6f, -0.0278f, 0.1353f, CENTER_RIGHT),
             LEFT_SHOULDER to cfg(LEFT_SHOULDER, true, 0.92f, 0.119f, 0.135f, TOP_LEFT),
             RIGHT_SHOULDER to cfg(RIGHT_SHOULDER, true, 0.92f, -0.144f, 0.135f, TOP_RIGHT),
             SELECT_BUTTON to cfg(SELECT_BUTTON, true, 0.9f, -0.1704f, -0.1127f, CENTER),
@@ -38,7 +38,7 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("tilt" to 1, "curve" to 1)
+        mapOf("tilt" to 1, "curve" to 1, "trigL" to 2, "trigR" to 2)
     ),
     SuggestedLayout(
         "Platformer",
@@ -64,7 +64,7 @@ val suggestedLayouts = listOf(
         "Shooter",
         "Floating left stick, a fine right stick for aiming and big triggers for fire.",
         mapOf(
-            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.0f, 0.1939f, -0.1263f, BOTTOM_LEFT, stickMode = StickMode.FLOATING),
+            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.0f, 0.1939f, -0.1263f, BOTTOM_LEFT),
             RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, true, 1.0f, 0.4384f, 0.2255f, CENTER),
             DPAD to cfg(DPAD, true, 0.5f, -0.3056f, 0.2378f, TOP_CENTER),
             FACE_BUTTONS to cfg(FACE_BUTTONS, true, 0.65f, -0.0938f, 0.0451f, CENTER_RIGHT),
@@ -78,7 +78,7 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("curve" to 1, "sens" to 110)
+        mapOf("curve" to 1, "sens" to 110, "stickL" to 1)
     ),
     SuggestedLayout(
         "Fighting",

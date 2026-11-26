@@ -93,13 +93,14 @@ class MainActivity : ComponentActivity() {
             initial = defaultHapticFeedbackEnabled
         )
 
-        LaunchedEffect(hapticEnabled.value) {
-            HapticUtils.isEnabled = hapticEnabled.value
+        val layoutOverrides = settingsRepository.layoutBehaviour.collectAsState(initial = emptyMap())
+        LaunchedEffect(hapticEnabled.value, layoutOverrides.value) {
+            HapticUtils.isEnabled = layoutOverrides.value["hap"]?.let { it != 0 } ?: hapticEnabled.value
         }
 
         val hapticPrefs = settingsRepository.hapticPrefs.collectAsState(initial = HapticPrefs())
-        LaunchedEffect(hapticPrefs.value) {
-            HapticUtils.prefs = hapticPrefs.value
+        LaunchedEffect(hapticPrefs.value, layoutOverrides.value) {
+            HapticUtils.prefs = hapticPrefs.value.withBehaviour(layoutOverrides.value)
         }
 
         val fullScreenEnabled = settingsRepository.fullScreenEnabled.collectAsState(

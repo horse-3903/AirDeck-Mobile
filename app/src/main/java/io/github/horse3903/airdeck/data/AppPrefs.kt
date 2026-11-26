@@ -26,6 +26,11 @@ data class AppPrefs(
     val tiltRange: Int = 30,
     val tiltDead: Int = 3,
     val tiltInvert: Boolean = false,
+    // trigger input per trigger (position in TriggerMode.offered) and whether each stick floats
+    val triggerLeft: Int = 0,
+    val triggerRight: Int = 0,
+    val stickLeftFloat: Boolean = false,
+    val stickRightFloat: Boolean = false,
     // d-pad: the share of the radius a direction needs before it counts, so lower makes diagonals easier
     val dpadDiagonal: Int = 38,
     // vibrate when the game rumbles this controller
@@ -41,7 +46,8 @@ data class AppPrefs(
 /**
  * The settings a layout can override while it is in use. The values are whole numbers: on is 1, off is 0,
  * and a choice is its position in its list (curve: linear, precise, quick. tilt: off, left, right).
- * Keys: snap, dead, sens, curve, click, clickMs, invL, invR, tilt, tiltRange, tiltDead, tiltInvert, dpadSingle, diag.
+ * Keys: snap, dead, sens, curve, click, clickMs, invL, invR, tilt, tiltRange, tiltDead, tiltInvert, dpadSingle, diag,
+ * trigL, trigR, stickL, stickR, rumble, and the haptics keys hap, hapCustom, hapInt, hapMs, hapPress, hapRel, hapStick, hapTrig.
  */
 fun AppPrefs.withBehaviour(b: Map<String, Int>): AppPrefs = if (b.isEmpty()) this else copy(
     deadZone = b["dead"] ?: deadZone,
@@ -56,4 +62,20 @@ fun AppPrefs.withBehaviour(b: Map<String, Int>): AppPrefs = if (b.isEmpty()) thi
     tiltDead = b["tiltDead"] ?: tiltDead,
     tiltInvert = b["tiltInvert"]?.let { it != 0 } ?: tiltInvert,
     dpadDiagonal = b["diag"] ?: dpadDiagonal,
+    triggerLeft = b["trigL"] ?: triggerLeft,
+    triggerRight = b["trigR"] ?: triggerRight,
+    stickLeftFloat = b["stickL"]?.let { it != 0 } ?: stickLeftFloat,
+    stickRightFloat = b["stickR"]?.let { it != 0 } ?: stickRightFloat,
+    connectionHaptics = b["hapConn"]?.let { it != 0 } ?: connectionHaptics,
+    gameRumble = b["rumble"]?.let { it != 0 } ?: gameRumble,
+)
+
+fun io.github.horse3903.airdeck.ui.utils.HapticPrefs.withBehaviour(b: Map<String, Int>) = if (b.isEmpty()) this else copy(
+    custom = b["hapCustom"]?.let { it != 0 } ?: custom,
+    intensity = b["hapInt"] ?: intensity,
+    durationMs = b["hapMs"] ?: durationMs,
+    press = b["hapPress"]?.let { it != 0 } ?: press,
+    release = b["hapRel"]?.let { it != 0 } ?: release,
+    sticks = b["hapStick"]?.let { it != 0 } ?: sticks,
+    triggers = b["hapTrig"]?.let { it != 0 } ?: triggers,
 )

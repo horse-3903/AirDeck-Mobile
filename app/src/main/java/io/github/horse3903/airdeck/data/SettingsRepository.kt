@@ -256,6 +256,10 @@ class SettingsRepository(context: Context) {
             dimAfterSeconds = p[PREF_DIM] ?: d.dimAfterSeconds,
             stickCurve = p[PREF_CURVE] ?: d.stickCurve,
             connectionHaptics = p[PREF_CONN_HAPTICS] ?: d.connectionHaptics,
+            triggerLeft = p[PREF_TRIG_L] ?: d.triggerLeft,
+            triggerRight = p[PREF_TRIG_R] ?: d.triggerRight,
+            stickLeftFloat = p[PREF_STICK_L] ?: d.stickLeftFloat,
+            stickRightFloat = p[PREF_STICK_R] ?: d.stickRightFloat,
         )
     }
 
@@ -285,6 +289,10 @@ class SettingsRepository(context: Context) {
             p[PREF_DIM] = prefs.dimAfterSeconds
             p[PREF_CURVE] = prefs.stickCurve
             p[PREF_CONN_HAPTICS] = prefs.connectionHaptics
+            p[PREF_TRIG_L] = prefs.triggerLeft
+            p[PREF_TRIG_R] = prefs.triggerRight
+            p[PREF_STICK_L] = prefs.stickLeftFloat
+            p[PREF_STICK_R] = prefs.stickRightFloat
         }
     }
 
@@ -379,6 +387,16 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun snapshotSettings(): Preferences = dataStore.data.first()
+
+    @Suppress("UNCHECKED_CAST")
+    suspend fun restoreSettings(snapshot: Preferences) {
+        dataStore.edit { p ->
+            p.clear()
+            p.putAll(*snapshot.asMap().map { (k, v) -> (k as Preferences.Key<Any>) to v }.toTypedArray())
+        }
+    }
+
     suspend fun resetAllSettings() {
         dataStore.edit { preferences ->
             val presetsJson = preferences[PRESETS]
@@ -446,6 +464,10 @@ class SettingsRepository(context: Context) {
         private val PREF_SIZE = intPreferencesKey("pref_control_size")
         private val PREF_DIM = intPreferencesKey("pref_dim_seconds")
         private val PREF_CURVE = intPreferencesKey("pref_stick_curve")
+        private val PREF_TRIG_L = intPreferencesKey("pref_trigger_left")
+        private val PREF_TRIG_R = intPreferencesKey("pref_trigger_right")
+        private val PREF_STICK_L = booleanPreferencesKey("pref_stick_left_float")
+        private val PREF_STICK_R = booleanPreferencesKey("pref_stick_right_float")
         private val PREF_CONN_HAPTICS = booleanPreferencesKey("pref_connection_haptics")
         private val HAPTIC_CUSTOM = booleanPreferencesKey("haptic_custom")
         private val HAPTIC_INTENSITY = intPreferencesKey("haptic_intensity")

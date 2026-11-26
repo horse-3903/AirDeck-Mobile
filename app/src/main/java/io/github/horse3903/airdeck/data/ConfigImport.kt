@@ -25,9 +25,10 @@ class LayoutBundle(
     val behaviour: Map<String, Int>? = null,
 )
 
-private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick"), "tilt" to listOf("off", "left", "right"))
-private val flagKeys = setOf("snap", "click", "invL", "invR", "tiltInvert", "dpadSingle")
-private val rangedKeys = mapOf("dead" to 0..40, "sens" to 50..150, "clickMs" to 200..1500, "tiltRange" to 15..60, "tiltDead" to 0..15, "diag" to 20..60)
+private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick"), "tilt" to listOf("off", "left", "right"),
+    "trigL" to listOf("button", "drag", "gradient"), "trigR" to listOf("button", "drag", "gradient"))
+private val flagKeys = setOf("snap", "click", "invL", "invR", "tiltInvert", "dpadSingle", "stickL", "stickR", "rumble", "hap", "hapCustom", "hapPress", "hapRel", "hapStick", "hapTrig", "hapConn")
+private val rangedKeys = mapOf("dead" to 0..40, "sens" to 50..150, "clickMs" to 200..1500, "tiltRange" to 15..60, "tiltDead" to 0..15, "diag" to 20..60, "hapInt" to 5..100, "hapMs" to 5..80)
 
 /** Overrides as shared text: flags as true or false, choices by name, the rest as numbers. */
 fun behaviourToJson(b: Map<String, Int>): JsonObject = buildJsonObject {
@@ -83,10 +84,21 @@ fun parseLayout(text: String): LayoutBundle {
     val wrapped = root["buttons"] as? JsonObject
     // The older format left out fields that matched the plain defaults, so a missing field there means that
     val legacy = wrapped == null
+    val buttons = parseControls(wrapped ?: root, legacy)
+    // Older layouts kept trigger input and stick position on the control
+    val fromControls = linkedMapOf<String, Int>()
+    for ((c, k) in listOf(ButtonComponent.LEFT_TRIGGER to "trigL", ButtonComponent.RIGHT_TRIGGER to "trigR")) {
+        val i = TriggerMode.offered.indexOf(buttons[c]?.triggerMode)
+        if (i > 0) fromControls[k] = i
+    }
+    for ((c, k) in listOf(ButtonComponent.LEFT_ANALOG_STICK to "stickL", ButtonComponent.RIGHT_ANALOG_STICK to "stickR")) {
+        if (buttons[c]?.stickMode == StickMode.FLOATING) fromControls[k] = 1
+    }
+    val behaviour = (root["behaviour"] as? JsonObject)?.let(::parseBehaviour)
     return LayoutBundle(
-        buttons = parseControls(wrapped ?: root, legacy),
+        buttons = buttons,
         groups = (root["groups"] as? JsonArray)?.let(::parseGroups),
-        behaviour = (root["behaviour"] as? JsonObject)?.let(::parseBehaviour)
+        behaviour = if (fromControls.isEmpty()) behaviour else fromControls + (behaviour ?: emptyMap())
     )
 }
 

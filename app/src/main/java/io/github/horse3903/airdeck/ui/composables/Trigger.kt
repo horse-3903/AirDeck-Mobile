@@ -244,7 +244,7 @@ private fun AnalogTrigger(
                         when (mode) {
                             TriggerMode.SLIDE -> set(0.1f + 0.9f * (1f - y / h).coerceIn(0f, 1f))
                             TriggerMode.DRAG -> set(0.2f + 0.8f * ((y0 - y) / (h * 0.6f)).coerceIn(0f, 1f))
-                            TriggerMode.ZONES -> if (y == y0) set(0.15f + 0.85f * (1f - y0 / h).coerceIn(0f, 1f))
+                            TriggerMode.ZONES -> set((0.15f + 0.85f * (1f - y0 / h).coerceIn(0f, 1f) + (y0 - y) / (h * 0.6f)).coerceIn(0.05f, 1f))
                             TriggerMode.FORCE -> set((pressure * 1.6f).coerceIn(0.1f, 1f))
                             else -> {}
                         }

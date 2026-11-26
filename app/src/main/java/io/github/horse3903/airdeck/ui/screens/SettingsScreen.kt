@@ -69,6 +69,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -344,22 +345,37 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun CategoryItem(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
+private fun CategoryItem(label: String, selected: Boolean, expanded: Boolean? = null, onToggle: () -> Unit = {}, onClick: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(start = 14.dp, end = if (expanded == null) 14.dp else 4.dp, top = if (expanded == null) 12.dp else 0.dp, bottom = if (expanded == null) 12.dp else 0.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
+            modifier = Modifier.weight(1f),
             fontSize = 15.sp,
+            maxLines = 1,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         )
+        if (expanded != null) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).clickable(onClick = onToggle),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (expanded) "\u2304" else "\u203A",
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -386,8 +402,13 @@ fun SettingsScreen(
     val applyScope = rememberCoroutineScope()
     var page by rememberSaveable { mutableStateOf("appearance") }
     var scopeLayout by rememberSaveable { mutableStateOf(false) }
+    var playExpanded by rememberSaveable { mutableStateOf(true) }
 
-    Scaffold { paddingValues ->
+    val snackbarHost = remember { androidx.compose.material3.SnackbarHostState() }
+    var confirmReset by remember { mutableStateOf(false) }
+    val resetMessage = stringResource(R.string.settings_reset_done)
+    val undoLabel = stringResource(R.string.settings_reset_undo)
+    Scaffold(snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHost) }) { paddingValues ->
         val colorScheme by settingsRepository.colorScheme.collectAsState(initial = defaultColorScheme)
         val gamepadStyle by settingsRepository.gamepadStyle.collectAsState(initial = defaultGamepadStyle)
         val pollingDelay by settingsRepository.pollingDelay.collectAsState(initial = defaultPollingDelay)
@@ -406,6 +427,27 @@ fun SettingsScreen(
         val saveCredentials by settingsRepository.saveConnectionCredentials.collectAsState(initial = defaultSaveConnectionCredentials)
         val fullScreenEnabled by settingsRepository.fullScreenEnabled.collectAsState(initial = defaultFullScreenEnabled)
 
+        if (confirmReset) {
+            AlertDialog(
+                onDismissRequest = { confirmReset = false },
+                title = { Text(stringResource(R.string.settings_reset_title)) },
+                text = { Text(stringResource(R.string.settings_reset_body)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmReset = false
+                        applyScope.launch {
+                            val before = settingsRepository.snapshotSettings()
+                            settingsChanges = SettingsChanges()
+                            settingsRepository.resetAllSettings()
+                            Log.i(logTag, "Settings reset to defaults")
+                            val result = snackbarHost.showSnackbar(resetMessage, actionLabel = undoLabel, duration = androidx.compose.material3.SnackbarDuration.Long)
+                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) settingsRepository.restoreSettings(before)
+                        }
+                    }) { Text(stringResource(R.string.settings_reset_all)) }
+                },
+                dismissButton = { TextButton(onClick = { confirmReset = false }) { Text(stringResource(R.string.cancel)) } }
+            )
+        }
         Row(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             // Left pane: back arrow, title and the categories
             Column(
@@ -428,30 +470,23 @@ fun SettingsScreen(
                     )
                 }
                 Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                    listOf(
-                        "appearance" to R.string.sec_appearance,
-                        "layouts" to R.string.layouts_title,
-                        "sticks" to R.string.sec_sticks,
-                        "dpad" to R.string.sec_dpad,
-                        "triggers" to R.string.sec_triggers,
-                        "haptics" to R.string.sec_haptics,
-                        "display" to R.string.sec_group_display,
-                        "connection" to R.string.sec_connection
-                    ).forEach { (id, label) ->
-                        CategoryItem(stringResource(label), selected = page == id) { page = id }
+                    CategoryItem(stringResource(R.string.sec_appearance), selected = page == "appearance") { page = "appearance" }
+                    CategoryItem(
+                        stringResource(R.string.layouts_title), selected = page == "layouts",
+                        expanded = playExpanded, onToggle = { playExpanded = !playExpanded }
+                    ) { page = "layouts" }
+                    AnimatedVisibility(visible = playExpanded) {
+                        Column(modifier = Modifier.padding(start = 14.dp)) {
+                            listOf(
+                                "sticks" to R.string.sec_sticks,
+                                "dpad" to R.string.sec_dpad,
+                                "triggers" to R.string.sec_triggers,
+                                "haptics" to R.string.sec_haptics
+                            ).forEach { (id, label) -> CategoryItem(stringResource(label), selected = page == id) { page = id } }
+                        }
                     }
-                    CategoryItem(stringResource(R.string.menu_about), selected = false, onClick = onNavigateToAbout)
-                }
-                TextButton(
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        settingsChanges = SettingsChanges()
-                        runBlocking { settingsRepository.resetAllSettings() }
-                        Log.i(logTag, "Settings reset to defaults")
-                    }
-                ) {
-                    Text(stringResource(R.string.settings_reset_all), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CategoryItem(stringResource(R.string.sec_group_display), selected = page == "display") { page = "display" }
+                    CategoryItem(stringResource(R.string.sec_connection), selected = page == "connection") { page = "connection" }
                 }
             }
             Box(
@@ -497,6 +532,14 @@ fun SettingsScreen(
                 fun save(p: io.github.horse3903.airdeck.data.AppPrefs) { applyScope.launch { settingsRepository.setAppPrefs(p) } }
                 fun saveHaptics(p: HapticPrefs) { applyScope.launch { settingsRepository.setHapticPrefs(p) } }
 
+                fun ov(key: String) = scopeLayout && key in behaviour
+                fun clr(key: String) { applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour - key) } }
+                fun chg(key: String, value: Int, global: () -> Unit) {
+                    if (scopeLayout) applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour + (key to value)) } else global()
+                }
+                val hapShown = if (scopeLayout) hapticPrefs.withBehaviour(behaviour) else hapticPrefs
+                val hapOn = if (scopeLayout) (behaviour["hap"]?.let { it != 0 } ?: hapticEnabled) else hapticEnabled
+
                 AnimatedContent(
                     targetState = page,
                     transitionSpec = {
@@ -515,23 +558,23 @@ fun SettingsScreen(
                 }
                 val snapShown = if (scopeLayout) (behaviour["snap"]?.let { it != 0 } ?: stickSnap) else stickSnap
                 ScopeBar(layoutLabel, scopeLayout) { scopeLayout = it }
-                if (scopeLayout) {
-                    ChoiceRow(
-                        stringResource(R.string.pref_left_stick_position), stringResource(R.string.stick_position_desc),
-                        io.github.horse3903.airdeck.data.StickMode.entries.toList(),
-                        layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.LEFT_ANALOG_STICK]?.stickMode ?: io.github.horse3903.airdeck.data.StickMode.FIXED,
-                        { stringResource(it.nameRes) }
-                    ) { m ->
-                        applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.LEFT_ANALOG_STICK) { it.copy(stickMode = m) } }
-                    }
-                    ChoiceRow(
-                        stringResource(R.string.pref_right_stick_position), null,
-                        io.github.horse3903.airdeck.data.StickMode.entries.toList(),
-                        layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_ANALOG_STICK]?.stickMode ?: io.github.horse3903.airdeck.data.StickMode.FIXED,
-                        { stringResource(it.nameRes) }
-                    ) { m ->
-                        applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_ANALOG_STICK) { it.copy(stickMode = m) } }
-                    }
+                ChoiceRow(
+                    stringResource(R.string.pref_left_stick_position), stringResource(R.string.stick_position_desc),
+                    io.github.horse3903.airdeck.data.StickMode.entries.toList(),
+                    if (shown.stickLeftFloat) io.github.horse3903.airdeck.data.StickMode.FLOATING else io.github.horse3903.airdeck.data.StickMode.FIXED,
+                    { stringResource(it.nameRes) }, ov("stickL"), { clr("stickL") }
+                ) { m ->
+                    val f = m == io.github.horse3903.airdeck.data.StickMode.FLOATING
+                    chg("stickL", if (f) 1 else 0) { save(prefs.copy(stickLeftFloat = f)) }
+                }
+                ChoiceRow(
+                    stringResource(R.string.pref_right_stick_position), null,
+                    io.github.horse3903.airdeck.data.StickMode.entries.toList(),
+                    if (shown.stickRightFloat) io.github.horse3903.airdeck.data.StickMode.FLOATING else io.github.horse3903.airdeck.data.StickMode.FIXED,
+                    { stringResource(it.nameRes) }, ov("stickR"), { clr("stickR") }
+                ) { m ->
+                    val f = m == io.github.horse3903.airdeck.data.StickMode.FLOATING
+                    chg("stickR", if (f) 1 else 0) { save(prefs.copy(stickRightFloat = f)) }
                 }
                 SwitchRow(stringResource(R.string.settings_stick_snap), stringResource(R.string.settings_stick_snap_desc), snapShown, overridden("snap"), { clearBehaviour("snap") }) { v ->
                     change("snap", if (v) 1 else 0) { applyScope.launch { settingsRepository.setStickSnap(v) } }
@@ -614,51 +657,50 @@ fun SettingsScreen(
 
                     }
                     "triggers" -> {
-                Text(
-                    stringResource(R.string.triggers_note, layoutLabel),
-                    fontSize = 12.5.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.widthIn(max = SETTINGS_WIDTH).fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)
-                )
-                val leftMode = layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.LEFT_TRIGGER]?.triggerMode
-                    ?.takeIf { it in io.github.horse3903.airdeck.data.TriggerMode.offered } ?: io.github.horse3903.airdeck.data.TriggerMode.DIGITAL
-                val rightMode = layoutConfigs[io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_TRIGGER]?.triggerMode
-                    ?.takeIf { it in io.github.horse3903.airdeck.data.TriggerMode.offered } ?: io.github.horse3903.airdeck.data.TriggerMode.DIGITAL
+                ScopeBar(layoutLabel, scopeLayout) { scopeLayout = it }
+                val offered = io.github.horse3903.airdeck.data.TriggerMode.offered
                 ChoiceRow(
-                    stringResource(R.string.pref_left_trigger_input), stringResource(leftMode.descRes),
-                    io.github.horse3903.airdeck.data.TriggerMode.offered, leftMode, { stringResource(it.nameRes) }
-                ) { m ->
-                    applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.LEFT_TRIGGER) { it.copy(triggerMode = m) } }
-                }
+                    stringResource(R.string.pref_left_trigger_input), stringResource(offered[shown.triggerLeft.coerceIn(0, 2)].descRes),
+                    offered, offered[shown.triggerLeft.coerceIn(0, 2)], { stringResource(it.nameRes) }, ov("trigL"), { clr("trigL") }
+                ) { m -> chg("trigL", offered.indexOf(m)) { save(prefs.copy(triggerLeft = offered.indexOf(m))) } }
                 ChoiceRow(
-                    stringResource(R.string.pref_right_trigger_input), stringResource(rightMode.descRes),
-                    io.github.horse3903.airdeck.data.TriggerMode.offered, rightMode, { stringResource(it.nameRes) }
-                ) { m ->
-                    applyScope.launch { settingsRepository.updateLayoutConfig(io.github.horse3903.airdeck.data.ButtonComponent.RIGHT_TRIGGER) { it.copy(triggerMode = m) } }
-                }
+                    stringResource(R.string.pref_right_trigger_input), stringResource(offered[shown.triggerRight.coerceIn(0, 2)].descRes),
+                    offered, offered[shown.triggerRight.coerceIn(0, 2)], { stringResource(it.nameRes) }, ov("trigR"), { clr("trigR") }
+                ) { m -> chg("trigR", offered.indexOf(m)) { save(prefs.copy(triggerRight = offered.indexOf(m))) } }
 
                     }
                     "haptics" -> {
-                SwitchRow(stringResource(R.string.haptics_game), stringResource(R.string.haptics_game_desc), prefs.gameRumble) { save(prefs.copy(gameRumble = it)) }
-                SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), settingsChanges.hapticFeedbackEnabled ?: hapticEnabled) {
-                    settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = it)
-                    applyScope.launch { settingsRepository.setHapticFeedbackEnabled(it) }
+                ScopeBar(layoutLabel, scopeLayout) { scopeLayout = it }
+                SwitchRow(stringResource(R.string.haptics_game), stringResource(R.string.haptics_game_desc), shown.gameRumble, ov("rumble"), { clr("rumble") }) { v ->
+                    chg("rumble", if (v) 1 else 0) { save(prefs.copy(gameRumble = v)) }
                 }
-                AnimatedVisibility(visible = hapticEnabled) {
+                SwitchRow(stringResource(R.string.settings_haptic_feedback), stringResource(R.string.settings_haptic_desc), hapOn, ov("hap"), { clr("hap") }) { v ->
+                    chg("hap", if (v) 1 else 0) {
+                        settingsChanges = settingsChanges.copy(hapticFeedbackEnabled = v)
+                        applyScope.launch { settingsRepository.setHapticFeedbackEnabled(v) }
+                    }
+                }
+                AnimatedVisibility(visible = hapOn) {
  Column {
-                    SwitchRow(stringResource(R.string.haptics_custom), stringResource(R.string.haptics_custom_desc), hapticPrefs.custom) { saveHaptics(hapticPrefs.copy(custom = it)) }
-                    AnimatedVisibility(visible = hapticPrefs.custom) {
+                    SwitchRow(stringResource(R.string.haptics_custom), stringResource(R.string.haptics_custom_desc), hapShown.custom, ov("hapCustom"), { clr("hapCustom") }) { v ->
+                        chg("hapCustom", if (v) 1 else 0) { saveHaptics(hapticPrefs.copy(custom = v)) }
+                    }
+                    AnimatedVisibility(visible = hapShown.custom) {
  Column {
-                        SliderRow(stringResource(R.string.haptics_intensity), null, "${hapticPrefs.intensity}%", hapticPrefs.intensity, 5..100,
-                            { saveHaptics(hapticPrefs.copy(intensity = it)) }, { HapticUtils.performButtonPressFeedback(hapticView) })
-                        SliderRow(stringResource(R.string.haptics_duration), null, "${hapticPrefs.durationMs} ms", hapticPrefs.durationMs, 5..80,
-                            { saveHaptics(hapticPrefs.copy(durationMs = it)) }, { HapticUtils.performButtonPressFeedback(hapticView) })
+                        SliderRow(stringResource(R.string.haptics_intensity), null, "${hapShown.intensity}%", hapShown.intensity, 5..100,
+                            { chg("hapInt", it) { saveHaptics(hapticPrefs.copy(intensity = it)) } }, { HapticUtils.performButtonPressFeedback(hapticView) },
+                            overridden = ov("hapInt"), onReset = { clr("hapInt") })
+                        SliderRow(stringResource(R.string.haptics_duration), null, "${hapShown.durationMs} ms", hapShown.durationMs, 5..80,
+                            { chg("hapMs", it) { saveHaptics(hapticPrefs.copy(durationMs = it)) } }, { HapticUtils.performButtonPressFeedback(hapticView) },
+                            overridden = ov("hapMs"), onReset = { clr("hapMs") })
                     } }
-                    SwitchRow(stringResource(R.string.haptics_press), null, hapticPrefs.press) { saveHaptics(hapticPrefs.copy(press = it)) }
-                    SwitchRow(stringResource(R.string.haptics_release), null, hapticPrefs.release) { saveHaptics(hapticPrefs.copy(release = it)) }
-                    SwitchRow(stringResource(R.string.haptics_sticks), null, hapticPrefs.sticks) { saveHaptics(hapticPrefs.copy(sticks = it)) }
-                    SwitchRow(stringResource(R.string.haptics_triggers), null, hapticPrefs.triggers) { saveHaptics(hapticPrefs.copy(triggers = it)) }
-                    SwitchRow(stringResource(R.string.haptics_connection), stringResource(R.string.haptics_connection_desc), prefs.connectionHaptics) { save(prefs.copy(connectionHaptics = it)) }
+                    SwitchRow(stringResource(R.string.haptics_press), null, hapShown.press, ov("hapPress"), { clr("hapPress") }) { v -> chg("hapPress", if (v) 1 else 0) { saveHaptics(hapticPrefs.copy(press = v)) } }
+                    SwitchRow(stringResource(R.string.haptics_release), null, hapShown.release, ov("hapRel"), { clr("hapRel") }) { v -> chg("hapRel", if (v) 1 else 0) { saveHaptics(hapticPrefs.copy(release = v)) } }
+                    SwitchRow(stringResource(R.string.haptics_sticks), null, hapShown.sticks, ov("hapStick"), { clr("hapStick") }) { v -> chg("hapStick", if (v) 1 else 0) { saveHaptics(hapticPrefs.copy(sticks = v)) } }
+                    SwitchRow(stringResource(R.string.haptics_triggers), null, hapShown.triggers, ov("hapTrig"), { clr("hapTrig") }) { v -> chg("hapTrig", if (v) 1 else 0) { saveHaptics(hapticPrefs.copy(triggers = v)) } }
+                    SwitchRow(stringResource(R.string.haptics_connection), stringResource(R.string.haptics_connection_desc), shown.connectionHaptics, ov("hapConn"), { clr("hapConn") }) { v ->
+                        chg("hapConn", if (v) 1 else 0) { save(prefs.copy(connectionHaptics = v)) }
+                    }
                     SettingRow(label = stringResource(R.string.haptics_test)) {
                         OutlinedButton(onClick = { HapticUtils.performButtonPressFeedback(hapticView) }) { Text(stringResource(R.string.haptics_test)) }
                     }
@@ -693,6 +735,10 @@ fun SettingsScreen(
                     SliderRow(stringResource(R.string.pref_reconnect_s), null, "${prefs.reconnectSeconds} s", prefs.reconnectSeconds, 10..600, { save(prefs.copy(reconnectSeconds = it)) })
                 } }
                 SwitchRow(stringResource(R.string.pref_confirm), stringResource(R.string.pref_confirm_desc), prefs.confirmDisconnect) { save(prefs.copy(confirmDisconnect = it)) }
+                SectionHeader(stringResource(R.string.settings_reset_section))
+                SettingRow(label = stringResource(R.string.settings_reset_all), helper = stringResource(R.string.settings_reset_desc)) {
+                    OutlinedButton(onClick = { confirmReset = true }) { Text(stringResource(R.string.settings_reset_all)) }
+                }
                     }
                     "display" -> {
                 SwitchRow(stringResource(R.string.settings_full_screen), stringResource(R.string.settings_full_screen_desc), settingsChanges.fullScreenEnabled ?: fullScreenEnabled) {
