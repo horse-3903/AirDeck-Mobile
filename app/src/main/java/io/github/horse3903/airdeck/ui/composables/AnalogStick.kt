@@ -70,7 +70,8 @@ private fun shaped(prefs: AppPrefs, type: AnalogStickType, x: Float, y: Float): 
         ny = 0f
     } else if (length > 0f) {
         val scaled = (((length - dead) / (1f - dead)) * (prefs.sensitivity / 100f)).coerceAtMost(1f)
-        val curved = io.github.horse3903.airdeck.data.applyCurve(prefs.stickCurve, prefs.curvePoints, scaled)
+        io.github.horse3903.airdeck.data.StickUsage.stick.record(scaled)
+        val curved = io.github.horse3903.airdeck.data.applyCurve(prefs.stickCurve, prefs.curveCustom, scaled)
         val factor = curved / length
         nx = x * factor
         ny = y * factor

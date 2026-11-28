@@ -14,9 +14,10 @@ class SuggestedLayout(
 private fun cfg(
     component: ButtonComponent, visible: Boolean, scale: Float, offsetX: Float, offsetY: Float, anchor: ButtonAnchor,
     triggerMode: TriggerMode = TriggerMode.DIGITAL, stickMode: StickMode = StickMode.FIXED,
+    areaW: Float = 0f, areaH: Float = 0f, areaRound: Float = 1f,
 ) = ButtonConfig(
     component = component, visible = visible, scale = scale, offsetX = offsetX, offsetY = offsetY, anchor = anchor,
-    triggerMode = triggerMode, stickMode = stickMode
+    triggerMode = triggerMode, stickMode = stickMode, areaW = areaW, areaH = areaH, areaRound = areaRound
 )
 
 val suggestedLayouts = listOf(
@@ -38,7 +39,7 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("tilt" to 1, "curve" to 1, "trigL" to 2, "trigR" to 2)
+        mapOf("tilt" to 1, "tiltRange" to 35, "tiltDead" to 2, "tiltInvert" to 0, "tcurve" to 3, "trigL" to 2, "trigR" to 2, "rcurve" to 3, "dead" to 8, "snap" to 0, "click" to 0, "rumble" to 1, "hapCustom" to 1, "hapInt" to 75, "hapMs" to 25, "hapPress" to 1, "hapTrig" to 1, "hapStick" to 0) + Curve(true, listOf(25 to 10, 50 to 38, 75 to 76)).toInts("t") + Curve(true, listOf(25 to 12, 60 to 50, 85 to 86)).toInts("r")
     ),
     SuggestedLayout(
         "Platformer",
@@ -58,14 +59,14 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("dpadSingle" to 1, "click" to 0)
+        mapOf("dpadSingle" to 1, "click" to 0, "trigL" to 0, "trigR" to 0, "rumble" to 1, "hapCustom" to 1, "hapInt" to 85, "hapMs" to 14, "hapPress" to 1, "hapRel" to 1)
     ),
     SuggestedLayout(
         "Shooter",
         "Floating left stick, a fine right stick for aiming and big triggers for fire.",
         mapOf(
-            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.0f, 0.1939f, -0.1263f, BOTTOM_LEFT),
-            RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, true, 1.0f, 0.4384f, 0.2255f, CENTER),
+            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.0f, 0.1939f, -0.1263f, BOTTOM_LEFT, areaW = 3.2f, areaH = 2.6f, areaRound = 0.6f),
+            RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, true, 1.0f, 0.4384f, 0.2255f, CENTER, areaW = 2.4f, areaH = 2.4f, areaRound = 0.8f),
             DPAD to cfg(DPAD, true, 0.5f, -0.3056f, 0.2378f, TOP_CENTER),
             FACE_BUTTONS to cfg(FACE_BUTTONS, true, 0.65f, -0.0938f, 0.0451f, CENTER_RIGHT),
             LEFT_TRIGGER to cfg(LEFT_TRIGGER, true, 1.25f, 0.0883f, 0.0623f, TOP_LEFT),
@@ -78,7 +79,7 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("curve" to 1, "sens" to 110, "stickL" to 1)
+        mapOf("stickL" to 1, "stickR" to 0, "snap" to 1, "dead" to 6, "sens" to 110, "curve" to 3, "click" to 1, "clickMs" to 350, "invR" to 0, "trigL" to 1, "trigR" to 1, "rcurve" to 2, "rumble" to 1, "hapCustom" to 1, "hapInt" to 70, "hapMs" to 18, "hapPress" to 1, "hapTrig" to 1, "hapStick" to 0) + Curve(true, listOf(30 to 10, 60 to 38, 85 to 80)).toInts("c")
     ),
     SuggestedLayout(
         "Fighting",
@@ -98,13 +99,13 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("dpadSingle" to 0, "diag" to 30)
+        mapOf("dpadSingle" to 0, "diag" to 30, "click" to 0, "trigL" to 0, "trigR" to 0, "rumble" to 1, "hapCustom" to 1, "hapInt" to 90, "hapMs" to 12, "hapPress" to 1, "hapRel" to 1)
     ),
     SuggestedLayout(
         "Party games",
         "Left stick, jump and big grab triggers. Good for Gang Beasts, Smash and other couch games.",
         mapOf(
-            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.1f, 0.1768f, 0.1578f, CENTER_LEFT),
+            LEFT_ANALOG_STICK to cfg(LEFT_ANALOG_STICK, true, 1.1f, 0.1768f, 0.1578f, CENTER_LEFT, areaW = 2.2f, areaH = 2.2f, areaRound = 1.0f),
             RIGHT_ANALOG_STICK to cfg(RIGHT_ANALOG_STICK, false, 0.96f, 0.5f, 0f, BOTTOM_CENTER),
             DPAD to cfg(DPAD, false, 0.752f, -0.5f, 0f, BOTTOM_CENTER),
             FACE_BUTTONS to cfg(FACE_BUTTONS, true, 1.0f, -0.1729f, 0.1353f, CENTER_RIGHT),
@@ -118,6 +119,6 @@ val suggestedLayouts = listOf(
             CONNECTION_BADGE to cfg(CONNECTION_BADGE, true, 0.632f, 0f, -0.0274f, TOP_CENTER),
             SETTINGS_BUTTON to cfg(SETTINGS_BUTTON, true, 0.632f, 0.155f, -0.0274f, TOP_CENTER)
         ),
-        mapOf("click" to 0)
+        mapOf("click" to 0, "dead" to 10, "sens" to 100, "curve" to 0, "snap" to 1, "trigL" to 0, "trigR" to 0, "rumble" to 1, "hapCustom" to 1, "hapInt" to 60, "hapMs" to 20, "hapPress" to 1, "hapRel" to 0, "hapConn" to 1)
     )
 )

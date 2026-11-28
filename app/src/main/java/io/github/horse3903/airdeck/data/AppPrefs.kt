@@ -17,9 +17,11 @@ data class AppPrefs(
     val sensitivity: Int = 100,
     // 0 linear, 1 precise (finer near the centre), 2 quick
     val stickCurve: Int = 0,
-    val curvePoints: Int = DEFAULT_CURVE_POINTS,
+    val curveCustom: Curve = Curve.Linear,
     val tiltCurve: Int = 0,
-    val tiltCurvePoints: Int = DEFAULT_CURVE_POINTS,
+    val tiltCurveCustom: Curve = Curve.Linear,
+    val triggerCurve: Int = 0,
+    val triggerCurveCustom: Curve = Curve.Linear,
     val clickEnabled: Boolean = true,
     val clickHoldMs: Int = 450,
     val invertLeftY: Boolean = false,
@@ -49,16 +51,18 @@ data class AppPrefs(
 /**
  * The settings a layout can override while it is in use. The values are whole numbers: on is 1, off is 0,
  * and a choice is its position in its list (curve: linear, precise, quick. tilt: off, left, right).
- * Keys: snap, dead, sens, curve, click, clickMs, invL, invR, curveP, tcurve, tcurveP, tilt, tiltRange, tiltDead, tiltInvert, dpadSingle, diag,
+ * Keys: snap, dead, sens, curve, click, clickMs, invL, invR, tcurve, the custom curves (cM, c0 to c4 and tM, t0 to t4, see Curve.toInts), tilt, tiltRange, tiltDead, tiltInvert, dpadSingle, diag,
  * trigL, trigR, stickL, stickR, rumble, and the haptics keys hap, hapCustom, hapInt, hapMs, hapPress, hapRel, hapStick, hapTrig.
  */
 fun AppPrefs.withBehaviour(b: Map<String, Int>): AppPrefs = if (b.isEmpty()) this else copy(
     deadZone = b["dead"] ?: deadZone,
     sensitivity = b["sens"] ?: sensitivity,
     stickCurve = b["curve"] ?: stickCurve,
-    curvePoints = b["curveP"] ?: curvePoints,
+    curveCustom = Curve.fromInts("c", b) ?: curveCustom,
     tiltCurve = b["tcurve"] ?: tiltCurve,
-    tiltCurvePoints = b["tcurveP"] ?: tiltCurvePoints,
+    tiltCurveCustom = Curve.fromInts("t", b) ?: tiltCurveCustom,
+    triggerCurve = b["rcurve"] ?: triggerCurve,
+    triggerCurveCustom = Curve.fromInts("r", b) ?: triggerCurveCustom,
     clickEnabled = b["click"]?.let { it != 0 } ?: clickEnabled,
     clickHoldMs = b["clickMs"] ?: clickHoldMs,
     invertLeftY = b["invL"]?.let { it != 0 } ?: invertLeftY,

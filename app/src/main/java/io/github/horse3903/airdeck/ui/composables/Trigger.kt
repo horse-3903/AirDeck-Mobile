@@ -157,7 +157,10 @@ private fun AnalogTrigger(
     var level by remember { mutableFloatStateOf(0f) }
     var held by remember { mutableStateOf(false) }
 
-    fun write(v: Float) {
+    val prefs = LocalAppPrefs.current
+    fun write(raw: Float) {
+        if (raw > 0.02f) io.github.horse3903.airdeck.data.StickUsage.trigger.record(raw)
+        val v = io.github.horse3903.airdeck.data.applyCurve(prefs.triggerCurve, prefs.triggerCurveCustom, raw)
         when (type) {
             TriggerType.LEFT -> gamepadState.LeftTrigger = v
             TriggerType.RIGHT -> gamepadState.RightTrigger = v

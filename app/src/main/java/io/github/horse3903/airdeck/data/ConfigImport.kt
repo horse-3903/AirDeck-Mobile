@@ -25,30 +25,51 @@ class LayoutBundle(
     val behaviour: Map<String, Int>? = null,
 )
 
-private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick", "custom"), "tcurve" to listOf("linear", "precise", "quick", "custom"), "tilt" to listOf("off", "left", "right"),
+private val choiceKeys = mapOf("curve" to listOf("linear", "precise", "quick", "custom"), "tcurve" to listOf("linear", "precise", "quick", "custom"), "rcurve" to listOf("linear", "precise", "quick", "custom"), "tilt" to listOf("off", "left", "right"),
     "trigL" to listOf("button", "drag", "gradient"), "trigR" to listOf("button", "drag", "gradient"))
 private val flagKeys = setOf("snap", "click", "invL", "invR", "tiltInvert", "dpadSingle", "stickL", "stickR", "rumble", "hap", "hapCustom", "hapPress", "hapRel", "hapStick", "hapTrig", "hapConn")
 private val rangedKeys = mapOf("dead" to 0..40, "sens" to 50..150, "clickMs" to 200..1500, "tiltRange" to 15..60, "tiltDead" to 0..15, "diag" to 20..60, "hapInt" to 5..100, "hapMs" to 5..80)
+
+private val rawCurveKeys = Curve.keys("c").toSet() + Curve.keys("t").toSet() + Curve.keys("r").toSet()
+
+private fun curveToJson(c: Curve): JsonObject = buildJsonObject {
+    put("smooth", c.smooth)
+    if (c.free) put("free", true)
+    put("points", JsonArray(c.points.map { JsonArray(listOf(JsonPrimitive(it.first), JsonPrimitive(it.second))) }))
+}
+
+private fun curveFromJson(e: kotlinx.serialization.json.JsonElement): Curve? {
+    val o = e as? JsonObject ?: return null
+    val pts = (o["points"] as? JsonArray)?.mapNotNull {
+        val a = it as? JsonArray ?: return@mapNotNull null
+        val x = (a.getOrNull(0) as? JsonPrimitive)?.floatOrNull?.toInt()
+        val y = (a.getOrNull(1) as? JsonPrimitive)?.floatOrNull?.toInt()
+        if (x != null && y != null) x to y else null
+    } ?: return null
+    return Curve.clean((o["smooth"] as? JsonPrimitive)?.booleanOrNull ?: true, pts, (o["free"] as? JsonPrimitive)?.booleanOrNull ?: false)
+}
 
 /** Overrides as shared text: flags as true or false, choices by name, the rest as numbers. */
 fun behaviourToJson(b: Map<String, Int>): JsonObject = buildJsonObject {
     for ((k, v) in b) {
         val choices = choiceKeys[k]
         when {
-            k == "curveP" || k == "tcurveP" -> put(k, JsonArray(unpackCurve(v).map { JsonPrimitive(it) }))
+            k in rawCurveKeys -> {}
             choices != null -> put(k, choices.getOrElse(v) { choices[0] })
             k in flagKeys -> put(k, v != 0)
             else -> put(k, v)
         }
     }
+    Curve.fromInts("c", b)?.let { put("curveP", curveToJson(it)) }
+    Curve.fromInts("t", b)?.let { put("tcurveP", curveToJson(it)) }
+    Curve.fromInts("r", b)?.let { put("rcurveP", curveToJson(it)) }
 }
 
 private fun parseBehaviour(o: JsonObject): Map<String, Int> {
     val out = linkedMapOf<String, Int>()
     for ((k, e) in o) {
-        if (k == "curveP" || k == "tcurveP") {
-            val pts = (e as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.floatOrNull?.toInt() }
-            if (pts != null && pts.size == 3) out[k] = packCurve(pts[0], pts[1], pts[2])
+        if (k == "curveP" || k == "tcurveP" || k == "rcurveP") {
+            curveFromJson(e)?.let { out.putAll(it.toInts(if (k == "curveP") "c" else if (k == "tcurveP") "t" else "r")) }
             continue
         }
         val p = e as? JsonPrimitive ?: continue

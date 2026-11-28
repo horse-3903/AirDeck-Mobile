@@ -334,6 +334,11 @@ fun GroupSettingsPanel(
                 fontWeight = FontWeight.SemiBold
             )
         )
+        Text(
+            text = stringResource(R.string.group_count, members.size),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -359,7 +364,7 @@ fun GroupSettingsPanel(
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp),
+                        .height(48.dp),
                     onClick = { onSelectMember(component) }
                 ) { Text(label) }
             }

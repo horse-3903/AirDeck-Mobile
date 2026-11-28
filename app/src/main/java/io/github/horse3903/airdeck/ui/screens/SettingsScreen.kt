@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AlertDialog
@@ -70,6 +71,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.gestures.detectTapGestures
+import io.github.horse3903.airdeck.data.Curve
+import io.github.horse3903.airdeck.data.AppPrefs
+import io.github.horse3903.airdeck.data.applyCurve
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,6 +91,8 @@ import androidx.compose.ui.unit.sp
 import io.github.horse3903.airdeck.data.defaultButtonConfigs
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -253,7 +260,7 @@ private fun ScopeBar(layoutLabel: String, scopeLayout: Boolean, onChange: (Boole
             modifier = Modifier.fillMaxWidth()
         ) { layout, isSelected ->
             Text(
-                if (layout) layoutLabel else stringResource(R.string.scope_all),
+                if (layout) stringResource(R.string.scope_this) else stringResource(R.string.scope_all),
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 1,
@@ -392,47 +399,443 @@ private fun NavRow(label: String, helper: String? = null, onClick: () -> Unit) {
     }
 }
 
-/** A small graph to shape a response curve: drag the three dots up or down. The faint line is no shaping at all. */
+/** A curve drawn into a small box, for headers and preset cards. */
 @Composable
-private fun CurveEditor(points: Int, overridden: Boolean, onReset: () -> Unit, onChange: (Int) -> Unit) {
-    val pts = io.github.horse3903.airdeck.data.unpackCurve(points)
-    val line = MaterialTheme.colorScheme.primary
+private fun MiniCurve(f: (Float) -> Float, modifier: Modifier, color: Color) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val path = androidx.compose.ui.graphics.Path()
+        for (i in 0..40) {
+            val x = i / 40f
+            val y = f(x)
+            if (i == 0) path.moveTo(0f, size.height - y * size.height) else path.lineTo(x * size.width, size.height - y * size.height)
+        }
+        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f))
+    }
+}
+
+private val SensColor = Color(0xFFCBB78D)
+private val UsageColor = Color(0xFF71B69A)
+private val NegColor = Color(0xFFCF7777)
+
+/** Moves point [i] to (x, y), keeping the points in order and, unless decreasing curves are allowed, never below the one on its left or above the one on its right. */
+private fun placed(c: Curve, i: Int, x: Int, y: Int): Curve {
+    val pv = c.points.getOrNull(i - 1)
+    val nx = c.points.getOrNull(i + 1)
+    val lo = (pv?.first ?: 0) + 1
+    val hi = (nx?.first ?: 100) - 1
+    val px = x.coerceIn(lo, maxOf(lo, hi))
+    var py = y.coerceIn(0, 100)
+    if (!c.free) py = py.coerceIn(pv?.second ?: 0, nx?.second ?: 100)
+    return c.copy(points = c.points.mapIndexed { n, p -> if (n == i) px to py else p })
+}
+
+private fun sensOf(f: (Float) -> Float, v: Float): Float {
+    val h = 0.004f
+    val a = (v - h).coerceAtLeast(0f)
+    val b = (v + h).coerceAtMost(1f)
+    return (f(b) - f(a)) / (b - a)
+}
+
+@Composable
+private fun StepField(label: String, value: Int?, enabled: Boolean, onChange: (Int) -> Unit) {
+    Column {
+        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { onChange(-1) }, enabled = enabled, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(32.dp)) { Text("−") }
+            Text(if (value == null) "-" else "$value%", fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.width(46.dp))
+            OutlinedButton(onClick = { onChange(1) }, enabled = enabled, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(32.dp)) { Text("+") }
+        }
+    }
+}
+
+/**
+ * A response curve setting that folds away. Closed it shows the preset in use and a small preview. Open it is a tuning workspace:
+ * preset cards, an editing toolbar for Custom, the main graph on the left and on the right the analysis (the values at the chosen point,
+ * the sensitivity of the curve and, where it applies, where the stick or trigger has actually been). Tap the graph to add a point
+ * (up to 10), drag to move one, double tap to remove it. Touching a preset's graph turns it into an editable Custom curve.
+ * Output may only rise unless decreasing curves are allowed.
+ */
+@Composable
+private fun CurveSection(
+    title: String,
+    helper: String,
+    kind: Int,
+    custom: Curve,
+    overridden: Boolean,
+    onReset: () -> Unit,
+    onApply: (Int?, Curve?) -> Unit,
+    inLabel: String,
+    outLabel: String,
+    indent: Dp = 0.dp,
+    usageLabel: String? = null,
+    usageSet: io.github.horse3903.airdeck.data.Usage? = null,
+    captions: List<Int> = listOf(R.string.curve_cap_linear, R.string.curve_cap_precise, R.string.curve_cap_quick, R.string.curve_cap_custom),
+) {
+    var expanded by rememberSaveable(title) { mutableStateOf(false) }
+    val names = listOf(R.string.curve_linear, R.string.curve_precise, R.string.curve_quick, R.string.curve_custom)
+    val line = MaterialTheme.colorScheme.onSurface
     val faint = MaterialTheme.colorScheme.outlineVariant
-    val dot = MaterialTheme.colorScheme.onSurface
-    SettingRow(label = stringResource(R.string.pref_curve_custom), labelExtra = { ResetChip(overridden, onReset) }, helper = stringResource(R.string.pref_curve_custom_desc), indent = 16.dp) {
-        var current by remember(points) { mutableStateOf(pts) }
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier
-                .size(150.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                .pointerInput(Unit) {
-                    var which = -1
-                    detectDragGestures(
-                        onDragStart = { o ->
-                            val idx = (o.x / size.width * 4f).let { Math.round(it) }.coerceIn(1, 3)
-                            which = idx - 1
-                        },
-                        onDragEnd = { onChange(io.github.horse3903.airdeck.data.packCurve(current[0], current[1], current[2])) },
-                        onDragCancel = { onChange(io.github.horse3903.airdeck.data.packCurve(current[0], current[1], current[2])) }
-                    ) { change, _ ->
-                        change.consume()
-                        if (which >= 0) {
-                            val v = ((1f - change.position.y / size.height) * 100f).toInt().coerceIn(0, 100)
-                            current = current.copyOf().also { it[which] = v }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val k = kind.coerceIn(0, 3)
+    var cur by remember(custom) { mutableStateOf(custom) }
+    var sel by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    var probe by remember { androidx.compose.runtime.mutableFloatStateOf(50f) }
+    var menu by remember { mutableStateOf(false) }
+    var advanced by remember { mutableStateOf(false) }
+    var analysisOpen by remember { mutableStateOf(false) }
+    val undo = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    val redo = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(expanded, usageSet) {
+        while (expanded && usageSet != null) { kotlinx.coroutines.delay(500); tick++ }
+    }
+    val latestKind = androidx.compose.runtime.rememberUpdatedState(k)
+    val apply = androidx.compose.runtime.rememberUpdatedState(onApply)
+    val active: (Float) -> Float = { applyCurve(k, cur, it) }
+    fun snap() { undo.add(cur.encode()); if (undo.size > 50) undo.removeAt(0); redo.clear() }
+    fun commit(c: Curve) { cur = c; apply.value(null, c) }
+    fun toCustom() {
+        if (latestKind.value != 3) {
+            val seed = Curve.fromKind(latestKind.value)
+            cur = seed
+            apply.value(3, seed)
+        }
+    }
+
+    Column(modifier = Modifier.widthIn(max = SETTINGS_WIDTH).fillMaxWidth().padding(start = 24.dp + indent, end = 24.dp, top = 6.dp, bottom = 6.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        ResetChip(overridden, onReset)
+                    }
+                    Text(helper, fontSize = 12.5.sp, color = muted)
+                }
+                if (!expanded) {
+                    Text(stringResource(names[k]), fontSize = 13.sp, color = muted, modifier = Modifier.padding(horizontal = 10.dp))
+                    MiniCurve(active, Modifier.size(48.dp, 36.dp), line)
+                }
+                Text(if (expanded) "⌃" else "›", fontSize = 20.sp, color = muted, modifier = Modifier.padding(start = 10.dp))
+            }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = expanded,
+                enter = androidx.compose.animation.expandVertically(tween(180)) + fadeIn(tween(180)),
+                exit = androidx.compose.animation.shrinkVertically(tween(150)) + fadeOut(tween(150))
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    var maxS = 0f
+                    var minS = 0f
+                    val sensSamples = FloatArray(129) { i -> if (k == 3) cur.sensitivity(i / 128f) else sensOf(active, i / 128f) }
+                    for (v in sensSamples) { maxS = maxOf(maxS, v); minS = minOf(minS, v) }
+                    val paint = remember { android.graphics.Paint().apply { isAntiAlias = true } }
+
+                    // presets
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        for (i in 0..3) {
+                            val selected = k == i
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(1.5.dp, if (selected) line else faint, RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        if (i == 3 && cur.points.isEmpty()) {
+                                            val seed = Curve.fromKind(k)
+                                            cur = seed
+                                            onApply(3, seed)
+                                        } else onApply(i, null)
+                                    }
+                                    .padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                MiniCurve({ applyCurve(i, if (i == 3) cur else Curve.Linear, it) }, Modifier.size(30.dp, 22.dp), if (selected) line else muted)
+                                Column(modifier = Modifier.padding(start = 6.dp)) {
+                                    Text(stringResource(names[i]), fontSize = 12.sp, fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal, maxLines = 1)
+                                    Text(stringResource(captions[i]), fontSize = 9.sp, color = muted, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+
+                    // editing toolbar, Custom only
+                    if (k == 3) Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        io.github.horse3903.airdeck.ui.composables.SegmentedChoice(
+                            options = listOf(true, false), selected = cur.smooth,
+                            onSelect = { v -> snap(); commit(cur.copy(smooth = v)) },
+                            modifier = Modifier.width(180.dp)
+                        ) { v, isSel ->
+                            Text(stringResource(if (v) R.string.curve_smooth else R.string.curve_linear), fontSize = 13.sp, fontWeight = if (isSel) FontWeight.Medium else FontWeight.Normal, maxLines = 1, softWrap = false)
+                        }
+                        Text("${cur.points.size} / ${io.github.horse3903.airdeck.data.MAX_CURVE_POINTS}", fontSize = 12.sp, color = muted, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { if (undo.isNotEmpty()) { redo.add(cur.encode()); commit(Curve.decode(undo.removeAt(undo.size - 1))) } }, enabled = undo.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(32.dp)) { Text("↶", fontSize = 16.sp) }
+                        TextButton(onClick = { if (redo.isNotEmpty()) { undo.add(cur.encode()); commit(Curve.decode(redo.removeAt(redo.size - 1))) } }, enabled = redo.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.height(32.dp)) { Text("↷", fontSize = 16.sp) }
+                        OutlinedButton(onClick = { snap(); sel = -1; commit(Curve(cur.smooth)) }, contentPadding = PaddingValues(horizontal = 10.dp), modifier = Modifier.height(32.dp)) { Text(stringResource(R.string.curve_clear), fontSize = 12.sp) }
+                        Box {
+                            OutlinedButton(onClick = { menu = true }, contentPadding = PaddingValues(horizontal = 10.dp), modifier = Modifier.height(32.dp)) { Text("⋯", fontSize = 14.sp) }
+                            androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.curve_copy)) },
+                                    onClick = { menu = false; clipboard.setText(androidx.compose.ui.text.AnnotatedString("AIRCURVE1:" + cur.encode())) }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.curve_paste)) },
+                                    onClick = {
+                                        menu = false
+                                        val t = clipboard.getText()?.text?.trim().orEmpty()
+                                        if (t.startsWith("AIRCURVE1:")) { snap(); sel = -1; commit(Curve.decode(t.removePrefix("AIRCURVE1:"))) }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    val mainBlock: @Composable () -> Unit = {
+                        Column(modifier = Modifier.width(310.dp)) {
+                            Text("$outLabel (%)", fontSize = 11.sp, color = muted, modifier = Modifier.padding(bottom = 4.dp))
+                            Row {
+                                Column(modifier = Modifier.height(280.dp).width(30.dp).padding(end = 6.dp), verticalArrangement = Arrangement.SpaceBetween, horizontalAlignment = Alignment.End) {
+                                    for (v in listOf(100, 75, 50, 25, 0)) Text("$v", fontSize = 10.sp, color = muted)
+                                }
+                                androidx.compose.foundation.Canvas(
+                                    modifier = Modifier
+                                        .size(280.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                                        .pointerInput(Unit) {
+                                            val hit = 26.dp.toPx()
+                                            fun pts() = if (latestKind.value == 3) cur.points else Curve.fromKind(latestKind.value).points
+                                            fun nearest(o: androidx.compose.ui.geometry.Offset): Int {
+                                                var best = -1
+                                                var bestD = hit
+                                                pts().forEachIndexed { i, p ->
+                                                    val d = (androidx.compose.ui.geometry.Offset(p.first / 100f * size.width, size.height - p.second / 100f * size.height) - o).getDistance()
+                                                    if (d < bestD) { bestD = d; best = i }
+                                                }
+                                                return best
+                                            }
+                                            detectTapGestures(
+                                                onDoubleTap = { o ->
+                                                    val i = nearest(o)
+                                                    if (i >= 0) {
+                                                        snap(); toCustom()
+                                                        sel = -1
+                                                        commit(Curve.clean(cur.smooth, cur.points.filterIndexed { n, _ -> n != i }, cur.free))
+                                                    }
+                                                },
+                                                onTap = { o ->
+                                                    val i = nearest(o)
+                                                    probe = (o.x / size.width * 100f).coerceIn(0f, 100f)
+                                                    if (i >= 0) { snap(); toCustom(); sel = i; probe = cur.points.getOrNull(i)?.first?.toFloat() ?: probe }
+                                                    else if (pts().size < io.github.horse3903.airdeck.data.MAX_CURVE_POINTS) {
+                                                        snap(); toCustom()
+                                                        val x = (o.x / size.width * 100f).toInt()
+                                                        val y = ((1f - o.y / size.height) * 100f).toInt()
+                                                        val c = Curve.clean(cur.smooth, cur.points + (x to y), cur.free)
+                                                        sel = c.points.indexOfFirst { it.first == x.coerceIn(1, 99) }
+                                                        commit(c)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                        .pointerInput(Unit) {
+                                            val hit = 26.dp.toPx()
+                                            var which = -1
+                                            detectDragGestures(
+                                                onDragStart = { o ->
+                                                    which = -1
+                                                    var bestD = hit
+                                                    val list = if (latestKind.value == 3) cur.points else Curve.fromKind(latestKind.value).points
+                                                    list.forEachIndexed { i, p ->
+                                                        val d = (androidx.compose.ui.geometry.Offset(p.first / 100f * size.width, size.height - p.second / 100f * size.height) - o).getDistance()
+                                                        if (d < bestD) { bestD = d; which = i }
+                                                    }
+                                                    if (which >= 0) { snap(); toCustom(); sel = which }
+                                                },
+                                                onDragEnd = { if (which >= 0) apply.value(null, cur) },
+                                                onDragCancel = { if (which >= 0) apply.value(null, cur) }
+                                            ) { change, _ ->
+                                                change.consume()
+                                                if (which >= 0) {
+                                                    val x = (change.position.x / size.width * 100f).toInt()
+                                                    val y = ((1f - change.position.y / size.height) * 100f).toInt()
+                                                    cur = placed(cur, which, x, y)
+                                                    probe = cur.points[which].first.toFloat()
+                                                }
+                                            }
+                                        }
+                                ) {
+                                    val w = size.width
+                                    val h = size.height
+                                    for (i in 1..3) {
+                                        drawLine(faint.copy(alpha = 0.4f), androidx.compose.ui.geometry.Offset(w * i / 4f, 0f), androidx.compose.ui.geometry.Offset(w * i / 4f, h), strokeWidth = 1f)
+                                        drawLine(faint.copy(alpha = 0.4f), androidx.compose.ui.geometry.Offset(0f, h * i / 4f), androidx.compose.ui.geometry.Offset(w, h * i / 4f), strokeWidth = 1f)
+                                    }
+                                    drawLine(
+                                        faint, androidx.compose.ui.geometry.Offset(0f, h), androidx.compose.ui.geometry.Offset(w, 0f), strokeWidth = 2f,
+                                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(14f, 10f))
+                                    )
+                                    val path = androidx.compose.ui.graphics.Path()
+                                    for (i in 0..100) {
+                                        val x = i / 100f
+                                        val y = active(x)
+                                        if (i == 0) path.moveTo(0f, h - y * h) else path.lineTo(x * w, h - y * h)
+                                    }
+                                    drawPath(path, line, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f))
+                                    drawLine(muted.copy(alpha = 0.6f), androidx.compose.ui.geometry.Offset(probe / 100f * w, 0f), androidx.compose.ui.geometry.Offset(probe / 100f * w, h), strokeWidth = 1.5f)
+                                    if (k == 3) cur.points.forEachIndexed { i, pt ->
+                                        val c = androidx.compose.ui.geometry.Offset(pt.first / 100f * w, h - pt.second / 100f * h)
+                                        if (i == sel) {
+                                            drawCircle(line, 22f, c, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f))
+                                            drawCircle(line, 15f, c)
+                                        } else drawCircle(line, 11f, c)
+                                    }
+                                }
+                            }
+                            Row(modifier = Modifier.padding(start = 30.dp).width(280.dp).padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                for (v in listOf(0, 25, 50, 75, 100)) Text("$v", fontSize = 10.sp, color = muted)
+                            }
+                            Text("$inLabel (%)", fontSize = 11.sp, color = muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(start = 30.dp).width(280.dp))
+                            if (k == 3) Text(stringResource(R.string.curve_hint), fontSize = 11.sp, color = muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(start = 30.dp, top = 2.dp).width(280.dp))
+                        }
+                    }
+
+                    val analysisBlock: @Composable () -> Unit = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                            val f = active
+                            val s = if (k == 3) cur.sensitivity(probe / 100f) else sensOf(f, probe / 100f)
+                            Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                Text(if (sel >= 0 && k == 3) stringResource(R.string.curve_selected).uppercase() else "AT ${probe.toInt()}% INPUT", fontSize = 9.sp, color = muted)
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Column(modifier = Modifier.weight(1f)) { Text(inLabel, fontSize = 10.sp, color = muted, maxLines = 1); Text("${probe.toInt()}%", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+                                    Column(modifier = Modifier.weight(1f)) { Text(outLabel, fontSize = 10.sp, color = muted, maxLines = 1); Text("${(f(probe / 100f) * 1000).toInt() / 10f}%", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+                                    Column(modifier = Modifier.weight(1f)) { Text(stringResource(R.string.curve_sens_label), fontSize = 10.sp, color = muted, maxLines = 1); Text("${(s * 100).toInt() / 100f}x", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (s < 0f) NegColor else Color.Unspecified) }
+                                }
+                            }
+                            TextButton(onClick = { analysisOpen = !analysisOpen }, contentPadding = PaddingValues(horizontal = 4.dp), modifier = Modifier.height(30.dp)) {
+                                Text(stringResource(R.string.curve_analysis) + if (analysisOpen) " \u2303" else " \u2304", fontSize = 12.sp, color = muted)
+                            }
+                            if (analysisOpen) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column {
+                                Text(stringResource(R.string.curve_sensitivity), fontSize = 11.sp, color = muted, modifier = Modifier.padding(bottom = 2.dp))
+                                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxWidth().height(86.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))) {
+                                    val w = size.width
+                                    val h = size.height
+                                    val top = kotlin.math.ceil(maxS * 1.1f).coerceIn(2f, 8f)
+                                    val bot = if (minS < 0f) kotlin.math.floor(minS * 1.1f).coerceAtLeast(-4f) else 0f
+                                    fun yOf(v: Float) = h - (v.coerceIn(bot, top) - bot) / (top - bot) * h
+                                    for (i in 1..3) drawLine(faint.copy(alpha = 0.4f), androidx.compose.ui.geometry.Offset(w * i / 4f, 0f), androidx.compose.ui.geometry.Offset(w * i / 4f, h), strokeWidth = 1f)
+                                    drawLine(faint, androidx.compose.ui.geometry.Offset(0f, yOf(0f)), androidx.compose.ui.geometry.Offset(w, yOf(0f)), strokeWidth = 1.5f)
+                                    drawLine(
+                                        muted, androidx.compose.ui.geometry.Offset(0f, yOf(1f)), androidx.compose.ui.geometry.Offset(w, yOf(1f)), strokeWidth = 1.5f,
+                                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f, 9f))
+                                    )
+                                    for (i in 1..128) {
+                                        val neg = sensSamples[i] < 0f || sensSamples[i - 1] < 0f
+                                        drawLine(
+                                            if (neg) NegColor else SensColor,
+                                            androidx.compose.ui.geometry.Offset((i - 1) / 128f * w, yOf(sensSamples[i - 1])), androidx.compose.ui.geometry.Offset(i / 128f * w, yOf(sensSamples[i])), strokeWidth = 4f
+                                        )
+                                    }
+                                    drawLine(muted.copy(alpha = 0.6f), androidx.compose.ui.geometry.Offset(probe / 100f * w, 0f), androidx.compose.ui.geometry.Offset(probe / 100f * w, h), strokeWidth = 1.5f)
+                                    paint.color = muted.toArgb()
+                                    paint.textSize = 10.sp.toPx()
+                                    drawContext.canvas.nativeCanvas.drawText("${top.toInt()}x", 6f, paint.textSize + 2f, paint)
+                                    drawContext.canvas.nativeCanvas.drawText("1x", 6f, yOf(1f) - 4f, paint)
+                                }
+                                Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    for (v in listOf(0, 25, 50, 75, 100)) Text("$v", fontSize = 10.sp, color = muted)
+                                }
+                            }
+                            if (usageSet != null && usageLabel != null) {
+                                @Suppress("UNUSED_EXPRESSION") tick
+                                Column {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Text(usageLabel, fontSize = 11.sp, color = muted)
+                                        OutlinedButton(onClick = { usageSet.clear(); tick++ }, contentPadding = PaddingValues(horizontal = 10.dp), modifier = Modifier.height(28.dp)) {
+                                            Text(stringResource(R.string.curve_usage_reset), fontSize = 11.sp)
+                                        }
+                                    }
+                                    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxWidth().height(72.dp).padding(top = 4.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))) {
+                                        val w = size.width
+                                        val h = size.height
+                                        for (i in 1..3) drawLine(faint.copy(alpha = 0.4f), androidx.compose.ui.geometry.Offset(w * i / 4f, 0f), androidx.compose.ui.geometry.Offset(w * i / 4f, h), strokeWidth = 1f)
+                                        val bins = usageSet.bins
+                                        var mx = 1
+                                        for (b in bins) mx = maxOf(mx, b)
+                                        if (usageSet.samples == 0) {
+                                            paint.color = muted.toArgb()
+                                            paint.textSize = 11.sp.toPx()
+                                            drawContext.canvas.nativeCanvas.drawText(ctx.getString(R.string.curve_usage_empty), 10f, h / 2 + 4f, paint)
+                                        } else {
+                                            val bw = w / bins.size
+                                            for (i in bins.indices) {
+                                                val bh = bins[i].toFloat() / mx * h
+                                                drawRect(UsageColor, androidx.compose.ui.geometry.Offset(i * bw + 1f, h - bh), androidx.compose.ui.geometry.Size(bw - 2f, bh))
+                                            }
+                                        }
+                                        drawLine(muted.copy(alpha = 0.6f), androidx.compose.ui.geometry.Offset(probe / 100f * w, 0f), androidx.compose.ui.geometry.Offset(probe / 100f * w, h), strokeWidth = 1.5f)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        for (v in listOf(0, 25, 50, 75, 100)) Text("$v", fontSize = 10.sp, color = muted)
+                                    }
+                                    val total = usageSet.bins.sum()
+                                    if (total > 0) {
+                                        val b = usageSet.bins
+                                        val fine = b.take(12).sum() * 100 / total
+                                        val full = b.drop(38).sum() * 100 / total
+                                        Text("Fine $fine%   Mid ${100 - fine - full}%   Full $full%", fontSize = 11.sp, color = muted, modifier = Modifier.padding(top = 2.dp))
+                                    }
+                                }
+                            }
+                            }
+                            if (minS < -0.01f) Text(stringResource(R.string.curve_warn_neg), fontSize = 12.sp, color = NegColor)
+                            if (maxS > 6f) Text(stringResource(R.string.curve_warn_steep), fontSize = 12.sp, color = SensColor)
+                        }
+                    }
+
+                    androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        if (maxWidth >= 640.dp) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                                mainBlock()
+                                Box(modifier = Modifier.weight(1f)) { analysisBlock() }
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { mainBlock(); analysisBlock() }
+                        }
+                    }
+
+                    if (k == 3) {
+                        val sp = cur.points.getOrNull(sel)
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.curve_selected).uppercase(), fontSize = 11.sp, color = muted, modifier = Modifier.padding(bottom = 8.dp))
+                            StepField(stringResource(R.string.curve_input), sp?.first, sp != null) { d -> snap(); commit(placed(cur, sel, cur.points[sel].first + d, cur.points[sel].second)); probe = cur.points[sel].first.toFloat() }
+                            StepField(stringResource(R.string.curve_output), sp?.second, sp != null) { d -> snap(); commit(placed(cur, sel, cur.points[sel].first, cur.points[sel].second + d)) }
+                            TextButton(
+                                onClick = { snap(); val i = sel; sel = -1; commit(Curve.clean(cur.smooth, cur.points.filterIndexed { n, _ -> n != i }, cur.free)) },
+                                enabled = sp != null, contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) { Text(stringResource(R.string.curve_remove), fontSize = 12.sp) }
+                        }
+                        TextButton(onClick = { advanced = !advanced }, contentPadding = PaddingValues(horizontal = 4.dp), modifier = Modifier.height(30.dp)) {
+                            Text(stringResource(R.string.curve_advanced) + if (advanced) " ⌃" else " ⌄", fontSize = 12.sp, color = muted)
+                        }
+                        if (advanced) Row(verticalAlignment = Alignment.CenterVertically) {
+                            Switch(
+                                checked = cur.free,
+                                onCheckedChange = { v -> snap(); commit(Curve.clean(cur.smooth, cur.points, v)) },
+                                modifier = Modifier.scale(0.8f)
+                            )
+                            Text(stringResource(R.string.curve_allow_decreasing), fontSize = 13.sp)
                         }
                     }
                 }
-        ) {
-            val w = size.width
-            val h = size.height
-            drawLine(faint, androidx.compose.ui.geometry.Offset(0f, h), androidx.compose.ui.geometry.Offset(w, 0f), strokeWidth = 2f)
-            val xs = floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f)
-            val ys = floatArrayOf(0f, current[0] / 100f, current[1] / 100f, current[2] / 100f, 1f)
-            for (i in 0 until 4) {
-                drawLine(line, androidx.compose.ui.geometry.Offset(xs[i] * w, h - ys[i] * h), androidx.compose.ui.geometry.Offset(xs[i + 1] * w, h - ys[i + 1] * h), strokeWidth = 5f)
             }
-            for (i in 1..3) drawCircle(dot, 11f, androidx.compose.ui.geometry.Offset(xs[i] * w, h - ys[i] * h))
         }
     }
 }
@@ -518,10 +921,11 @@ fun SettingsScreen(
                 }
                 Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                     CategoryItem(stringResource(R.string.sec_appearance), selected = page == "appearance") { page = "appearance" }
+                    CategoryItem(stringResource(R.string.layouts_title), selected = page == "layouts") { page = "layouts" }
                     CategoryItem(
-                        stringResource(R.string.layouts_title), selected = page == "layouts",
+                        stringResource(R.string.sec_controls), selected = false,
                         expanded = playExpanded, onToggle = { playExpanded = !playExpanded }
-                    ) { page = "layouts" }
+                    ) { playExpanded = !playExpanded }
                     AnimatedVisibility(visible = playExpanded) {
                         Column(modifier = Modifier.padding(start = 14.dp)) {
                             listOf(
@@ -584,6 +988,14 @@ fun SettingsScreen(
                 fun chg(key: String, value: Int, global: () -> Unit) {
                     if (scopeLayout) applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour + (key to value)) } else global()
                 }
+                fun curveChange(kindKey: String, prefix: String, kind: Int?, c: Curve?, apply: (AppPrefs, Int?, Curve?) -> AppPrefs) {
+                    if (scopeLayout) {
+                        var m = behaviour
+                        if (kind != null) m = m + (kindKey to kind)
+                        if (c != null) m = m - Curve.keys(prefix).toSet() + c.toInts(prefix)
+                        applyScope.launch { settingsRepository.setLayoutBehaviour(m) }
+                    } else save(apply(prefs, kind, c))
+                }
                 val hapShown = if (scopeLayout) hapticPrefs.withBehaviour(behaviour) else hapticPrefs
                 val hapOn = if (scopeLayout) (behaviour["hap"]?.let { it != 0 } ?: hapticEnabled) else hapticEnabled
 
@@ -635,16 +1047,16 @@ fun SettingsScreen(
                             modifier = Modifier.scale(0.85f)
                         )
                     }
-                    ChoiceRow(
-                        stringResource(R.string.pref_tilt_curve), stringResource(R.string.pref_tilt_curve_desc), listOf(0, 1, 2, 3), shown.tiltCurve,
-                        { stringResource(curveNames[it]) }, overridden("tcurve"), { clearBehaviour("tcurve") }, indent = 16.dp
-                    ) { v -> change("tcurve", v) { save(prefs.copy(tiltCurve = v)) } }
-                    AnimatedVisibility(visible = shown.tiltCurve == 3) {
-                        CurveEditor(
-                            shown.tiltCurvePoints, overridden("tcurveP"), { clearBehaviour("tcurveP") },
-                            { v -> change("tcurveP", v) { save(prefs.copy(tiltCurvePoints = v)) } }
-                        )
-                    }
+                    CurveSection(
+                        stringResource(R.string.pref_tilt_curve), stringResource(R.string.pref_tilt_curve_desc),
+                        shown.tiltCurve, shown.tiltCurveCustom,
+                        scopeLayout && ("tcurve" in behaviour || "tM" in behaviour),
+                        { applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour - "tcurve" - Curve.keys("t").toSet()) } },
+                        { kd, c -> curveChange("tcurve", "t", kd, c) { p, k2, c2 -> p.copy(tiltCurve = k2 ?: p.tiltCurve, tiltCurveCustom = c2 ?: p.tiltCurveCustom) } },
+                        inLabel = "Tilt input", outLabel = "Steering output",
+                        captions = listOf(R.string.curve_cap_even, R.string.curve_cap_tilt_precise, R.string.curve_cap_tilt_quick, R.string.curve_cap_custom),
+                        indent = 16.dp
+                    )
                 } }
                 if (shown.tiltTarget != 1) ChoiceRow(
                     stringResource(R.string.pref_left_stick_position), stringResource(R.string.stick_position_desc),
@@ -675,16 +1087,16 @@ fun SettingsScreen(
                     stringResource(R.string.pref_sensitivity), stringResource(R.string.pref_sensitivity_desc), "${shown.sensitivity}%", shown.sensitivity, 50..150,
                     { change("sens", it) { save(prefs.copy(sensitivity = it)) } }, overridden = overridden("sens"), onReset = { clearBehaviour("sens") }
                 )
-                ChoiceRow(
-                    stringResource(R.string.pref_curve), stringResource(R.string.pref_curve_desc), listOf(0, 1, 2, 3), shown.stickCurve,
-                    { stringResource(curveNames[it]) }, overridden("curve"), { clearBehaviour("curve") }
-                ) { v -> change("curve", v) { save(prefs.copy(stickCurve = v)) } }
-                AnimatedVisibility(visible = shown.stickCurve == 3) {
-                    CurveEditor(
-                        shown.curvePoints, overridden("curveP"), { clearBehaviour("curveP") },
-                        { v -> change("curveP", v) { save(prefs.copy(curvePoints = v)) } }
-                    )
-                }
+                CurveSection(
+                    stringResource(R.string.pref_curve), stringResource(R.string.pref_curve_desc),
+                    shown.stickCurve, shown.curveCustom,
+                    scopeLayout && ("curve" in behaviour || "cM" in behaviour),
+                    { applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour - "curve" - Curve.keys("c").toSet()) } },
+                    { kd, c -> curveChange("curve", "c", kd, c) { p, k2, c2 -> p.copy(stickCurve = k2 ?: p.stickCurve, curveCustom = c2 ?: p.curveCustom) } },
+                    inLabel = "Stick input", outLabel = "Stick output",
+                    captions = listOf(R.string.curve_cap_linear, R.string.curve_cap_stick_precise, R.string.curve_cap_stick_quick, R.string.curve_cap_custom),
+                    usageLabel = "Stick usage", usageSet = io.github.horse3903.airdeck.data.StickUsage.stick
+                )
                 SwitchRow(stringResource(R.string.pref_click), stringResource(R.string.pref_click_desc), shown.clickEnabled, overridden("click"), { clearBehaviour("click") }) { v ->
                     change("click", if (v) 1 else 0) { save(prefs.copy(clickEnabled = v)) }
                 }
@@ -734,6 +1146,16 @@ fun SettingsScreen(
                     stringResource(R.string.pref_right_trigger_input), stringResource(offered[shown.triggerRight.coerceIn(0, 2)].descRes),
                     offered, offered[shown.triggerRight.coerceIn(0, 2)], { stringResource(it.nameRes) }, ov("trigR"), { clr("trigR") }
                 ) { m -> chg("trigR", offered.indexOf(m)) { save(prefs.copy(triggerRight = offered.indexOf(m))) } }
+                CurveSection(
+                    stringResource(R.string.pref_trigger_curve), stringResource(R.string.pref_trigger_curve_desc),
+                    shown.triggerCurve, shown.triggerCurveCustom,
+                    scopeLayout && ("rcurve" in behaviour || "rM" in behaviour),
+                    { applyScope.launch { settingsRepository.setLayoutBehaviour(behaviour - "rcurve" - Curve.keys("r").toSet()) } },
+                    { kd, c -> curveChange("rcurve", "r", kd, c) { p, k2, c2 -> p.copy(triggerCurve = k2 ?: p.triggerCurve, triggerCurveCustom = c2 ?: p.triggerCurveCustom) } },
+                    inLabel = "Trigger input", outLabel = "Trigger output",
+                    captions = listOf(R.string.curve_cap_even, R.string.curve_cap_trig_precise, R.string.curve_cap_trig_quick, R.string.curve_cap_custom),
+                    usageLabel = "Trigger usage", usageSet = io.github.horse3903.airdeck.data.StickUsage.trigger
+                )
 
                     }
                     "haptics" -> {
